@@ -309,62 +309,255 @@ class YunExpressService extends BaseCarrier {
     }
 
     /**
+     * Lấy danh sách sản phẩm vận chuyển có sẵn
+     * API: GET /v1/basic-data/products/getlist?country_code={countryCode}
+     * @param {string} countryCode - Mã quốc gia 2 ký tự (US, GB, AU...). Để trống = lấy tất cả
+     * @returns {Promise<Object>}
+     */
+    async getProductList(countryCode = '') {
+        try {
+            const method = 'GET';
+            const uri = '/v1/basic-data/products/getlist';
+            
+            // Build URL with query params
+            let url = `${this.baseUrl}${uri}`;
+            if (countryCode) {
+                url += `?country_code=${countryCode}`;
+            }
+            
+            const timestamp = Date.now().toString();
+
+            const token = await this.getToken();
+
+            // Signature cho GET không có body
+            const signatureContent = this.generateSignatureContent(
+                timestamp,
+                method,
+                uri
+            );
+            
+            const signature = this.generateSha256Signature(
+                signatureContent,
+                this.appSecret
+            );
+
+            logger.info('📦 Đang lấy danh sách products...', {
+                countryCode: countryCode || 'ALL'
+            });
+
+            const response = await axios.get(url, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Accept-Language': 'en-US',
+                    'token': token,
+                    'date': timestamp,
+                    'sign': signature
+                },
+                timeout: 30000
+            });
+
+            if (response.data && response.data.success) {
+                const products = response.data.detail || [];
+                
+                logger.info('✅ Đã lấy danh sách products:', {
+                    total: products.length,
+                    countryCode: countryCode || 'ALL'
+                });
+
+                return {
+                    success: true,
+                    total: products.length,
+                    products: products,
+                    timestamp: response.data.t
+                };
+            } else {
+                throw new Error('Invalid response from YunExpress products API');
+            }
+
+        } catch (error) {
+            logger.error('❌ Lỗi khi lấy danh sách products:', error.message);
+            
+            if (error.response?.data) {
+                logger.error('API Error Details:', {
+                    code: error.response.data.code,
+                    message: error.response.data.msg
+                });
+            }
+            
+            throw new Error(`Failed to get YunExpress products: ${error.message}`);
+        }
+    }
+
+    /**
      * Transform dữ liệu từ format chung sang format YunExpress
      */
     transformOrderData(orderData) {
-        return {
-            product_code: orderData.productCode || '',
+        // Validate required fields
+        if (!orderData.declarationInfo || orderData.declarationInfo.length === 0) {
+            throw new Error('Declaration info is required for YunExpress orders');
+        }
+
+        const transformedData = {
+            product_code: orderData.productCode, // VN-YTYCPREC
             customer_order_number: orderData.customerOrderNumber || '',
+            
             order_numbers: {
-                waybill_number: '',
-                platform_order_number: orderData.platformOrderNumber || '',
-                tracking_number: '',
+                waybill_number: '', // Để trống, hệ thống sẽ tự sinh
+                platform_order_number: orderData.platformOrderNumber || '', // Amazon Order ID
+                tracking_number: orderData.trackingNumber || '', // Để trống nếu chưa có
                 reference_numbers: orderData.referenceNumbers || []
             },
+            
             weight_unit: orderData.weightUnit || 'KG',
             size_unit: orderData.sizeUnit || 'CM',
-            packages: orderData.packages || [{
-                length: 10,
-                width: 10,
-                height: 10,
-                weight: 0.5
-            }],
+            
+            packages: orderData.packages.map(pkg => ({
+                length: pkg.length || 1,
+                width: pkg.width || 1,
+                height: pkg.height || 1,
+                weight: pkg.weight
+            })),
+            
             receiver: {
-                first_name: orderData.receiver.firstName,
-                last_name: orderData.receiver.lastName,
+                first_name: orderData.receiver.firstName, // Aniya
+                last_name: orderData.receiver.lastName || '', // bahar
                 company: orderData.receiver.company || '',
-                country_code: orderData.receiver.countryCode,
-                province: orderData.receiver.province || '',
-                city: orderData.receiver.city,
-                address_lines: orderData.receiver.addressLines,
-                postal_code: orderData.receiver.postalCode,
-                phone_number: orderData.receiver.phoneNumber,
+                country_code: orderData.receiver.countryCode, // US
+                province: orderData.receiver.province || '', // IL
+                city: orderData.receiver.city, // CHICAGO
+                address_lines: orderData.receiver.addressLines, // ["4734 S PRAIRIE AVE APT 3"]
+                postal_code: orderData.receiver.postalCode || '', // 60615-1688
+                phone_number: orderData.receiver.phoneNumber, // +1 314-282-9402
                 email: orderData.receiver.email || '',
                 certificate_type: orderData.receiver.certificateType || '',
                 certificate_code: orderData.receiver.certificateCode || ''
             },
-            declaration_info: orderData.declarationInfo || [],
-            sender: orderData.sender ? {
-                first_name: orderData.sender.firstName,
-                last_name: orderData.sender.lastName,
-                company: orderData.sender.company || '',
-                country_code: orderData.sender.countryCode,
-                province: orderData.sender.province || '',
-                city: orderData.sender.city,
-                address_lines: orderData.sender.addressLines,
-                postal_code: orderData.sender.postalCode,
-                phone_number: orderData.sender.phoneNumber,
-                email: orderData.sender.email || '',
-                certificate_type: orderData.sender.certificateType || '',
-                certificate_code: orderData.sender.certificateCode || ''
-            } : undefined,
-            customs_number: orderData.customsNumber || {},
+            
+            // Declaration info - QUAN TRỌNG
+            declaration_info: orderData.declarationInfo.map(item => {
+                const declItem = {
+                    sku_code: item.sku_code || '',
+                    name_local: item.name_local || '', // "定制贴纸"
+                    name_en: item.name_en, // "Custom Decal" - BẮT BUỘC
+                    quantity: item.quantity, // 1
+                    unit_price: item.unit_price, // 60 (FOB Price)
+                    unit_weight: item.unit_weight, // 0.023
+                    hs_code: item.hs_code || '',
+                    sales_url: item.sales_url || '',
+                    currency: item.currency || 'USD',
+                    material: item.material || '',
+                    purpose: item.purpose || '', // Mục đích sử dụng
+                    brand: item.brand || '',
+                    spec: item.spec || '',
+                    model: item.model || '',
+                    remark: item.remark || ''
+                };
+                
+                // Thêm selling_price nếu có
+                if (item.selling_price !== undefined && item.selling_price !== null) {
+                    declItem.selling_price = item.selling_price;
+                }
+                
+                // Thêm fabric_creation_method nếu có
+                if (item.fabric_creation_method) {
+                    declItem.fabric_creation_method = item.fabric_creation_method;
+                }
+                
+                // Thêm manufacturer info nếu có
+                if (item.manufacturer_id) declItem.manufacturer_id = item.manufacturer_id;
+                if (item.manufacturer_name) declItem.manufacturer_name = item.manufacturer_name;
+                if (item.manufacturer_address) declItem.manufacturer_address = item.manufacturer_address;
+                if (item.manufacturer_city) declItem.manufacturer_city = item.manufacturer_city;
+                if (item.manufacturer_province) declItem.manufacturer_province = item.manufacturer_province;
+                if (item.manufacturer_country) declItem.manufacturer_country = item.manufacturer_country;
+                if (item.manufacturer_postalcode) declItem.manufacturer_postalcode = item.manufacturer_postalcode;
+                
+                return declItem;
+            }),
+            
+            // Sender info (optional)
+            ...(orderData.sender && {
+                sender: {
+                    first_name: orderData.sender.firstName,
+                    last_name: orderData.sender.lastName || '',
+                    company: orderData.sender.company || '',
+                    country_code: orderData.sender.countryCode,
+                    province: orderData.sender.province || '',
+                    city: orderData.sender.city,
+                    address_lines: orderData.sender.addressLines,
+                    postal_code: orderData.sender.postalCode || '',
+                    phone_number: orderData.sender.phoneNumber,
+                    email: orderData.sender.email || '',
+                    certificate_type: orderData.sender.certificateType || '',
+                    certificate_code: orderData.sender.certificateCode || '',
+                    usci_code: orderData.sender.usci_code || '' // Unified Social Credit Code
+                }
+            }),
+            
+            // Customs number
+            customs_number: {
+                tax_number: orderData.customsNumber?.tax_number || '',
+                ioss_code: orderData.customsNumber?.ioss_code || '',
+                vat_code: orderData.customsNumber?.vat_code || '',
+                eori_number: orderData.customsNumber?.eori_number || ''
+            },
+            
+            // Extra services
             extra_services: orderData.extraServices || [],
+            
+            // Platform info
+            ...(orderData.platform && {
+                platform: {
+                    platform_name: orderData.platform.platform_name || '',
+                    province: orderData.platform.province || '',
+                    address: orderData.platform.address || '',
+                    postal_code: orderData.platform.postal_code || '',
+                    phone_number: orderData.platform.phone_number || '',
+                    email: orderData.platform.email || '',
+                    platform_code: orderData.platform.platform_code || ''
+                }
+            }),
+            
+            // Payment info
+            ...(orderData.payment && {
+                payment: {
+                    pay_platform: orderData.payment.pay_platform || '',
+                    pay_account: orderData.payment.pay_account || '',
+                    pay_transaction: orderData.payment.pay_transaction || ''
+                }
+            }),
+            
             platform_account_code: orderData.platformAccountCode || '',
             source_code: orderData.sourceCode || 'YT',
-            sensitive_type: orderData.sensitiveType || 'D',
-            label_type: orderData.labelType || 'PNG'
+            sensitive_type: orderData.sensitiveType || 'W',
+            label_type: orderData.labelType || 'PDF',
+            
+            // Goods type
+            ...(orderData.goodsType && {
+                goods_type: orderData.goodsType
+            }),
+            
+            // Dangerous goods
+            ...(orderData.dangerousGoodsType && {
+                dangerous_goods_type: orderData.dangerousGoodsType
+            }),
+            
+            // Pickup point
+            ...(orderData.pointRelaisNum && {
+                point_relais_num: orderData.pointRelaisNum
+            }),
+            
+            // Manufacturer sales name và credit code (cho Trung Quốc)
+            ...(orderData.manufactureSalesName && {
+                manufacture_sales_name: orderData.manufactureSalesName
+            }),
+            ...(orderData.creditCode && {
+                credit_code: orderData.creditCode
+            })
         };
+        
+        return transformedData;
     }
 
     /**

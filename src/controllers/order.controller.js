@@ -85,6 +85,22 @@ class OrderController {
         }
     }
 
+    async getProducts(req, res, next) {
+        try {
+            const { country_code } = req.query;
+            
+            const carrier = 'YUNEXPRESS';
+            const result = await orderService.getProducts(
+                country_code,
+                carrier
+            );
+            
+            return successResponse(res, result, 'Products retrieved successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
+
     /**
      * GET /api/orders/health
      * Health check

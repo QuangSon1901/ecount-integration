@@ -26,6 +26,14 @@ router.get('/carriers', orderController.getCarriers.bind(orderController));
 router.get('/tracking/:trackingNumber', orderController.trackByTrackingNumber.bind(orderController));
 
 /**
+ * @route   GET /api/orders/products
+ * @desc    Get list of available shipping products
+ * @access  Public
+ * @query   country_code - Optional 2-letter country code (US, GB, etc.)
+ */
+router.get('/products', orderController.getProducts.bind(orderController));
+
+/**
  * @route   POST /api/orders
  * @desc    Create order and update ERP (main flow)
  * @access  Private

@@ -56,7 +56,7 @@ class OrderService {
                 productCode: orderData.productCode,
                 trackingNumber: carrierResult.trackingNumber,
                 status: 'created',
-                erpStatus: orderData.erpStatus || 'Chờ xử lý',
+                erpStatus: orderData.erpStatus,
                 ecountLink: orderData.ecountLink || null, // Lưu hash link từ request
                 orderData: orderData,
                 carrierResponse: carrierResult.carrierResponse
@@ -280,6 +280,18 @@ class OrderService {
 
         } catch (error) {
             logger.error('❌ Lỗi tracking by tracking number:', error.message);
+            throw error;
+        }
+    }
+
+    async getProducts(country_code, carrierCode = 'YUNEXPRESS') {
+        try {
+            const carrier = carrierFactory.getCarrier(carrierCode);
+            const result = await carrier.getProductList(country_code);
+
+            return result;
+        } catch (error) {
+            logger.error('❌ Lỗi get products by country code:', error.message);
             throw error;
         }
     }
