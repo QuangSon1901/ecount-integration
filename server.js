@@ -1,5 +1,4 @@
 require('dotenv').config();
-process.env.TZ = process.env.TZ || 'Asia/Ho_Chi_Minh';
 
 const app = require('./src/app');
 const logger = require('./src/utils/logger');
@@ -11,7 +10,7 @@ logger.info('🌍 Timezone configuration:', {
     currentTime: new Date().toString(),
     ISOString: new Date().toISOString(),
     offset: new Date().getTimezoneOffset()
-});
+});``
 
 const server = app.listen(PORT, () => {
     logger.info(`🚀 Server đang chạy trên port ${PORT}`);

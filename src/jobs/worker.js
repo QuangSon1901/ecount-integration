@@ -49,15 +49,12 @@ class JobWorker {
      */
     async processJobs() {
         try {
-            // Reset stuck jobs trước
             await JobModel.resetStuckJobs(30);
 
-            // Lấy và xử lý jobs cho đến khi hết
             while (true) {
                 const job = await JobModel.getNextJob();
                 
                 if (!job) {
-                    // Không còn job nào
                     break;
                 }
 

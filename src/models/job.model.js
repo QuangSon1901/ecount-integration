@@ -70,10 +70,22 @@ class JobModel {
             
             await connection.commit();
             
-            // Parse JSON payload
-            job.payload = JSON.parse(job.payload);
-            if (job.result) {
-                job.result = JSON.parse(job.result);
+            // KHÔNG CẦN PARSE - MySQL driver đã parse JSON tự động
+            // Chỉ cần kiểm tra nếu là string mới parse
+            if (typeof job.payload === 'string') {
+                try {
+                    job.payload = JSON.parse(job.payload);
+                } catch (e) {
+                    logger.error(`Failed to parse payload for job ${job.id}:`, e);
+                }
+            }
+            
+            if (job.result && typeof job.result === 'string') {
+                try {
+                    job.result = JSON.parse(job.result);
+                } catch (e) {
+                    logger.error(`Failed to parse result for job ${job.id}:`, e);
+                }
             }
             
             return job;
