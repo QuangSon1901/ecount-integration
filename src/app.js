@@ -7,6 +7,7 @@ const errorMiddleware = require('./middlewares/error.middleware');
 const logger = require('./utils/logger');
 const db = require('./database/connection');
 const trackingCron = require('./jobs/tracking.cron');
+const queueService = require('./services/queue/queue.service');
 
 const app = express();
 
@@ -87,5 +88,24 @@ const initializeApp = async () => {
 
 // Initialize when app starts
 // initializeApp();
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+    logger.info('SIGTERM signal received: closing services');
+    
+    try {
+        // Close Redis queues
+        await queueService.closeAll();
+        
+        // Close HTTP server
+        server.close(() => {
+            logger.info('HTTP server closed');
+            process.exit(0);
+        });
+    } catch (error) {
+        logger.error('Error during shutdown:', error);
+        process.exit(1);
+    }
+});
 
 module.exports = app;
