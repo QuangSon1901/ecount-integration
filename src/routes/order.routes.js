@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const orderController = require('../controllers/order.controller');
 const { validateOrder, validateErpUpdate } = require('../middlewares/validation.middleware');
+const jobService = require('../services/queue/job.service');
 
 /**
  * @route   GET /api/orders/health
@@ -61,5 +62,53 @@ router.post('/create-only', validateOrder, orderController.createOrderOnly.bind(
  * @access  Private
  */
 router.post('/update-erp', validateErpUpdate, orderController.updateErpOnly.bind(orderController));
+
+/**
+ * @route   GET /api/orders/jobs/stats
+ * @desc    Get jobs statistics
+ */
+router.get('/jobs/stats', async (req, res, next) => {
+    try {
+        const stats = await jobService.getStats();
+        res.json({ success: true, data: stats });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * @route   GET /api/orders/jobs
+ * @desc    List jobs
+ */
+router.get('/jobs', async (req, res, next) => {
+    try {
+        const { status, jobType, limit } = req.query;
+        const jobs = await jobService.listJobs({ 
+            status, 
+            jobType, 
+            limit: parseInt(limit) || 100 
+        });
+        res.json({ success: true, data: jobs });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * @route   POST /api/orders/jobs/cleanup
+ * @desc    Cleanup old jobs
+ */
+router.post('/jobs/cleanup', async (req, res, next) => {
+    try {
+        const { daysOld } = req.body;
+        const count = await jobService.cleanup(daysOld || 7);
+        res.json({ 
+            success: true, 
+            message: `Cleaned up ${count} old jobs` 
+        });
+    } catch (error) {
+        next(error);
+    }
+});
 
 module.exports = router;

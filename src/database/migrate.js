@@ -262,6 +262,47 @@ const migrations = [
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             COMMENT='Bảng log API calls';
         `
+    },
+    {
+        version: 6,
+        name: 'create_jobs_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS jobs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                
+                -- Job info
+                job_type VARCHAR(50) NOT NULL COMMENT 'Loại job (tracking_number, update_erp...)',
+                status ENUM('pending', 'processing', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+                
+                -- Payload
+                payload JSON NOT NULL COMMENT 'Dữ liệu job',
+                
+                -- Retry logic
+                attempts INT DEFAULT 0 COMMENT 'Số lần đã thử',
+                max_attempts INT DEFAULT 6 COMMENT 'Số lần thử tối đa',
+                
+                -- Timing
+                available_at TIMESTAMP NOT NULL COMMENT 'Thời gian sẵn sàng để xử lý',
+                started_at TIMESTAMP NULL COMMENT 'Thời gian bắt đầu xử lý',
+                completed_at TIMESTAMP NULL COMMENT 'Thời gian hoàn thành',
+                
+                -- Result
+                result JSON COMMENT 'Kết quả sau khi xử lý',
+                error_message TEXT COMMENT 'Thông báo lỗi',
+                
+                -- Timestamps
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                
+                -- Indexes
+                INDEX idx_status (status),
+                INDEX idx_job_type (job_type),
+                INDEX idx_available_at (available_at),
+                INDEX idx_status_available (status, available_at),
+                INDEX idx_created_at (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='Bảng quản lý jobs queue';
+        `
     }
 ];
 
@@ -293,6 +334,7 @@ async function runMigrations(fresh = false) {
             await connection.query('DROP TABLE IF EXISTS tracking_logs');
             await connection.query('DROP TABLE IF EXISTS cron_logs');
             await connection.query('DROP TABLE IF EXISTS orders');
+            await connection.query('DROP TABLE IF EXISTS jobs');
             await connection.query('DROP TABLE IF EXISTS migrations');
             await connection.query('SET FOREIGN_KEY_CHECKS = 1');
             

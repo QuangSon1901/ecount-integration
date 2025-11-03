@@ -1,5 +1,6 @@
 const carrierFactory = require('./carriers');
 const ecountService = require('./erp/ecount.service');
+const jobService = require('./queue/job.service');
 const OrderModel = require('../models/order.model');
 const logger = require('../utils/logger');
 
@@ -27,14 +28,10 @@ class OrderService {
                 hasEcountLink: !!orderData.ecountLink
             });
 
-            // Step 1: Validate carrier
+            // Step 1-3: Validate và tạo đơn với carrier (giữ nguyên)
             const carrierCode = (orderData.carrier || 'YUNEXPRESS').toUpperCase();
             const carrier = carrierFactory.getCarrier(carrierCode);
-
-            // Step 2: Validate order data
             carrier.validateOrderData(orderData);
-
-            // Step 3: Create order with carrier
             const carrierResult = await carrier.createOrder(orderData);
 
             if (!carrierResult.success) {
@@ -47,60 +44,10 @@ class OrderService {
                 trackingNumber: carrierResult.trackingNumber || 'Chưa có'
             });
 
-            // Step 4: Get tracking number if not available immediately
-            let trackingNumber = carrierResult.trackingNumber;
-            let finalOrderInfo = carrierResult.carrierResponse;
-            
-            if (!trackingNumber || trackingNumber === '') {
-                logger.info('⏳ Tracking number chưa có, đang lấy từ order info...');
-                
-                // Retry logic: thử lấy tracking number trong 30s
-                const maxRetries = 6;
-                const retryDelay = 5000; // 5s
-                
-                for (let i = 0; i < maxRetries; i++) {
-                    try {
-                        // Đợi một chút trước khi retry
-                        if (i > 0) {
-                            await this.sleep(retryDelay);
-                        }
-                        
-                        // Lấy thông tin đơn hàng bằng waybill_number hoặc customer_order_number
-                        const orderCode = carrierResult.waybillNumber || carrierResult.customerOrderNumber;
-                        const orderInfo = await carrier.getOrderInfo(orderCode);
-                        
-                        if (orderInfo.success && orderInfo.data.trackingNumber) {
-                            trackingNumber = orderInfo.data.trackingNumber;
-                            finalOrderInfo = orderInfo.data;
-                            
-                            logger.info('✅ Đã lấy được tracking number:', {
-                                trackingNumber,
-                                attempt: i + 1
-                            });
-                            break;
-                        }
-                        
-                        logger.info(`⏳ Tracking number chưa có, thử lại lần ${i + 1}/${maxRetries}...`);
-                        
-                    } catch (error) {
-                        logger.warn(`⚠️ Lỗi khi lấy order info (lần ${i + 1}):`, error.message);
-                        
-                        // Nếu đã hết retry, tiếp tục xử lý với tracking number rỗng
-                        if (i === maxRetries - 1) {
-                            logger.warn('⚠️ Không thể lấy tracking number sau nhiều lần thử, tiếp tục lưu đơn hàng');
-                        }
-                    }
-                }
-            }
-
-            // Step 5: Save to database
+            // Step 4: Save to database (giữ nguyên phần này)
             const orderNumber = this.generateOrderNumber();
-            
-            // Lấy thông tin từ packages để tính toán
             const firstPackage = orderData.packages?.[0] || {};
             const totalWeight = orderData.packages?.reduce((sum, pkg) => sum + (pkg.weight || 0), 0) || null;
-            
-            // Lấy thông tin từ declaration để tính tổng giá trị
             const declaredValue = orderData.declarationInfo?.reduce(
                 (sum, item) => sum + ((item.unit_price || 0) * (item.quantity || 0)), 
                 0
@@ -114,18 +61,14 @@ class OrderService {
                 carrier: carrierCode,
                 productCode: orderData.productCode,
                 waybillNumber: carrierResult.waybillNumber || null,
-                trackingNumber: trackingNumber || null,
+                trackingNumber: carrierResult.trackingNumber || null,
                 barCodes: carrierResult.barCodes || null,
-                
-                // Package info
                 packageWeight: totalWeight,
                 packageLength: firstPackage.length || null,
                 packageWidth: firstPackage.width || null,
                 packageHeight: firstPackage.height || null,
                 weightUnit: orderData.weightUnit || 'KG',
                 sizeUnit: orderData.sizeUnit || 'CM',
-                
-                // Receiver info
                 receiverName: orderData.receiver ? 
                     `${orderData.receiver.firstName} ${orderData.receiver.lastName}`.trim() : null,
                 receiverCountry: orderData.receiver?.countryCode || null,
@@ -134,70 +77,69 @@ class OrderService {
                 receiverPostalCode: orderData.receiver?.postalCode || null,
                 receiverPhone: orderData.receiver?.phoneNumber || null,
                 receiverEmail: orderData.receiver?.email || null,
-                
-                // Declaration info
                 declaredValue: declaredValue,
                 declaredCurrency: orderData.declarationInfo?.[0]?.currency || 'USD',
                 itemsCount: orderData.declarationInfo?.length || 0,
-                
-                // Status
-                status: trackingNumber ? 'created' : 'pending',
+                status: carrierResult.trackingNumber ? 'created' : 'pending',
                 trackType: carrierResult.trackType || null,
                 remoteArea: carrierResult.remoteArea || null,
-                
-                // ERP
                 erpStatus: orderData.erpStatus || 'Chờ xử lý',
                 ecountLink: orderData.ecountLink || null,
-                
-                // Additional
                 extraServices: orderData.extraServices || [],
                 sensitiveType: orderData.sensitiveType || null,
                 goodsType: orderData.goodsType || null,
                 vatNumber: orderData.customsNumber?.vat_code || null,
                 iossCode: orderData.customsNumber?.ioss_code || null,
                 eoriNumber: orderData.customsNumber?.eori_number || null,
-                
-                // Full data
                 orderData: orderData,
-                carrierResponse: finalOrderInfo
+                carrierResponse: carrierResult.carrierResponse
             });
 
             logger.info('✅ Đã lưu đơn hàng vào database', { 
                 orderId, 
                 orderNumber,
-                trackingNumber: trackingNumber || 'Chưa có'
+                trackingNumber: carrierResult.trackingNumber || 'Chưa có'
             });
 
-            // Step 6: Update ERP (ECount) if conditions met
-            let erpResult = null;
-            // if (orderData.erpOrderCode && orderData.ecountLink && trackingNumber) {
-            //     try {
-            //         erpResult = await ecountService.updateTrackingNumber(
-            //             orderId,
-            //             orderData.erpOrderCode,
-            //             trackingNumber,
-            //             orderData.erpStatus || 'Đã hoàn tất',
-            //             orderData.ecountLink
-            //         );
+            // Step 5: Xử lý tracking number
+            let trackingNumber = carrierResult.trackingNumber;
+            let jobInfo = null;
+            
+            if (!trackingNumber || trackingNumber === '') {
+                logger.info('⏳ Tracking number chưa có, thêm vào queue để lấy sau...');
+                
+                const orderCode = carrierResult.waybillNumber || carrierResult.customerOrderNumber;
+                
+                try {
+                    const jobId = await jobService.addTrackingNumberJob(
+                        orderId,
+                        orderCode,
+                        carrierCode,
+                        5 // Delay 5 giây
+                    );
                     
-            //         // Update ERP status in DB
-            //         await OrderModel.update(orderId, {
-            //             erpUpdated: true,
-            //             erpStatus: orderData.erpStatus || 'Đã hoàn tất'
-            //         });
+                    jobInfo = {
+                        jobId: jobId,
+                        status: 'queued',
+                        message: 'Tracking number will be fetched automatically'
+                    };
                     
-            //         logger.info('✅ Đã cập nhật ERP thành công');
-            //     } catch (erpError) {
-            //         logger.error('⚠️ Lỗi khi cập nhật ERP (đơn hàng vẫn được tạo):', erpError.message);
-            //         // Không throw error, vì đơn hàng đã tạo thành công
-            //     }
-            // } else {
-            //     if (!trackingNumber) {
-            //         logger.info('ℹ️ Bỏ qua cập nhật ERP (tracking number chưa có)');
-            //     } else if (!orderData.erpOrderCode || !orderData.ecountLink) {
-            //         logger.info('ℹ️ Bỏ qua cập nhật ERP (thiếu erpOrderCode hoặc ecountLink)');
-            //     }
-            // }
+                    logger.info('✅ Đã thêm job vào queue', {
+                        jobId,
+                        orderId,
+                        orderCode
+                    });
+                    
+                } catch (queueError) {
+                    logger.error('⚠️ Không thể thêm job vào queue:', queueError.message);
+                    
+                    jobInfo = {
+                        status: 'queue_failed',
+                        error: queueError.message,
+                        message: 'Failed to queue tracking number job, please check manually'
+                    };
+                }
+            }
 
             return {
                 success: true,
@@ -210,21 +152,19 @@ class OrderService {
                     trackType: carrierResult.trackType,
                     remoteArea: carrierResult.remoteArea,
                     carrier: carrierCode,
-                    carrierResponse: finalOrderInfo,
-                    erpUpdated: erpResult ? erpResult.success : false,
-                    erpResult: erpResult,
+                    carrierResponse: carrierResult.carrierResponse,
                     ecountLink: orderData.ecountLink || null,
-                    hasTrackingNumber: !!trackingNumber
+                    hasTrackingNumber: !!trackingNumber,
+                    trackingNumberJob: jobInfo
                 },
                 message: trackingNumber ? 
                     'Order processed successfully' : 
-                    'Order created successfully, tracking number will be generated later'
+                    'Order created successfully, tracking number will be fetched automatically'
             };
 
         } catch (error) {
             logger.error('❌ Lỗi xử lý đơn hàng:', error.message);
             
-            // Nếu đã tạo record trong DB, cập nhật status thành failed
             if (orderId) {
                 await OrderModel.update(orderId, { 
                     status: 'failed',

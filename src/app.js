@@ -7,7 +7,7 @@ const errorMiddleware = require('./middlewares/error.middleware');
 const logger = require('./utils/logger');
 const db = require('./database/connection');
 const trackingCron = require('./jobs/tracking.cron');
-const queueService = require('./services/queue/queue.service');
+const jobWorker = require('./jobs/worker');
 
 const app = express();
 
@@ -74,11 +74,12 @@ const initializeApp = async () => {
     try {
         // Test database connection
         await db.testConnection();
-        logger.info('✅ Database connected');
+
+        jobWorker.start();
 
         // Start cron jobs
-        trackingCron.start();
-        logger.info('✅ Cron jobs started');
+        // trackingCron.start();
+        // logger.info('✅ Cron jobs started');
 
     } catch (error) {
         logger.error('❌ Failed to initialize app:', error);
@@ -87,15 +88,14 @@ const initializeApp = async () => {
 };
 
 // Initialize when app starts
-// initializeApp();
+initializeApp();
 
-// Graceful shutdown
 process.on('SIGTERM', async () => {
     logger.info('SIGTERM signal received: closing services');
     
     try {
-        // Close Redis queues
-        await queueService.closeAll();
+        // Stop job worker
+        jobWorker.stop();
         
         // Close HTTP server
         server.close(() => {
