@@ -102,6 +102,26 @@ class OrderController {
     }
 
     /**
+     * GET /api/orders/info/:orderCode
+     * Lấy thông tin chi tiết đơn hàng
+     */
+    async getOrderInfo(req, res, next) {
+        try {
+            const { orderCode } = req.params;
+            const { carrier } = req.query;
+            
+            const result = await orderService.getOrderInfo(
+                orderCode,
+                carrier || 'YUNEXPRESS'
+            );
+            
+            return successResponse(res, result.data, result.message);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
      * GET /api/orders/health
      * Health check
      */

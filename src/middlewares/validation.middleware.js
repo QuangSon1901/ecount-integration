@@ -4,7 +4,7 @@ const { errorResponse } = require('../utils/response');
 // Schema cho receiver
 const receiverSchema = Joi.object({
     firstName: Joi.string().required(),
-    lastName: Joi.string().required(),
+    lastName: Joi.string().allow(''),
     company: Joi.string().allow(''),
     countryCode: Joi.string().required(),
     province: Joi.string().allow(''),

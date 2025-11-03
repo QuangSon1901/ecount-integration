@@ -82,6 +82,10 @@ class OrderModel {
             const fields = [];
             const values = [];
             
+            if (updateData.waybillNumber !== undefined) {
+                fields.push('waybill_number = ?');
+                values.push(updateData.waybillNumber);
+            }
             if (updateData.trackingNumber !== undefined) {
                 fields.push('tracking_number = ?');
                 values.push(updateData.trackingNumber);
@@ -109,6 +113,10 @@ class OrderModel {
             if (updateData.deliveredAt !== undefined) {
                 fields.push('delivered_at = ?');
                 values.push(updateData.deliveredAt);
+            }
+            if (updateData.errorInfo !== undefined) {
+                fields.push('error_info = ?');
+                values.push(JSON.stringify(updateData.errorInfo));
             }
             
             values.push(id);

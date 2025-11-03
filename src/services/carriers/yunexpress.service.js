@@ -96,14 +96,13 @@ class YunExpressService extends BaseCarrier {
             const method = 'POST';
             const uri = '/v1/order/package/create';
             const url = `${this.baseUrl}${uri}`;
-            const timestamp = Date.now().toString(); // Bỏ + '000'
+            const timestamp = Date.now().toString();
 
             const token = await this.getToken();
 
             const bodyData = this.transformOrderData(orderData);
             const bodyString = JSON.stringify(bodyData);
 
-            // Signature content cho POST: body={JSON}&date=xxx&method=POST&uri=xxx
             const signatureContent = this.generateSignatureContent(
                 timestamp,
                 method,
@@ -131,21 +130,28 @@ class YunExpressService extends BaseCarrier {
                 timeout: 30000
             });
 
-            logger.info('✅ Đã tạo đơn hàng thành công:', response.data);
+            logger.info('✅ Response từ YunExpress:', response.data);
+
+            const result = response.data.result || response.data;
 
             return {
                 success: true,
-                trackingNumber: response.data.waybill_number || response.data.tracking_number,
+                waybillNumber: result.waybill_number,
+                customerOrderNumber: result.customer_order_number,
+                trackingNumber: result.tracking_number || '', // Có thể rỗng
+                barCodes: result.bar_codes || '',
+                trackType: result.track_type,
+                remoteArea: result.remote_area,
                 carrierResponse: response.data,
                 carrier: 'YUNEXPRESS'
             };
 
         } catch (error) {
             logger.error('❌ Lỗi khi tạo đơn YunExpress:', error.response?.data || error.message);
-            throw new Error(`YunExpress order creation failed: ${error.response?.data?.message || error.message}`);
+            throw new Error(`YunExpress order creation failed: ${error.response?.data?.msg || error.message}`);
         }
     }
-
+    
     /**
      * Tracking đơn hàng
      * API: GET /v1/track-service/info/get?order_number={trackingNumber}
@@ -390,6 +396,121 @@ class YunExpressService extends BaseCarrier {
     }
 
     /**
+     * Lấy thông tin chi tiết đơn hàng
+     * API: GET /v1/order/info/get?order_number={orderNumber}
+     * @param {string} orderNumber - Waybill number, customer order number, hoặc tracking number
+     * @returns {Promise<Object>}
+     */
+    async getOrderInfo(orderNumber) {
+        try {
+            const method = 'GET';
+            const uri = '/v1/order/info/get';
+            const url = `${this.baseUrl}${uri}?order_number=${orderNumber}`;
+            const timestamp = Date.now().toString();
+
+            const token = await this.getToken();
+
+            // Signature cho GET không có body
+            const signatureContent = this.generateSignatureContent(
+                timestamp,
+                method,
+                uri
+            );
+            
+            const signature = this.generateSha256Signature(
+                signatureContent,
+                this.appSecret
+            );
+
+            logger.info('📋 Đang lấy thông tin đơn hàng:', orderNumber);
+
+            const response = await axios.get(url, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Accept-Language': 'en-US',
+                    'token': token,
+                    'date': timestamp,
+                    'sign': signature
+                },
+                timeout: 30000
+            });
+
+            if (response.data && response.data.success) {
+                const result = response.data.result;
+                
+                logger.info('✅ Đã lấy thông tin đơn hàng:', {
+                    waybillNumber: result.waybill_number,
+                    customerOrderNumber: result.customer_order_number,
+                    status: result.status,
+                    productCode: result.product_code
+                });
+
+                return {
+                    success: true,
+                    data: {
+                        waybillNumber: result.waybill_number,
+                        customerOrderNumber: result.customer_order_number,
+                        trackingNumber: result.tracking_number,
+                        productCode: result.product_code,
+                        platformAccountCode: result.platform_account_code,
+                        pieces: result.pieces,
+                        weightUnit: result.weight_unit,
+                        sizeUnit: result.size_unit,
+                        status: result.status,
+                        statusDescription: this.parseOrderStatus(result.status),
+                        sensitiveType: result.sensitive_type,
+                        sourceCode: result.source_code,
+                        chargeWeight: result.chargeWeight,
+                        packages: result.packages,
+                        receiver: result.receiver,
+                        sender: result.sender,
+                        declarationInfo: result.declaration_info
+                    },
+                    timestamp: response.data.t
+                };
+            } else {
+                throw new Error('Invalid response from YunExpress order info API');
+            }
+
+        } catch (error) {
+            logger.error('❌ Lỗi khi lấy thông tin đơn hàng:', error.message);
+            
+            if (error.response?.data) {
+                logger.error('API Error Details:', {
+                    code: error.response.data.code,
+                    message: error.response.data.msg
+                });
+                throw new Error(`YunExpress API Error: ${error.response.data.msg || error.response.data.code}`);
+            }
+            
+            throw new Error(`Failed to get YunExpress order info: ${error.message}`);
+        }
+    }
+
+    /**
+     * Parse order status từ YunExpress
+     * @param {string} status - Status code từ YunExpress
+     * @returns {string} Status description
+     */
+    parseOrderStatus(status) {
+        const statusMap = {
+            'Draft': 'Nháp',
+            'T': 'Đã xử lý',
+            'C': 'Đã xóa',
+            'S': 'Đã dự báo',
+            'R': 'Đã nhận',
+            'D': 'Hết hàng',
+            'F': 'Đã trả lại',
+            'Q': 'Đã hủy bỏ',
+            'P': 'Đã nhận bồi thường',
+            'V': 'Đã ký nhận'
+        };
+        
+        return statusMap[status] || status;
+    }
+
+    /**
      * Transform dữ liệu từ format chung sang format YunExpress
      */
     transformOrderData(orderData) {
@@ -572,7 +693,7 @@ class YunExpressService extends BaseCarrier {
             }
         }
 
-        const receiverRequired = ['firstName', 'lastName', 'countryCode', 'city', 'addressLines', 'phoneNumber'];
+        const receiverRequired = ['firstName', 'countryCode', 'city', 'addressLines', 'phoneNumber'];
         for (const field of receiverRequired) {
             if (!orderData.receiver[field]) {
                 throw new Error(`Missing required receiver field: ${field}`);

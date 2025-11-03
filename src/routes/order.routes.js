@@ -34,6 +34,14 @@ router.get('/tracking/:trackingNumber', orderController.trackByTrackingNumber.bi
 router.get('/products', orderController.getProducts.bind(orderController));
 
 /**
+ * @route   GET /api/orders/info/:orderCode
+ * @desc    Get order details by order code (waybill number, customer order number, or tracking number)
+ * @access  Public
+ * @query   carrier - Optional carrier code (default: YUNEXPRESS)
+ */
+router.get('/info/:orderCode', orderController.getOrderInfo.bind(orderController));
+
+/**
  * @route   POST /api/orders
  * @desc    Create order and update ERP (main flow)
  * @access  Private
