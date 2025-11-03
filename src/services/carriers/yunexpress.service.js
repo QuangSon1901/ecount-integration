@@ -19,29 +19,23 @@ class YunExpressService extends BaseCarrier {
      * Tạo signature content
      */
     generateSignatureContent(timestamp, method, uri, body = null) {
-        const params = {
-            date: timestamp,
-            method: method,
-            uri: uri
-        };
+        const params = {};
         
         if (body) {
             params.body = body;
         }
         
-        // Sort keys
-        const sortedKeys = Object.keys(params).sort();
-        const sortedParams = {};
-        sortedKeys.forEach(key => {
-            sortedParams[key] = params[key];
-        });
+        params.date = timestamp;
+        params.method = method;
+        params.uri = uri;
         
-        // Build query string
-        const queryString = Object.entries(sortedParams)
-            .map(([key, value]) => `${key}=${value}`)
+        const sortedKeys = Object.keys(params).sort();
+        
+        const queryString = sortedKeys
+            .map(key => `${key}=${params[key]}`)
             .join('&');
         
-        return decodeURIComponent(queryString);
+        return queryString;
     }
 
     /**
@@ -57,7 +51,6 @@ class YunExpressService extends BaseCarrier {
      * Lấy access token
      */
     async getToken() {
-        // Check cache
         if (this.tokenCache && this.tokenExpiry && Date.now() < this.tokenExpiry) {
             return this.tokenCache;
         }
@@ -82,7 +75,6 @@ class YunExpressService extends BaseCarrier {
 
             if (response.data && response.data.accessToken) {
                 this.tokenCache = response.data.accessToken;
-                // Token expires in 2 hours, cache for 1.5 hours
                 this.tokenExpiry = Date.now() + (90 * 60 * 1000);
                 
                 logger.info('✅ Đã lấy token thành công');
@@ -104,32 +96,31 @@ class YunExpressService extends BaseCarrier {
             const method = 'POST';
             const uri = '/v1/order/package/create';
             const url = `${this.baseUrl}${uri}`;
-            const timestamp = Date.now().toString() + '000';
+            const timestamp = Date.now().toString(); // Bỏ + '000'
 
-            // Get token
             const token = await this.getToken();
 
-            // Prepare body
             const bodyData = this.transformOrderData(orderData);
             const bodyString = JSON.stringify(bodyData);
 
-            // Generate signature
+            // Signature content cho POST: body={JSON}&date=xxx&method=POST&uri=xxx
             const signatureContent = this.generateSignatureContent(
                 timestamp,
                 method,
                 uri,
                 bodyString
             );
+            
             const signature = this.generateSha256Signature(
                 signatureContent,
                 this.appSecret
             );
 
             logger.info('📦 Đang tạo đơn hàng YunExpress...', {
-                customerOrderNumber: orderData.customerOrderNumber
+                customerOrderNumber: orderData.customerOrderNumber,
+                signatureContent: signatureContent.substring(0, 100) + '...'
             });
 
-            // Make request
             const response = await axios.post(url, bodyString, {
                 headers: {
                     'Content-Type': 'application/json',
@@ -153,6 +144,160 @@ class YunExpressService extends BaseCarrier {
             logger.error('❌ Lỗi khi tạo đơn YunExpress:', error.response?.data || error.message);
             throw new Error(`YunExpress order creation failed: ${error.response?.data?.message || error.message}`);
         }
+    }
+
+    /**
+     * Tracking đơn hàng
+     * API: GET /v1/track-service/info/get?order_number={trackingNumber}
+     */
+    async trackOrder(trackingNumber) {
+        try {
+            const method = 'GET';
+            const uri = '/v1/track-service/info/get';
+            const url = `${this.baseUrl}${uri}?order_number=${trackingNumber}`;
+            const timestamp = Date.now().toString();
+
+            const token = await this.getToken();
+
+            const signatureContent = this.generateSignatureContent(
+                timestamp,
+                method,
+                uri
+            );
+            
+            const signature = this.generateSha256Signature(
+                signatureContent,
+                this.appSecret
+            );
+
+            logger.info('🔍 Đang tracking đơn hàng:', trackingNumber);
+
+            const response = await axios.get(url, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'token': token,
+                    'date': timestamp,
+                    'sign': signature
+                },
+                timeout: 30000
+            });
+
+            // Parse response đúng cấu trúc của YunExpress
+            const responseData = response.data?.response || response.data;
+            
+            // Kiểm tra success
+            if (!responseData.success) {
+                logger.error('❌ YunExpress tracking failed:', {
+                    code: responseData.code,
+                    message: responseData.msg
+                });
+                throw new Error(responseData.msg || 'Tracking failed');
+            }
+
+            // Lấy tracking info từ result array
+            const trackingData = responseData.result?.[0];
+            
+            if (!trackingData) {
+                throw new Error('No tracking data found in response');
+            }
+
+            const trackInfo = trackingData.track_Info;
+
+            logger.info('✅ Đã lấy thông tin tracking:', {
+                trackingNumber,
+                waybillNumber: trackInfo?.waybill_number,
+                status: trackingData.package_status,
+                productName: trackInfo?.product_name,
+                eventsCount: trackInfo?.track_events?.length || 0
+            });
+
+            return {
+                success: true,
+                trackingNumber: trackingNumber,
+                waybillNumber: trackInfo?.waybill_number,
+                customerOrderNumber: trackInfo?.customer_order_number,
+                packageStatus: trackingData.package_status,
+                trackingInfo: {
+                    productCode: trackInfo?.product_code,
+                    productName: trackInfo?.product_name,
+                    channelCode: trackInfo?.channel_code,
+                    checkInTime: trackInfo?.check_in_time,
+                    checkOutTime: trackInfo?.check_out_time,
+                    actualWeight: trackInfo?.actual_weight,
+                    lastMileName: trackInfo?.last_mile_name,
+                    lastMileSite: trackInfo?.last_mile_site,
+                    phoneNumber: trackInfo?.phone_number,
+                    originCode: trackInfo?.origin_code,
+                    destinationCode: trackInfo?.destination_code
+                },
+                events: trackInfo?.track_events || [],
+                status: this.parseTrackingStatus(trackingData.package_status, trackInfo),
+                lastUpdate: trackInfo?.track_events?.[trackInfo.track_events.length - 1]?.process_time || new Date().toISOString()
+            };
+
+        } catch (error) {
+            // Xử lý lỗi response từ YunExpress
+            if (error.response?.data) {
+                const errorData = error.response.data;
+                
+                logger.error('❌ YunExpress API Error:', {
+                    code: errorData.code,
+                    message: errorData.msg,
+                    trackingNumber
+                });
+                throw new Error(`YunExpress tracking failed: ${errorData.msg || errorData.code}`);
+            }
+            
+            logger.error('❌ Lỗi khi tracking:', {
+                message: error.message,
+                response: error.response?.data
+            });
+            throw new Error(`YunExpress tracking failed: ${error.response?.data?.response?.msg || error.message}`);
+        }
+    }
+
+    /**
+     * Parse tracking status từ YunExpress sang status chuẩn
+     * YunExpress package_status codes:
+     * - "T" = In Transit
+     * - "D" = Delivered
+     * - "C" = Created/Pending
+     * - "R" = Returned
+     * - "X" = Exception/Problem
+     */
+    parseTrackingStatus(packageStatus, trackInfo = null) {
+        // Map package_status code
+        const statusMap = {
+            'T': 'in_transit',      // Transit
+            'D': 'delivered',       // Delivered
+            'C': 'created',         // Created
+            'P': 'created',         // Pending
+            'R': 'returned',        // Returned
+            'X': 'exception',       // Exception
+            'N': 'cancelled'        // Cancelled
+        };
+        
+        const status = statusMap[packageStatus?.toUpperCase()] || 'unknown';
+        
+        // Kiểm tra thêm từ track_events nếu cần
+        if (trackInfo?.track_events?.length > 0) {
+            const latestEvent = trackInfo.track_events[trackInfo.track_events.length - 1];
+            const eventCode = latestEvent.track_node_code?.toLowerCase() || '';
+            
+            // Các node codes quan trọng
+            if (eventCode.includes('delivered') || eventCode.includes('pod')) {
+                return 'delivered';
+            }
+            if (eventCode.includes('exception') || eventCode.includes('problem')) {
+                return 'exception';
+            }
+            if (eventCode.includes('returned') || eventCode.includes('return')) {
+                return 'returned';
+            }
+        }
+        
+        return status;
     }
 
     /**
@@ -226,7 +371,6 @@ class YunExpressService extends BaseCarrier {
             }
         }
 
-        // Validate receiver
         const receiverRequired = ['firstName', 'lastName', 'countryCode', 'city', 'addressLines', 'phoneNumber'];
         for (const field of receiverRequired) {
             if (!orderData.receiver[field]) {
@@ -235,15 +379,6 @@ class YunExpressService extends BaseCarrier {
         }
 
         return true;
-    }
-
-    /**
-     * Tracking đơn hàng
-     */
-    async trackOrder(trackingNumber) {
-        // Implement tracking logic if needed
-        logger.info(`Tracking order: ${trackingNumber}`);
-        return { trackingNumber, status: 'pending' };
     }
 }
 

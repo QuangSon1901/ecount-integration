@@ -8,6 +8,12 @@ class ECountService {
     constructor() {
         this.config = config.ecount;
         this.puppeteerConfig = config.puppeteer;
+        
+        // Tạo thư mục screenshots nếu chưa có
+        this.screenshotDir = path.join(__dirname, '../../../logs/screenshots');
+        if (!fs.existsSync(this.screenshotDir)) {
+            fs.mkdirSync(this.screenshotDir, { recursive: true });
+        }
     }
 
     async sleep(ms) {
@@ -16,12 +22,23 @@ class ECountService {
 
     /**
      * Cập nhật tracking number vào ECount
+     * @param {number} orderId - ID order trong DB
+     * @param {string} orderCode - Mã đơn hàng trong ECount
+     * @param {string} trackingNumber - Tracking number
+     * @param {string} status - Trạng thái cần cập nhật
+     * @param {string} ecountLink - Hash link đầy đủ từ ECount
      */
-    async updateTrackingNumber(orderCode, trackingNumber, status = 'Đã hoàn tất') {
+    async updateTrackingNumber(orderId, orderCode, trackingNumber, status = 'Đã hoàn tất', ecountLink) {
         logger.info('🤖 Bắt đầu cập nhật tracking vào ECount...', {
+            orderId,
             orderCode,
-            trackingNumber
+            trackingNumber,
+            hasEcountLink: !!ecountLink
         });
+
+        if (!ecountLink) {
+            throw new Error('ECount link is required');
+        }
 
         const browser = await puppeteer.launch({
             headless: this.puppeteerConfig.headless,
@@ -56,8 +73,8 @@ class ECountService {
             // Login
             await this.login(page);
 
-            // Navigate to order management
-            await this.navigateToOrderManagement(page);
+            // Navigate to order management với hash link cụ thể
+            await this.navigateToOrderManagement(page, ecountLink);
 
             // Search for order
             await this.searchOrder(page, orderCode);
@@ -69,6 +86,7 @@ class ECountService {
 
             return {
                 success: true,
+                orderId,
                 orderCode,
                 trackingNumber,
                 updatedAt: new Date().toISOString()
@@ -77,25 +95,45 @@ class ECountService {
         } catch (error) {
             logger.error('❌ Lỗi khi cập nhật ECount:', error.message);
 
-            // Screenshot for debugging
+            // Screenshot và HTML cho debugging
             if (page) {
-                try {
-                    const screenshotPath = path.join(
-                        __dirname,
-                        '../../../',
-                        `ecount-error-${Date.now()}.png`
-                    );
-                    await page.screenshot({ path: screenshotPath, fullPage: true });
-                    logger.info(`📸 Đã lưu screenshot: ${screenshotPath}`);
-                } catch (e) {
-                    logger.error('Không thể lưu screenshot:', e.message);
-                }
+                await this.saveDebugInfo(page, orderCode);
             }
 
             throw error;
 
         } finally {
             await browser.close();
+        }
+    }
+
+    /**
+     * Lưu screenshot và HTML khi có lỗi
+     */
+    async saveDebugInfo(page, orderCode) {
+        try {
+            const timestamp = Date.now();
+            const safeOrderCode = orderCode.replace(/[^a-zA-Z0-9]/g, '_');
+            
+            // Screenshot
+            const screenshotPath = path.join(
+                this.screenshotDir,
+                `error_${safeOrderCode}_${timestamp}.png`
+            );
+            await page.screenshot({ path: screenshotPath, fullPage: true });
+            logger.info(`📸 Screenshot lưu tại: ${screenshotPath}`);
+            
+            // HTML
+            const htmlPath = path.join(
+                this.screenshotDir,
+                `error_${safeOrderCode}_${timestamp}.html`
+            );
+            const html = await page.content();
+            fs.writeFileSync(htmlPath, html);
+            logger.info(`📄 HTML lưu tại: ${htmlPath}`);
+            
+        } catch (e) {
+            logger.error('⚠️ Không thể lưu debug files:', e.message);
         }
     }
 
@@ -142,8 +180,13 @@ class ECountService {
         }
     }
 
-    async navigateToOrderManagement(page) {
-        logger.info('📍 Điều hướng đến quản lý đơn hàng...');
+    /**
+     * Điều hướng đến quản lý đơn hàng với hash link cụ thể
+     * @param {Page} page - Puppeteer page
+     * @param {string} ecountLink - Hash link đầy đủ, ví dụ: "#menuType=MENUTREE_000004&menuSeq=..."
+     */
+    async navigateToOrderManagement(page, ecountLink) {
+        logger.info('📍 Điều hướng đến quản lý đơn hàng với link:', ecountLink);
 
         await this.sleep(3000);
         await page.waitForFunction(
@@ -155,8 +198,10 @@ class ECountService {
         const urlObj = new URL(currentUrl);
         const baseUrl = urlObj.origin + urlObj.pathname + urlObj.search;
 
-        const menuHash = "#menuType=MENUTREE_000004&menuSeq=MENUTREE_000030&groupSeq=MENUTREE_000030&prgId=C000030";
-        const targetUrl = `${baseUrl}${menuHash}`;
+        // Sử dụng hash link từ parameter thay vì config cố định
+        const targetUrl = `${baseUrl}${ecountLink}`;
+
+        logger.info('🔗 Target URL:', targetUrl);
 
         await page.goto(targetUrl, {
             waitUntil: 'networkidle2',

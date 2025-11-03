@@ -8,9 +8,8 @@ node_modules/
 logs/
 *.log
 
-# Screenshots
-*.png
-*.html
+# Screenshots và debug files
+logs/screenshots/
 
 # OS
 .DS_Store

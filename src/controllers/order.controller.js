@@ -69,6 +69,22 @@ class OrderController {
         }
     }
 
+    async trackByTrackingNumber(req, res, next) {
+        try {
+            const { trackingNumber } = req.params;
+            const { carrier } = req.query;
+            
+            const result = await orderService.trackByTrackingNumber(
+                trackingNumber,
+                carrier
+            );
+            
+            return successResponse(res, result.data, result.message);
+        } catch (error) {
+            next(error);
+        }
+    }
+
     /**
      * GET /api/orders/health
      * Health check

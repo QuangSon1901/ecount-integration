@@ -72,16 +72,18 @@ const orderSchema = Joi.object({
     sensitiveType: Joi.string().valid('D', 'N').default('D'),
     labelType: Joi.string().valid('PNG', 'PDF').default('PNG'),
     
-    // ERP fields
+    // ERP fields - QUAN TRỌNG: ecountLink từ extension
     erpOrderCode: Joi.string().allow(''),
-    erpStatus: Joi.string().default('Đã hoàn tất')
+    erpStatus: Joi.string().default('Đã hoàn tất'),
+    ecountLink: Joi.string().allow('').description('Full hash link từ ECount, ví dụ: #menuType=MENUTREE_000004&menuSeq=MENUTREE_000030...')
 });
 
 // Schema cho ERP update
 const erpUpdateSchema = Joi.object({
     erpOrderCode: Joi.string().required(),
     trackingNumber: Joi.string().required(),
-    status: Joi.string().default('Đã hoàn tất')
+    status: Joi.string().default('Đã hoàn tất'),
+    ecountLink: Joi.string().allow('').description('Full hash link từ ECount')
 });
 
 /**
