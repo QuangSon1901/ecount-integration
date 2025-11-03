@@ -53,7 +53,7 @@ class OrderModel {
                     orderData.status || 'pending',
                     orderData.trackType || null,
                     orderData.remoteArea || null,
-                    orderData.erpStatus || 'Chờ xử lý',
+                    orderData.erpStatus || 'Đang xử lý',
                     orderData.ecountLink || null,
                     JSON.stringify(orderData.extraServices || []),
                     orderData.sensitiveType || null,

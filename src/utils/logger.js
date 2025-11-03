@@ -16,32 +16,38 @@ const customFormat = winston.format.combine(
     })
 );
 
-// Create logger
-const logger = winston.createLogger({
-    level: process.env.LOG_LEVEL || 'info',
-    format: customFormat,
-    transports: [
-        // Console transport
+const transports = [
+    // File transport - errors
+    new winston.transports.File({
+        filename: path.join(logDir, 'error.log'),
+        level: 'error',
+        maxsize: 5242880, // 5MB
+        maxFiles: 5
+    }),
+    // File transport - all logs
+    new winston.transports.File({
+        filename: path.join(logDir, 'combined.log'),
+        maxsize: 5242880, // 5MB
+        maxFiles: 5
+    })
+];
+
+if (process.env.NODE_ENV === 'development') {
+    transports.push(
         new winston.transports.Console({
             format: winston.format.combine(
                 winston.format.colorize(),
                 customFormat
             )
-        }),
-        // File transport - errors
-        new winston.transports.File({
-            filename: path.join(logDir, 'error.log'),
-            level: 'error',
-            maxsize: 5242880, // 5MB
-            maxFiles: 5
-        }),
-        // File transport - all logs
-        new winston.transports.File({
-            filename: path.join(logDir, 'combined.log'),
-            maxsize: 5242880, // 5MB
-            maxFiles: 5
         })
-    ]
+    );
+}
+
+// Create logger
+const logger = winston.createLogger({
+    level: process.env.LOG_LEVEL || 'info',
+    format: customFormat,
+    transports: transports
 });
 
 // Create logs directory if not exists

@@ -49,7 +49,7 @@ const migrations = [
                 
                 -- Status tracking
                 status ENUM(
-                    'pending',           -- Chờ xử lý
+                    'pending',           -- Đang xử lý
                     'created',           -- Đã tạo đơn carrier
                     'in_transit',        -- Đang vận chuyển
                     'out_for_delivery',  -- Đang giao hàng
@@ -64,7 +64,7 @@ const migrations = [
                 remote_area ENUM('Y', 'N') COMMENT 'Khu vực xa xôi',
                 
                 -- ERP status
-                erp_status VARCHAR(50) DEFAULT 'Chờ xử lý' COMMENT 'Trạng thái trong ERP',
+                erp_status VARCHAR(50) DEFAULT 'Đang xử lý' COMMENT 'Trạng thái trong ERP',
                 erp_updated BOOLEAN DEFAULT FALSE COMMENT 'Đã cập nhật ERP',
                 ecount_link TEXT COMMENT 'Hash link ECount',
                 
@@ -312,7 +312,7 @@ async function runMigrations(fresh = false) {
     try {
         connection = await db.getConnection();
         
-        logger.info('🚀 Starting database migration...');
+        logger.info('Starting database migration...');
         
         // Create migrations table
         await connection.query(`
@@ -327,7 +327,7 @@ async function runMigrations(fresh = false) {
         
         // Drop all tables if fresh migration
         if (fresh) {
-            logger.warn('⚠️  Running fresh migration - dropping all tables...');
+            logger.warn('Running fresh migration - dropping all tables...');
             await connection.query('SET FOREIGN_KEY_CHECKS = 0');
             await connection.query('DROP TABLE IF EXISTS api_logs');
             await connection.query('DROP TABLE IF EXISTS carrier_labels');
@@ -359,7 +359,7 @@ async function runMigrations(fresh = false) {
         // Run pending migrations
         for (const migration of migrations) {
             if (!executedVersions.includes(migration.version)) {
-                logger.info(`📝 Running migration ${migration.version}: ${migration.name}`);
+                logger.info(`Running migration ${migration.version}: ${migration.name}`);
                 
                 await connection.query(migration.up);
                 await connection.query(
@@ -367,13 +367,13 @@ async function runMigrations(fresh = false) {
                     [migration.version, migration.name]
                 );
                 
-                logger.info(`✅ Migration ${migration.version} completed`);
+                logger.info(`Migration ${migration.version} completed`);
             } else {
-                logger.info(`⏭️  Migration ${migration.version} already executed`);
+                logger.info(`Migration ${migration.version} already executed`);
             }
         }
         
-        logger.info('🎉 All migrations completed successfully!');
+        logger.info('All migrations completed successfully!');
         
         // Show table summary
         const [tables] = await connection.query(`
@@ -385,13 +385,13 @@ async function runMigrations(fresh = false) {
             ORDER BY TABLE_NAME
         `);
         
-        logger.info('📊 Database tables:');
+        logger.info('Database tables:');
         tables.forEach(table => {
             logger.info(`   - ${table.TABLE_NAME}: ${table.TABLE_ROWS} rows, ${table.SIZE_MB} MB`);
         });
         
     } catch (error) {
-        logger.error('❌ Migration failed:', error);
+        logger.error('Migration failed:', error);
         throw error;
     } finally {
         if (connection) {
@@ -406,11 +406,11 @@ if (require.main === module) {
     
     runMigrations(fresh)
         .then(() => {
-            logger.info('✅ Migration script finished');
+            logger.info('Migration script finished');
             process.exit(0);
         })
         .catch((error) => {
-            logger.error('❌ Migration script failed:', error);
+            logger.error('Migration script failed:', error);
             process.exit(1);
         });
 }

@@ -16,12 +16,12 @@ class JobWorker {
      */
     start() {
         if (this.isRunning) {
-            logger.warn('⚠️ Worker already running');
+            logger.warn('Worker already running');
             return;
         }
 
         this.isRunning = true;
-        logger.info('🚀 Job worker started');
+        logger.info('Job worker started');
 
         // Process jobs ngay lập tức
         this.processJobs();
@@ -41,7 +41,7 @@ class JobWorker {
             this.intervalId = null;
         }
         this.isRunning = false;
-        logger.info('⏸️ Job worker stopped');
+        logger.info('Job worker stopped');
     }
 
     /**
@@ -61,7 +61,7 @@ class JobWorker {
                 await this.handleJob(job);
             }
         } catch (error) {
-            logger.error('❌ Error in processJobs:', error);
+            logger.error('Error in processJobs:', error);
         }
     }
 
@@ -69,7 +69,7 @@ class JobWorker {
      * Handle single job
      */
     async handleJob(job) {
-        logger.info(`🔄 Processing job ${job.id}`, {
+        logger.info(`Processing job ${job.id}`, {
             jobType: job.job_type,
             attempt: job.attempts,
             maxAttempts: job.max_attempts
@@ -94,7 +94,7 @@ class JobWorker {
             await JobModel.markCompleted(job.id, result);
             
         } catch (error) {
-            logger.error(`❌ Job ${job.id} failed:`, error.message);
+            logger.error(`Job ${job.id} failed:`, error.message);
             await JobModel.markFailed(job.id, error.message, true);
         }
     }
@@ -105,7 +105,7 @@ class JobWorker {
     async handleTrackingNumber(job) {
         const { orderId, orderCode, carrierCode } = job.payload;
 
-        logger.info(`🔍 Fetching tracking number for order ${orderId}`, {
+        logger.info(`Fetching tracking number for order ${orderId}`, {
             orderCode,
             carrierCode,
             attempt: job.attempts
@@ -124,7 +124,7 @@ class JobWorker {
 
         const trackingNumber = orderInfo.data.trackingNumber;
         
-        logger.info(`✅ Tracking number found for order ${orderId}:`, {
+        logger.info(`Tracking number found for order ${orderId}:`, {
             trackingNumber,
             attempt: job.attempts
         });
@@ -150,7 +150,7 @@ class JobWorker {
     async handleUpdateErp(job) {
         const { orderId, erpOrderCode, trackingNumber, status, ecountLink } = job.payload;
 
-        logger.info(`📝 Updating ERP for order ${orderId}`, {
+        logger.info(`Updating ERP for order ${orderId}`, {
             erpOrderCode,
             trackingNumber,
             attempt: job.attempts
@@ -170,7 +170,7 @@ class JobWorker {
             erpStatus: status
         });
 
-        logger.info(`✅ ERP updated for order ${orderId}`);
+        logger.info(`ERP updated for order ${orderId}`);
 
         return result;
     }

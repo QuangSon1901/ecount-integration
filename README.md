@@ -2,17 +2,17 @@
 
 API tích hợp đa nhà vận chuyển với tự động hóa ERP (ECount) và tracking tự động.
 
-## 🚀 Tính năng
+## Tính năng
 
-- ✅ Tích hợp đa nhà vận chuyển (YunExpress, dễ dàng mở rộng)
-- ✅ Tự động cập nhật tracking vào ERP (ECount) qua Puppeteer
-- ✅ Lưu trữ đơn hàng trong MySQL database
-- ✅ Tracking tự động theo lịch (cron job)
-- ✅ Tự động cập nhật ERP khi đơn hàng delivered
-- ✅ RESTful API để bên thứ 3 gọi vào
-- ✅ Validation dữ liệu đầy đủ
-- ✅ Logging chi tiết
-- ✅ Kiến trúc module hóa
+- Tích hợp đa nhà vận chuyển (YunExpress, dễ dàng mở rộng)
+- Tự động cập nhật tracking vào ERP (ECount) qua Puppeteer
+- Lưu trữ đơn hàng trong MySQL database
+- Tracking tự động theo lịch (cron job)
+- Tự động cập nhật ERP khi đơn hàng delivered
+- RESTful API để bên thứ 3 gọi vào
+- Validation dữ liệu đầy đủ
+- Logging chi tiết
+- Kiến trúc module hóa
 
 ## 📋 Yêu cầu
 
@@ -294,6 +294,6 @@ WHERE status IN ('pending', 'created', 'in_transit')
 AND tracking_number IS NOT NULL;
 ```
 
-## 📝 License
+## License
 
 ISC

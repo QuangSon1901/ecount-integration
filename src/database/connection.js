@@ -10,7 +10,7 @@ let pool = null;
 function createPool() {
     if (!pool) {
         pool = mysql.createPool(config.database);
-        logger.info('✅ MySQL connection pool created');
+        logger.info('MySQL connection pool created');
     }
     return pool;
 }
@@ -31,10 +31,10 @@ async function testConnection() {
         const connection = await getConnection();
         await connection.ping();
         connection.release();
-        logger.info('✅ Database connection successful');
+        logger.info('Database connection successful');
         return true;
     } catch (error) {
-        logger.error('❌ Database connection failed:', error.message);
+        logger.error('Database connection failed:', error.message);
         throw error;
     }
 }
@@ -46,7 +46,7 @@ async function closePool() {
     if (pool) {
         await pool.end();
         pool = null;
-        logger.info('✅ MySQL connection pool closed');
+        logger.info('MySQL connection pool closed');
     }
 }
 

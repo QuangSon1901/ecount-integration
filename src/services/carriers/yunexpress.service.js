@@ -64,7 +64,7 @@ class YunExpressService extends BaseCarrier {
                 sourceKey: this.sourceKey
             };
 
-            logger.info('🔑 Đang lấy token từ YunExpress...');
+            logger.info('Đang lấy token từ YunExpress...');
 
             const response = await axios.post(url, data, {
                 headers: {
@@ -77,13 +77,13 @@ class YunExpressService extends BaseCarrier {
                 this.tokenCache = response.data.accessToken;
                 this.tokenExpiry = Date.now() + (90 * 60 * 1000);
                 
-                logger.info('✅ Đã lấy token thành công');
+                logger.info('Đã lấy token thành công');
                 return this.tokenCache;
             } else {
                 throw new Error('Invalid token response');
             }
         } catch (error) {
-            logger.error('❌ Lỗi khi lấy token:', error.message);
+            logger.error('Lỗi khi lấy token:', error.message);
             throw new Error(`Failed to get YunExpress token: ${error.message}`);
         }
     }
@@ -115,7 +115,7 @@ class YunExpressService extends BaseCarrier {
                 this.appSecret
             );
 
-            logger.info('📦 Đang tạo đơn hàng YunExpress...', {
+            logger.info('Đang tạo đơn hàng YunExpress...', {
                 customerOrderNumber: orderData.customerOrderNumber,
                 signatureContent: signatureContent.substring(0, 100) + '...'
             });
@@ -130,7 +130,7 @@ class YunExpressService extends BaseCarrier {
                 timeout: 30000
             });
 
-            logger.info('✅ Response từ YunExpress:', response.data);
+            logger.info('Response từ YunExpress:', response.data);
 
             const result = response.data.result || response.data;
 
@@ -147,7 +147,7 @@ class YunExpressService extends BaseCarrier {
             };
 
         } catch (error) {
-            logger.error('❌ Lỗi khi tạo đơn YunExpress:', error.response?.data || error.message);
+            logger.error('Lỗi khi tạo đơn YunExpress:', error.response?.data || error.message);
             throw new Error(`YunExpress order creation failed: ${error.response?.data?.msg || error.message}`);
         }
     }
@@ -176,7 +176,7 @@ class YunExpressService extends BaseCarrier {
                 this.appSecret
             );
 
-            logger.info('🔍 Đang tracking đơn hàng:', trackingNumber);
+            logger.info('Đang tracking đơn hàng:', trackingNumber);
 
             const response = await axios.get(url, {
                 headers: {
@@ -194,7 +194,7 @@ class YunExpressService extends BaseCarrier {
             
             // Kiểm tra success
             if (!responseData.success) {
-                logger.error('❌ YunExpress tracking failed:', {
+                logger.error('YunExpress tracking failed:', {
                     code: responseData.code,
                     message: responseData.msg
                 });
@@ -210,7 +210,7 @@ class YunExpressService extends BaseCarrier {
 
             const trackInfo = trackingData.track_Info;
 
-            logger.info('✅ Đã lấy thông tin tracking:', {
+            logger.info('Đã lấy thông tin tracking:', {
                 trackingNumber,
                 waybillNumber: trackInfo?.waybill_number,
                 status: trackingData.package_status,
@@ -248,7 +248,7 @@ class YunExpressService extends BaseCarrier {
             if (error.response?.data) {
                 const errorData = error.response.data;
                 
-                logger.error('❌ YunExpress API Error:', {
+                logger.error('YunExpress API Error:', {
                     code: errorData.code,
                     message: errorData.msg,
                     trackingNumber
@@ -256,7 +256,7 @@ class YunExpressService extends BaseCarrier {
                 throw new Error(`YunExpress tracking failed: ${errorData.msg || errorData.code}`);
             }
             
-            logger.error('❌ Lỗi khi tracking:', {
+            logger.error('Lỗi khi tracking:', {
                 message: error.message,
                 response: error.response?.data
             });
@@ -347,7 +347,7 @@ class YunExpressService extends BaseCarrier {
                 this.appSecret
             );
 
-            logger.info('📦 Đang lấy danh sách products...', {
+            logger.info('Đang lấy danh sách products...', {
                 countryCode: countryCode || 'ALL'
             });
 
@@ -366,7 +366,7 @@ class YunExpressService extends BaseCarrier {
             if (response.data && response.data.success) {
                 const products = response.data.detail || [];
                 
-                logger.info('✅ Đã lấy danh sách products:', {
+                logger.info('Đã lấy danh sách products:', {
                     total: products.length,
                     countryCode: countryCode || 'ALL'
                 });
@@ -382,7 +382,7 @@ class YunExpressService extends BaseCarrier {
             }
 
         } catch (error) {
-            logger.error('❌ Lỗi khi lấy danh sách products:', error.message);
+            logger.error('Lỗi khi lấy danh sách products:', error.message);
             
             if (error.response?.data) {
                 logger.error('API Error Details:', {
@@ -422,7 +422,7 @@ class YunExpressService extends BaseCarrier {
                 this.appSecret
             );
 
-            logger.info('📋 Đang lấy thông tin đơn hàng:', orderNumber);
+            logger.info('Đang lấy thông tin đơn hàng:', orderNumber);
 
             const response = await axios.get(url, {
                 headers: {
@@ -439,7 +439,7 @@ class YunExpressService extends BaseCarrier {
             if (response.data && response.data.success) {
                 const result = response.data.result;
                 
-                logger.info('✅ Đã lấy thông tin đơn hàng:', {
+                logger.info('Đã lấy thông tin đơn hàng:', {
                     waybillNumber: result.waybill_number,
                     customerOrderNumber: result.customer_order_number,
                     status: result.status,
@@ -474,7 +474,7 @@ class YunExpressService extends BaseCarrier {
             }
 
         } catch (error) {
-            logger.error('❌ Lỗi khi lấy thông tin đơn hàng:', error.message);
+            logger.error('Lỗi khi lấy thông tin đơn hàng:', error.message);
             
             if (error.response?.data) {
                 logger.error('API Error Details:', {

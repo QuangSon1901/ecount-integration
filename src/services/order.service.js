@@ -21,7 +21,7 @@ class OrderService {
         let orderId = null;
         
         try {
-            logger.info('🎯 Bắt đầu xử lý đơn hàng...', {
+            logger.info('Bắt đầu xử lý đơn hàng...', {
                 carrier: orderData.carrier,
                 customerOrderNumber: orderData.customerOrderNumber,
                 erpOrderCode: orderData.erpOrderCode,
@@ -38,7 +38,7 @@ class OrderService {
                 throw new Error('Failed to create order with carrier');
             }
 
-            logger.info('✅ Đã tạo đơn hàng với carrier', {
+            logger.info('Đã tạo đơn hàng với carrier', {
                 waybillNumber: carrierResult.waybillNumber,
                 customerOrderNumber: carrierResult.customerOrderNumber,
                 trackingNumber: carrierResult.trackingNumber || 'Chưa có'
@@ -83,7 +83,7 @@ class OrderService {
                 status: carrierResult.trackingNumber ? 'created' : 'pending',
                 trackType: carrierResult.trackType || null,
                 remoteArea: carrierResult.remoteArea || null,
-                erpStatus: orderData.erpStatus || 'Chờ xử lý',
+                erpStatus: orderData.erpStatus || 'Đang xử lý',
                 ecountLink: orderData.ecountLink || null,
                 extraServices: orderData.extraServices || [],
                 sensitiveType: orderData.sensitiveType || null,
@@ -95,7 +95,7 @@ class OrderService {
                 carrierResponse: carrierResult.carrierResponse
             });
 
-            logger.info('✅ Đã lưu đơn hàng vào database', { 
+            logger.info('Đã lưu đơn hàng vào database', { 
                 orderId, 
                 orderNumber,
                 trackingNumber: carrierResult.trackingNumber || 'Chưa có'
@@ -106,7 +106,7 @@ class OrderService {
             let jobInfo = null;
             
             if (!trackingNumber || trackingNumber === '') {
-                logger.info('⏳ Tracking number chưa có, thêm vào queue để lấy sau...');
+                logger.info('Tracking number chưa có, thêm vào queue để lấy sau...');
                 
                 const orderCode = carrierResult.waybillNumber || carrierResult.customerOrderNumber;
                 
@@ -124,14 +124,14 @@ class OrderService {
                         message: 'Tracking number will be fetched automatically'
                     };
                     
-                    logger.info('✅ Đã thêm job vào queue', {
+                    logger.info('Đã thêm job vào queue', {
                         jobId,
                         orderId,
                         orderCode
                     });
                     
                 } catch (queueError) {
-                    logger.error('⚠️ Không thể thêm job vào queue:', queueError.message);
+                    logger.error('Không thể thêm job vào queue:', queueError.message);
                     
                     jobInfo = {
                         status: 'queue_failed',
@@ -163,7 +163,7 @@ class OrderService {
             };
 
         } catch (error) {
-            logger.error('❌ Lỗi xử lý đơn hàng:', error.message);
+            logger.error('Lỗi xử lý đơn hàng:', error.message);
             
             if (orderId) {
                 await OrderModel.update(orderId, { 
@@ -216,7 +216,7 @@ class OrderService {
                 productCode: orderData.productCode,
                 trackingNumber: result.trackingNumber,
                 status: 'created',
-                erpStatus: orderData.erpStatus || 'Chờ xử lý',
+                erpStatus: orderData.erpStatus || 'Đang xử lý',
                 ecountLink: orderData.ecountLink || null,
                 orderData: orderData,
                 carrierResponse: result.carrierResponse
@@ -235,7 +235,7 @@ class OrderService {
                 message: 'Order created successfully'
             };
         } catch (error) {
-            logger.error('❌ Lỗi tạo đơn hàng:', error.message);
+            logger.error('Lỗi tạo đơn hàng:', error.message);
             throw error;
         }
     }
@@ -279,7 +279,7 @@ class OrderService {
                 message: 'ERP updated successfully'
             };
         } catch (error) {
-            logger.error('❌ Lỗi cập nhật ERP:', error.message);
+            logger.error('Lỗi cập nhật ERP:', error.message);
             throw error;
         }
     }
@@ -301,7 +301,7 @@ class OrderService {
                 message: 'Order retrieved successfully'
             };
         } catch (error) {
-            logger.error('❌ Lỗi lấy thông tin order:', error.message);
+            logger.error('Lỗi lấy thông tin order:', error.message);
             throw error;
         }
     }
@@ -325,7 +325,7 @@ class OrderService {
                 throw new Error('Carrier code is required for tracking number not in database');
             }
 
-            logger.info('🔍 Tracking by tracking number:', {
+            logger.info('Tracking by tracking number:', {
                 trackingNumber,
                 carrier: order ? order.carrier : carrierCode
             });
@@ -347,7 +347,7 @@ class OrderService {
             };
 
         } catch (error) {
-            logger.error('❌ Lỗi tracking by tracking number:', error.message);
+            logger.error('Lỗi tracking by tracking number:', error.message);
             throw error;
         }
     }
@@ -359,7 +359,7 @@ class OrderService {
 
             return result;
         } catch (error) {
-            logger.error('❌ Lỗi get products by country code:', error.message);
+            logger.error('Lỗi get products by country code:', error.message);
             throw error;
         }
     }
@@ -374,7 +374,7 @@ class OrderService {
         try {
             const carrier = carrierFactory.getCarrier(carrierCode);
             
-            logger.info('📋 Lấy thông tin đơn hàng:', {
+            logger.info('Lấy thông tin đơn hàng:', {
                 orderCode,
                 carrier: carrierCode
             });
@@ -388,7 +388,7 @@ class OrderService {
             };
 
         } catch (error) {
-            logger.error('❌ Lỗi lấy thông tin đơn hàng:', error.message);
+            logger.error('Lỗi lấy thông tin đơn hàng:', error.message);
             throw error;
         }
     }
@@ -406,7 +406,7 @@ class OrderService {
                 message: 'Statistics retrieved successfully'
             };
         } catch (error) {
-            logger.error('❌ Lỗi lấy thống kê:', error.message);
+            logger.error('Lỗi lấy thống kê:', error.message);
             throw error;
         }
     }

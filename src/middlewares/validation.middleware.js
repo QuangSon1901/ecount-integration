@@ -113,7 +113,7 @@ const orderSchema = Joi.object({
     
     // ERP fields
     erpOrderCode: Joi.string().allow(''),
-    erpStatus: Joi.string(),
+    erpStatus: Joi.string().default('Đang xử lý'),
     ecountLink: Joi.string().allow('')
 });
 

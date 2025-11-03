@@ -18,7 +18,7 @@ class JobModel {
                 [jobType, JSON.stringify(payload), maxAttempts, availableAt]
             );
             
-            logger.info(`✅ Created job ${result.insertId}`, {
+            logger.info(`Created job ${result.insertId}`, {
                 jobType,
                 jobId: result.insertId,
                 delaySeconds
@@ -114,7 +114,7 @@ class JobModel {
                 [result ? JSON.stringify(result) : null, jobId]
             );
             
-            logger.info(`✅ Job ${jobId} completed`);
+            logger.info(`Job ${jobId} completed`);
         } finally {
             connection.release();
         }
@@ -152,7 +152,7 @@ class JobModel {
                     [availableAt, errorMessage, jobId]
                 );
                 
-                logger.warn(`⚠️ Job ${jobId} failed, will retry in ${delaySeconds}s`, {
+                logger.warn(`Job ${jobId} failed, will retry in ${delaySeconds}s`, {
                     attempt: job.attempts,
                     maxAttempts: job.max_attempts
                 });
@@ -167,7 +167,7 @@ class JobModel {
                     [errorMessage, jobId]
                 );
                 
-                logger.error(`❌ Job ${jobId} failed permanently`, {
+                logger.error(`Job ${jobId} failed permanently`, {
                     attempts: job.attempts,
                     error: errorMessage
                 });
@@ -298,7 +298,7 @@ class JobModel {
             );
             
             if (result.affectedRows > 0) {
-                logger.warn(`⚠️ Reset ${result.affectedRows} stuck jobs`);
+                logger.warn(`Reset ${result.affectedRows} stuck jobs`);
             }
             
             return result.affectedRows;

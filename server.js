@@ -5,7 +5,7 @@ const logger = require('./src/utils/logger');
 
 const PORT = process.env.PORT || 3000;
 
-logger.info('🌍 Timezone configuration:', {
+logger.info('Timezone configuration:', {
     TZ: process.env.TZ,
     currentTime: new Date().toString(),
     ISOString: new Date().toISOString(),
@@ -13,9 +13,9 @@ logger.info('🌍 Timezone configuration:', {
 });``
 
 const server = app.listen(PORT, () => {
-    logger.info(`🚀 Server đang chạy trên port ${PORT}`);
-    logger.info(`📍 Environment: ${process.env.NODE_ENV}`);
-    logger.info(`🔗 API endpoint: http://localhost:${PORT}/api`);
+    logger.info(`Server đang chạy trên port ${PORT}`);
+    logger.info(`Environment: ${process.env.NODE_ENV}`);
+    logger.info(`API endpoint: http://localhost:${PORT}/api`);
 });
 
 // Graceful shutdown

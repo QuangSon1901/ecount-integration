@@ -29,7 +29,7 @@ class ECountService {
      * @param {string} ecountLink - Hash link đầy đủ từ ECount
      */
     async updateTrackingNumber(orderId, orderCode, trackingNumber, status = 'Đã hoàn tất', ecountLink) {
-        logger.info('🤖 Bắt đầu cập nhật tracking vào ECount...', {
+        logger.info('Bắt đầu cập nhật tracking vào ECount...', {
             orderId,
             orderCode,
             trackingNumber,
@@ -82,7 +82,7 @@ class ECountService {
             // Update tracking and status
             await this.updateOrderStatus(page, trackingNumber, status);
 
-            logger.info('✅ Đã cập nhật tracking vào ECount thành công');
+            logger.info('Đã cập nhật tracking vào ECount thành công');
 
             return {
                 success: true,
@@ -93,7 +93,7 @@ class ECountService {
             };
 
         } catch (error) {
-            logger.error('❌ Lỗi khi cập nhật ECount:', error.message);
+            logger.error('Lỗi khi cập nhật ECount:', error.message);
 
             // Screenshot và HTML cho debugging
             if (page) {
@@ -121,7 +121,7 @@ class ECountService {
                 `error_${safeOrderCode}_${timestamp}.png`
             );
             await page.screenshot({ path: screenshotPath, fullPage: true });
-            logger.info(`📸 Screenshot lưu tại: ${screenshotPath}`);
+            logger.info(`Screenshot lưu tại: ${screenshotPath}`);
             
             // HTML
             const htmlPath = path.join(
@@ -130,15 +130,15 @@ class ECountService {
             );
             const html = await page.content();
             fs.writeFileSync(htmlPath, html);
-            logger.info(`📄 HTML lưu tại: ${htmlPath}`);
+            logger.info(`HTML lưu tại: ${htmlPath}`);
             
         } catch (e) {
-            logger.error('⚠️ Không thể lưu debug files:', e.message);
+            logger.error('Không thể lưu debug files:', e.message);
         }
     }
 
     async login(page) {
-        logger.info('📍 Đăng nhập ECount...');
+        logger.info('Đăng nhập ECount...');
 
         await page.goto(
             `${this.config.baseUrl}/?xurl_rd=Y&login_lantype=&lan_type=vi-VN`,
@@ -176,7 +176,7 @@ class ECountService {
                 await this.sleep(1000);
             }
 
-            logger.info('✅ Đã đăng nhập');
+            logger.info('Đã đăng nhập');
         }
     }
 
@@ -186,7 +186,7 @@ class ECountService {
      * @param {string} ecountLink - Hash link đầy đủ, ví dụ: "#menuType=MENUTREE_000004&menuSeq=..."
      */
     async navigateToOrderManagement(page, ecountLink) {
-        logger.info('📍 Điều hướng đến quản lý đơn hàng với link:', ecountLink);
+        logger.info('Điều hướng đến quản lý đơn hàng với link:', ecountLink);
 
         await this.sleep(3000);
         await page.waitForFunction(
@@ -201,7 +201,7 @@ class ECountService {
         // Sử dụng hash link từ parameter thay vì config cố định
         const targetUrl = `${baseUrl}${ecountLink}`;
 
-        logger.info('🔗 Target URL:', targetUrl);
+        logger.info('Target URL:', targetUrl);
 
         await page.goto(targetUrl, {
             waitUntil: 'networkidle2',
@@ -209,11 +209,11 @@ class ECountService {
         });
 
         await this.sleep(5000);
-        logger.info('✅ Đã vào trang quản lý đơn hàng');
+        logger.info('Đã vào trang quản lý đơn hàng');
     }
 
     async searchOrder(page, orderCode) {
-        logger.info('📍 Tìm kiếm đơn hàng:', orderCode);
+        logger.info('Tìm kiếm đơn hàng:', orderCode);
 
         let searchFrame = page;
         for (const frame of page.frames()) {
@@ -251,11 +251,11 @@ class ECountService {
         await page.keyboard.press('Enter');
 
         await this.sleep(6000);
-        logger.info('✅ Đã tìm thấy đơn hàng');
+        logger.info('Đã tìm thấy đơn hàng');
     }
 
     async updateOrderStatus(page, trackingNumber, status) {
-        logger.info('📍 Cập nhật trạng thái và tracking...');
+        logger.info('Cập nhật trạng thái và tracking...');
 
         let dataFrame = page;
         for (const frame of page.frames()) {
@@ -300,7 +300,7 @@ class ECountService {
         );
 
         await this.sleep(3000);
-        logger.info('✅ Đã cập nhật trạng thái');
+        logger.info('Đã cập nhật trạng thái');
     }
 }
 
