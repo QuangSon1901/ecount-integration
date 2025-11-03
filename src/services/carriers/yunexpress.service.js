@@ -219,6 +219,7 @@ class YunExpressService extends BaseCarrier {
                 customerOrderNumber: trackInfo?.customer_order_number,
                 packageStatus: trackingData.package_status,
                 trackingInfo: {
+                    package_status: trackingData.package_status,
                     productCode: trackInfo?.product_code,
                     productName: trackInfo?.product_name,
                     channelCode: trackInfo?.channel_code,
@@ -267,37 +268,44 @@ class YunExpressService extends BaseCarrier {
      * - "X" = Exception/Problem
      */
     parseTrackingStatus(packageStatus, trackInfo = null) {
-        // Map package_status code
         const statusMap = {
-            'T': 'in_transit',      // Transit
-            'D': 'delivered',       // Delivered
-            'C': 'created',         // Created
-            'P': 'created',         // Pending
-            'R': 'returned',        // Returned
-            'X': 'exception',       // Exception
-            'N': 'cancelled'        // Cancelled
+            'N': 'not_found',       // Order not found
+            'F': 'created',         // Electronic forecast information reception (chưa có vận đơn thật)
+            'T': 'in_transit',      // In transit
+            'D': 'delivered',       // Successful delivery
+            'E': 'exception',       // May be abnormal
+            'R': 'returned',        // Package returned
+            'C': 'cancelled'        // Order Cancellation
         };
         
-        const status = statusMap[packageStatus?.toUpperCase()] || 'unknown';
+        const baseStatus = statusMap[packageStatus?.toUpperCase()];
         
-        // Kiểm tra thêm từ track_events nếu cần
+        if (!baseStatus) {
+            logger.warn('Unknown package status:', packageStatus);
+            return 'unknown';
+        }
+        
+        // Nếu có track_events, kiểm tra thêm để chính xác hơn
         if (trackInfo?.track_events?.length > 0) {
             const latestEvent = trackInfo.track_events[trackInfo.track_events.length - 1];
             const eventCode = latestEvent.track_node_code?.toLowerCase() || '';
             
-            // Các node codes quan trọng
-            if (eventCode.includes('delivered') || eventCode.includes('pod')) {
+            // Override status nếu có event code rõ ràng hơn
+            if (eventCode.includes('delivered') || eventCode.includes('pod') || eventCode.includes('signed')) {
                 return 'delivered';
             }
-            if (eventCode.includes('exception') || eventCode.includes('problem')) {
+            if (eventCode.includes('exception') || eventCode.includes('problem') || eventCode.includes('failed')) {
                 return 'exception';
             }
-            if (eventCode.includes('returned') || eventCode.includes('return')) {
+            if (eventCode.includes('returned') || eventCode.includes('return_to_sender')) {
                 return 'returned';
+            }
+            if (eventCode.includes('cancelled') || eventCode.includes('cancel')) {
+                return 'cancelled';
             }
         }
         
-        return status;
+        return baseStatus;
     }
 
     /**
@@ -305,7 +313,7 @@ class YunExpressService extends BaseCarrier {
      */
     transformOrderData(orderData) {
         return {
-            product_code: orderData.productCode || 'S1002',
+            product_code: orderData.productCode || '',
             customer_order_number: orderData.customerOrderNumber || '',
             order_numbers: {
                 waybill_number: '',

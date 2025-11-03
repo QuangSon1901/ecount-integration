@@ -86,7 +86,7 @@ Content-Type: application/json
 ```json
 {
   "carrier": "YUNEXPRESS",
-  "productCode": "S1002",
+  "productCode": "VN-YTYCPREC",
   "packages": [
     {
       "length": 10,

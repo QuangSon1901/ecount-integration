@@ -4,7 +4,7 @@ module.exports = {
         name: 'YunExpress',
         code: 'YUNEXPRESS',
         enabled: true,
-        productCodes: ['S1002', 'S1003'] // Các mã sản phẩm có sẵn
+        productCodes: ['VN-YTYCPREC'] // Các mã sản phẩm có sẵn
     },
     // DHL: {
     //     name: 'DHL',

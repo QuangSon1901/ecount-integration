@@ -66,30 +66,30 @@ class OrderService {
 
             // Step 5: Update ERP (ECount) if orderCode and ecountLink provided
             let erpResult = null;
-            if (orderData.erpOrderCode && orderData.ecountLink) {
-                try {
-                    erpResult = await ecountService.updateTrackingNumber(
-                        orderId,
-                        orderData.erpOrderCode,
-                        carrierResult.trackingNumber,
-                        orderData.erpStatus || 'Đã hoàn tất',
-                        orderData.ecountLink // Truyền hash link vào
-                    );
+            // if (orderData.erpOrderCode && orderData.ecountLink) {
+            //     try {
+            //         erpResult = await ecountService.updateTrackingNumber(
+            //             orderId,
+            //             orderData.erpOrderCode,
+            //             carrierResult.trackingNumber,
+            //             orderData.erpStatus || 'Đã hoàn tất',
+            //             orderData.ecountLink // Truyền hash link vào
+            //         );
                     
-                    // Update ERP status in DB
-                    await OrderModel.update(orderId, {
-                        erpUpdated: true,
-                        erpStatus: orderData.erpStatus || 'Đã hoàn tất'
-                    });
+            //         // Update ERP status in DB
+            //         await OrderModel.update(orderId, {
+            //             erpUpdated: true,
+            //             erpStatus: orderData.erpStatus || 'Đã hoàn tất'
+            //         });
                     
-                    logger.info('✅ Đã cập nhật ERP thành công');
-                } catch (erpError) {
-                    logger.error('⚠️ Lỗi khi cập nhật ERP (đơn hàng vẫn được tạo):', erpError.message);
-                    // Không throw error, vì đơn hàng đã tạo thành công
-                }
-            } else {
-                logger.info('ℹ️ Bỏ qua cập nhật ERP (thiếu erpOrderCode hoặc ecountLink)');
-            }
+            //         logger.info('✅ Đã cập nhật ERP thành công');
+            //     } catch (erpError) {
+            //         logger.error('⚠️ Lỗi khi cập nhật ERP (đơn hàng vẫn được tạo):', erpError.message);
+            //         // Không throw error, vì đơn hàng đã tạo thành công
+            //     }
+            // } else {
+            //     logger.info('ℹ️ Bỏ qua cập nhật ERP (thiếu erpOrderCode hoặc ecountLink)');
+            // }
 
             return {
                 success: true,
