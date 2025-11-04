@@ -267,8 +267,10 @@ class YunExpressService extends BaseCarrier {
     /**
      * Parse tracking status từ YunExpress sang status chuẩn
      * YunExpress package_status codes:
-     * - "T" = In Transit
-     * - "D" = Delivered
+     * - "N" = Not Found (not_found)
+     * - "F" = Created (created)
+     * - "T" = In Transit (in_transit)
+     * - "D" = Delivered (delivered)
      * - "C" = Created/Pending
      * - "R" = Returned
      * - "X" = Exception/Problem
@@ -651,8 +653,8 @@ class YunExpressService extends BaseCarrier {
             }),
             
             platform_account_code: orderData.platformAccountCode || '',
-            source_code: orderData.sourceCode || 'YT',
-            sensitive_type: orderData.sensitiveType || 'W',
+            source_code: orderData.sourceCode || '',
+            sensitive_type: orderData.sensitiveType || '',
             label_type: orderData.labelType || 'PDF',
             
             // Goods type

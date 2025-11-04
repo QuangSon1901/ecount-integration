@@ -43,7 +43,7 @@ const declarationSchema = Joi.object({
     spec: Joi.string().allow(''), // Specs/Thông số kỹ thuật
     model: Joi.string().allow(''), // Model Type
     remark: Joi.string().allow(''),
-    fabric_creation_method: Joi.string().valid('K', 'W', '').allow(''), // K=Knitted, W=Woven
+    fabric_creation_method: Joi.string().allow(''), // K=Knitted, W=Woven
     manufacturer_id: Joi.string().allow(''),
     manufacturer_name: Joi.string().allow(''),
     manufacturer_address: Joi.string().allow(''),
@@ -62,8 +62,8 @@ const orderSchema = Joi.object({
     trackingNumber: Joi.string().allow(''), // Để trống nếu không có tracking sẵn
     referenceNumbers: Joi.array().items(Joi.string()).max(5),
     
-    weightUnit: Joi.string().valid('KG', 'G', 'LBS').default('KG'),
-    sizeUnit: Joi.string().valid('CM', 'INCH').default('CM'),
+    weightUnit: Joi.string().allow(''),
+    sizeUnit: Joi.string().allow(''),
     
     packages: Joi.array().items(packageSchema).min(1).required(),
     receiver: receiverSchema.required(),
@@ -102,10 +102,10 @@ const orderSchema = Joi.object({
     }),
     
     platformAccountCode: Joi.string().allow(''),
-    sourceCode: Joi.string().default('YT'),
-    sensitiveType: Joi.string().valid('W', 'D', 'F', 'L').default('W'), // W=package, D=document, F=sub-order, L=envelope
-    labelType: Joi.string().valid('PDF', 'ZPL', 'PNG').default('PDF'),
-    goodsType: Joi.string().valid('W', 'F', 'O').allow(''), // W=Online shopping, F=FS goods, O=Other
+    sourceCode: Joi.string().allow(''),
+    sensitiveType: Joi.string().allow(''), // W=package, D=document, F=sub-order, L=envelope
+    labelType: Joi.string().allow(''),
+    goodsType: Joi.string().allow(''), // W=Online shopping, F=FS goods, O=Other
     dangerousGoodsType: Joi.string().allow(''), // Mã hàng nguy hiểm nếu có
     
     // Pickup point (cho dịch vụ self-pickup)
@@ -122,7 +122,7 @@ const erpUpdateSchema = Joi.object({
     erpOrderCode: Joi.string().required(),
     trackingNumber: Joi.string().allow(''),
     status: Joi.string().default('Đã hoàn tất'),
-    ecountLink: Joi.string().allow('').description('Full hash link từ ECount')
+    ecountLink: Joi.string().required().description('Full hash link từ ECount')
 });
 
 /**

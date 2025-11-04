@@ -18,163 +18,30 @@ class OrderService {
      * Xử lý toàn bộ luồng: tạo đơn + lưu DB + cập nhật ERP
      */
     async processOrder(orderData) {
-        let orderId = null;
-        
         try {
-            logger.info('Bắt đầu xử lý đơn hàng...', {
+            logger.info('Đang push job tạo đơn hàng vào queue...', {
                 carrier: orderData.carrier,
                 customerOrderNumber: orderData.customerOrderNumber,
-                erpOrderCode: orderData.erpOrderCode,
-                hasEcountLink: !!orderData.ecountLink
+                erpOrderCode: orderData.erpOrderCode
             });
 
-            // Step 1-3: Validate và tạo đơn với carrier (giữ nguyên)
-            const carrierCode = (orderData.carrier || 'YUNEXPRESS').toUpperCase();
-            const carrier = carrierFactory.getCarrier(carrierCode);
-            carrier.validateOrderData(orderData);
-            const carrierResult = await carrier.createOrder(orderData);
+            // Push job vào queue
+            const jobId = await jobService.addCreateOrderJob(orderData, 0);
 
-            if (!carrierResult.success) {
-                throw new Error('Failed to create order with carrier');
-            }
-
-            logger.info('Đã tạo đơn hàng với carrier', {
-                waybillNumber: carrierResult.waybillNumber,
-                customerOrderNumber: carrierResult.customerOrderNumber,
-                trackingNumber: carrierResult.trackingNumber || ''
-            });
-
-            // Step 4: Save to database (giữ nguyên phần này)
-            const orderNumber = this.generateOrderNumber();
-            const firstPackage = orderData.packages?.[0] || {};
-            const totalWeight = orderData.packages?.reduce((sum, pkg) => sum + (pkg.weight || 0), 0) || null;
-            const declaredValue = orderData.declarationInfo?.reduce(
-                (sum, item) => sum + ((item.unit_price || 0) * (item.quantity || 0)), 
-                0
-            ) || null;
-            
-            orderId = await OrderModel.create({
-                orderNumber: orderNumber,
-                customerOrderNumber: carrierResult.customerOrderNumber || orderData.customerOrderNumber,
-                platformOrderNumber: orderData.platformOrderNumber,
-                erpOrderCode: orderData.erpOrderCode,
-                carrier: carrierCode,
-                productCode: orderData.productCode,
-                waybillNumber: carrierResult.waybillNumber || null,
-                trackingNumber: carrierResult.trackingNumber || null,
-                barCodes: carrierResult.barCodes || null,
-                packageWeight: totalWeight,
-                packageLength: firstPackage.length || null,
-                packageWidth: firstPackage.width || null,
-                packageHeight: firstPackage.height || null,
-                weightUnit: orderData.weightUnit || 'KG',
-                sizeUnit: orderData.sizeUnit || 'CM',
-                receiverName: orderData.receiver ? 
-                    `${orderData.receiver.firstName} ${orderData.receiver.lastName}`.trim() : null,
-                receiverCountry: orderData.receiver?.countryCode || null,
-                receiverState: orderData.receiver?.province || null,
-                receiverCity: orderData.receiver?.city || null,
-                receiverPostalCode: orderData.receiver?.postalCode || null,
-                receiverPhone: orderData.receiver?.phoneNumber || null,
-                receiverEmail: orderData.receiver?.email || null,
-                declaredValue: declaredValue,
-                declaredCurrency: orderData.declarationInfo?.[0]?.currency || 'USD',
-                itemsCount: orderData.declarationInfo?.length || 0,
-                status: carrierResult.trackingNumber ? 'created' : 'pending',
-                trackType: carrierResult.trackType || null,
-                remoteArea: carrierResult.remoteArea || null,
-                erpStatus: orderData.erpStatus || 'Đang xử lý',
-                ecountLink: orderData.ecountLink || null,
-                extraServices: orderData.extraServices || [],
-                sensitiveType: orderData.sensitiveType || null,
-                goodsType: orderData.goodsType || null,
-                vatNumber: orderData.customsNumber?.vat_code || null,
-                iossCode: orderData.customsNumber?.ioss_code || null,
-                eoriNumber: orderData.customsNumber?.eori_number || null,
-                orderData: orderData,
-                carrierResponse: carrierResult.carrierResponse
-            });
-
-            logger.info('Đã lưu đơn hàng vào database', { 
-                orderId, 
-                orderNumber,
-                trackingNumber: carrierResult.trackingNumber || ''
-            });
-
-            // Step 5: Xử lý tracking number
-            let trackingNumber = carrierResult.trackingNumber;
-            let jobInfo = null;
-            
-            if (!trackingNumber || trackingNumber === '') {
-                logger.info('Tracking number chưa có, thêm vào queue để lấy sau...');
-                
-                const orderCode = carrierResult.waybillNumber || carrierResult.customerOrderNumber;
-                
-                try {
-                    const jobId = await jobService.addTrackingNumberJob(
-                        orderId,
-                        orderCode,
-                        carrierCode,
-                        5 // Delay 5 giây
-                    );
-                    
-                    jobInfo = {
-                        jobId: jobId,
-                        status: 'queued',
-                        message: 'Tracking number will be fetched automatically'
-                    };
-                    
-                    logger.info('Đã thêm job vào queue', {
-                        jobId,
-                        orderId,
-                        orderCode
-                    });
-                    
-                } catch (queueError) {
-                    logger.error('Không thể thêm job vào queue:', queueError.message);
-                    
-                    jobInfo = {
-                        status: 'queue_failed',
-                        error: queueError.message,
-                        message: 'Failed to queue tracking number job, please check manually'
-                    };
-                }
-            }
+            logger.info('Đã push job vào queue', { jobId });
 
             return {
                 success: true,
                 data: {
-                    orderId: orderId,
-                    orderNumber: orderNumber,
-                    waybillNumber: carrierResult.waybillNumber,
-                    customerOrderNumber: carrierResult.customerOrderNumber,
-                    trackingNumber: trackingNumber || null,
-                    trackType: carrierResult.trackType,
-                    remoteArea: carrierResult.remoteArea,
-                    carrier: carrierCode,
-                    carrierResponse: carrierResult.carrierResponse,
-                    ecountLink: orderData.ecountLink || null,
-                    hasTrackingNumber: !!trackingNumber,
-                    trackingNumberJob: jobInfo
+                    jobId: jobId,
+                    status: 'queued',
+                    message: 'Order creation job has been queued'
                 },
-                message: trackingNumber ? 
-                    'Order processed successfully' : 
-                    'Order created successfully, tracking number will be fetched automatically'
+                message: 'Order will be processed shortly'
             };
 
         } catch (error) {
-            logger.error('Lỗi xử lý đơn hàng:', error.message);
-            
-            if (orderId) {
-                await OrderModel.update(orderId, { 
-                    status: 'failed',
-                    errorInfo: {
-                        message: error.message,
-                        timestamp: new Date().toISOString()
-                    }
-                });
-            }
-            
+            logger.error('Lỗi push job:', error.message);
             throw error;
         }
     }

@@ -3,6 +3,20 @@ const logger = require('../../utils/logger');
 
 class JobService {
     /**
+     * Thêm job tạo order
+     */
+    async addCreateOrderJob(orderData, delaySeconds = 0) {
+        return await JobModel.create(
+            'create_order',
+            {
+                orderData
+            },
+            delaySeconds,
+            3
+        );
+    }
+
+    /**
      * Thêm job tracking number
      */
     async addTrackingNumberJob(orderId, orderCode, carrierCode, delaySeconds = 5) {
@@ -14,7 +28,42 @@ class JobService {
                 carrierCode
             },
             delaySeconds,
-            10
+            5
+        );
+    }
+
+    /**
+     * Thêm job update tracking number lên ECount
+     */
+    async addUpdateTrackingNumberJob(orderId, erpOrderCode, trackingNumber, ecountLink, delaySeconds = 0) {
+        return await JobModel.create(
+            'update_tracking_ecount',
+            {
+                orderId,
+                erpOrderCode,
+                trackingNumber,
+                ecountLink
+            },
+            delaySeconds,
+            5
+        );
+    }
+
+    /**
+     * Thêm job update status lên ECount
+     */
+    async addUpdateStatusJob(orderId, erpOrderCode, trackingNumber, status, ecountLink, delaySeconds = 0) {
+        return await JobModel.create(
+            'update_status_ecount',
+            {
+                orderId,
+                erpOrderCode,
+                trackingNumber,
+                status,
+                ecountLink
+            },
+            delaySeconds,
+            5
         );
     }
 

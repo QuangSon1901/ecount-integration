@@ -7,6 +7,8 @@ const errorMiddleware = require('./middlewares/error.middleware');
 const logger = require('./utils/logger');
 const db = require('./database/connection');
 const trackingCron = require('./jobs/tracking.cron');
+const fetchTrackingCron = require('./jobs/fetch-tracking.cron');
+const updateStatusCron = require('./jobs/update-status.cron');
 const jobWorker = require('./jobs/worker');
 
 const app = express();
@@ -74,6 +76,8 @@ const initializeApp = async () => {
     try {
         await db.testConnection();
         jobWorker.start();
+        fetchTrackingCron.start();
+        updateStatusCron.start();
         // trackingCron.start();
 
     } catch (error) {
