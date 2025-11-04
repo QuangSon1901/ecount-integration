@@ -7,7 +7,7 @@ const logger = require('../utils/logger');
 class JobWorker {
     constructor() {
         this.isRunning = false;
-        this.intervalMs = 5000; // Check mỗi 5 giây
+        this.intervalMs = 10000; // Check mỗi 5 giây
         this.intervalId = null;
     }
 
@@ -81,10 +81,7 @@ class JobWorker {
             switch (job.job_type) {
                 case 'tracking_number':
                     result = await this.handleTrackingNumber(job);
-                    break;
-                
-                case 'update_erp':
-                    result = await this.handleUpdateErp(job);
+                    await this.handleUpdateTrackingNumberErp(job.id);
                     break;
                 
                 default:
@@ -147,27 +144,25 @@ class JobWorker {
     /**
      * Handle update ERP job
      */
-    async handleUpdateErp(job) {
-        const { orderId, erpOrderCode, trackingNumber, status, ecountLink } = job.payload;
-
+    async handleUpdateTrackingNumberErp(orderId) {
+        const orderDetails = await OrderModel.findById(orderId);
         logger.info(`Updating ERP for order ${orderId}`, {
-            erpOrderCode,
-            trackingNumber,
-            attempt: job.attempts
+            erp_order_code: orderDetails.erp_order_code,
+            tracking_number: orderDetails.tracking_number
         });
 
-        const result = await ecountService.updateTrackingNumber(
+        const result = await ecountService.updateInfoEcount(
+            'tracking_number',
             orderId,
-            erpOrderCode,
-            trackingNumber,
-            status,
-            ecountLink
+            orderDetails.erp_order_code,
+            orderDetails.tracking_number,
+            orderDetails.status,
+            orderDetails.ecount_link
         );
 
         // Cập nhật database
         await OrderModel.update(orderId, {
-            erpUpdated: true,
-            erpStatus: status
+            erpTrackingNumberUpdated: true,
         });
 
         logger.info(`ERP updated for order ${orderId}`);

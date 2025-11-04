@@ -43,8 +43,8 @@ class OrderController {
         try {
             const { erpOrderCode, trackingNumber, status } = req.body;
             
-            if (!erpOrderCode || !trackingNumber) {
-                return errorResponse(res, 'erpOrderCode and trackingNumber are required', 400);
+            if (!erpOrderCode) {
+                return errorResponse(res, 'erpOrderCode are required', 400);
             }
             
             const result = await orderService.updateErpOnly(erpOrderCode, trackingNumber, status);

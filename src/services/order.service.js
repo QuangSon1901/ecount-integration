@@ -41,7 +41,7 @@ class OrderService {
             logger.info('Đã tạo đơn hàng với carrier', {
                 waybillNumber: carrierResult.waybillNumber,
                 customerOrderNumber: carrierResult.customerOrderNumber,
-                trackingNumber: carrierResult.trackingNumber || 'Chưa có'
+                trackingNumber: carrierResult.trackingNumber || ''
             });
 
             // Step 4: Save to database (giữ nguyên phần này)
@@ -98,7 +98,7 @@ class OrderService {
             logger.info('Đã lưu đơn hàng vào database', { 
                 orderId, 
                 orderNumber,
-                trackingNumber: carrierResult.trackingNumber || 'Chưa có'
+                trackingNumber: carrierResult.trackingNumber || ''
             });
 
             // Step 5: Xử lý tracking number
@@ -259,7 +259,8 @@ class OrderService {
                 throw new Error('ECount link is required but not found');
             }
 
-            const result = await ecountService.updateTrackingNumber(
+            const result = await ecountService.updateInfoEcount(
+                'status',
                 order.id,
                 erpOrderCode,
                 trackingNumber,

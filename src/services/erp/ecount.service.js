@@ -22,13 +22,14 @@ class ECountService {
 
     /**
      * Cập nhật tracking number vào ECount
+     * @param {string} type - Loại update "status", "tracking_number"
      * @param {number} orderId - ID order trong DB
      * @param {string} orderCode - Mã đơn hàng trong ECount
      * @param {string} trackingNumber - Tracking number
      * @param {string} status - Trạng thái cần cập nhật
      * @param {string} ecountLink - Hash link đầy đủ từ ECount
      */
-    async updateTrackingNumber(orderId, orderCode, trackingNumber, status = 'Đã hoàn tất', ecountLink) {
+    async updateInfoEcount(type, orderId, orderCode, trackingNumber, status = 'Đã hoàn tất', ecountLink) {
         logger.info('Bắt đầu cập nhật tracking vào ECount...', {
             orderId,
             orderCode,
@@ -70,19 +71,20 @@ class ECountService {
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             );
 
-            // Login
             await this.login(page);
-
-            // Navigate to order management với hash link cụ thể
             await this.navigateToOrderManagement(page, ecountLink);
-
-            // Search for order
             await this.searchOrder(page, orderCode);
 
-            // Update tracking and status
-            await this.updateOrderStatus(page, trackingNumber, status);
+            switch (type) {
+                case 'status':
+                    await this.updateOrderStatus(page, status);
+                    break;
+                case 'tracking_number':
+                    await this.updateTrackingNumber(page, trackingNumber);
+                    break;
+            }
 
-            logger.info('Đã cập nhật tracking vào ECount thành công');
+            logger.info('Đã cập nhật ECount thành công');
 
             return {
                 success: true,
@@ -95,7 +97,6 @@ class ECountService {
         } catch (error) {
             logger.error('Lỗi khi cập nhật ECount:', error.message);
 
-            // Screenshot và HTML cho debugging
             if (page) {
                 await this.saveDebugInfo(page, orderCode);
             }
@@ -254,14 +255,14 @@ class ECountService {
         logger.info('Đã tìm thấy đơn hàng');
     }
 
-    async updateOrderStatus(page, trackingNumber, status) {
-        logger.info('Cập nhật trạng thái và tracking...');
+    async updateOrderStatus(page, status) {
+        logger.info('Cập nhật trạng thái...');
 
         let dataFrame = page;
         for (const frame of page.frames()) {
             try {
                 const hasGrid = await frame.evaluate(() => {
-                    return document.querySelector('#grid-main tbody tr') !== null;
+                    return document.querySelector('#app-root .wrapper-frame-body .contents tbody tr') !== null;
                 });
                 if (hasGrid) {
                     dataFrame = frame;
@@ -270,37 +271,107 @@ class ECountService {
             } catch (e) {}
         }
 
-        await dataFrame.waitForSelector('#grid-main tbody tr', { timeout: 20000 });
+        await dataFrame.waitForSelector('#app-root .wrapper-frame-body .contents tbody tr', { timeout: 20000 });
 
-        await dataFrame.evaluate(
-            async (params) => {
-                const firstRow = document.querySelector('#grid-main tbody tr');
-                if (!firstRow) return;
+        // Step 1: Check checkbox
+        await dataFrame.evaluate(() => {
+            const firstRow = document.querySelector('#app-root .wrapper-frame-body .contents tbody tr');
+            if (!firstRow) throw new Error('Không tìm thấy record');
 
-                // Update status
-                const statusBtn = firstRow.querySelector('td:nth-child(3) a');
-                if (statusBtn) {
-                    statusBtn.click();
-                    await new Promise(res => setTimeout(res, 2000));
+            const button = firstRow.querySelector('.control-set:has(a) a');
+            button.click();
+        });
 
-                    const findSpanStatus = document.querySelectorAll('.dropdown-menu [data-baseid] li span');
-                    findSpanStatus.forEach(span => {
-                        if (span.innerText.trim() === params.status) {
-                            span.click();
-                        }
-                    });
+        await this.sleep(2000);
+
+        // Step 3: Đợi dropdown xuất hiện và click vào status
+        await dataFrame.waitForSelector('.dropdown-menu [data-baseid] li span', {
+            visible: true,
+            timeout: 10000
+        });
+
+        await this.sleep(500);
+
+        const statusUpdated = await dataFrame.evaluate((targetStatus) => {
+            const spans = document.querySelectorAll('.dropdown-menu [data-baseid] li span');
+            
+            if (spans.length === 0) {
+                throw new Error('Không tìm thấy danh sách trạng thái');
+            }
+
+            let found = false;
+            spans.forEach(span => {
+                const text = span.innerText.normalize('NFC').trim();
+                if (text === targetStatus) {
+                    span.click();
+                    found = true;
                 }
+            });
 
-                // TODO: Update tracking number field
-                // Cần xác định field tracking number trong ECount
-                // và cập nhật giá trị params.trackingNumber
+            return found;
+        }, status);
 
-            },
-            { status, trackingNumber }
-        );
+        if (!statusUpdated) {
+            throw new Error(`Không tìm thấy trạng thái: "${status}"`);
+        }
 
         await this.sleep(3000);
-        logger.info('Đã cập nhật trạng thái');
+        logger.info('Đã cập nhật trạng thái thành công');
+    }
+
+    async updateTrackingNumber(page, trackingNumber) {
+        logger.info('Cập nhật tracking...');
+
+        let dataFrame = page;
+        for (const frame of page.frames()) {
+            try {
+                const hasGrid = await frame.evaluate(() => {
+                    return document.querySelector('#app-root .wrapper-frame-body .contents tbody tr') !== null;
+                });
+                if (hasGrid) {
+                    dataFrame = frame;
+                    break;
+                }
+            } catch (e) {}
+        }
+
+        await dataFrame.waitForSelector('#app-root .wrapper-frame-body .contents tbody tr', { timeout: 20000 });
+        
+        await dataFrame.evaluate(() => {
+            const linkModal = document.querySelector('#app-root .wrapper-frame-body .contents tbody tr a[id][data-item-key]');
+            if (!linkModal) throw new Error('Không tìm thấy link để mở modal');
+            linkModal.click();
+        });
+
+        await this.sleep(3000);
+
+        await dataFrame.waitForSelector('[data-container="popup-body"] .contents [placeholder="Tracking number"]', { 
+            visible: true,
+            timeout: 15000 
+        });
+
+        await this.sleep(2000);
+
+        const updateSuccess = await dataFrame.evaluate((trackingNumber) => {
+            const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number"]');
+            if (!input) {
+                throw new Error('Không tìm thấy input Tracking number');
+            }
+
+            input.value = trackingNumber;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            return true;
+        }, trackingNumber);
+
+        if (!updateSuccess) {
+            throw new Error('Không thể cập nhật tracking number');
+        }
+
+        await this.sleep(1000);
+        await page.keyboard.press('F8');
+        await this.sleep(5000);
     }
 }
 

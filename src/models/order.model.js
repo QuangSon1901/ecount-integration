@@ -102,6 +102,10 @@ class OrderModel {
                 fields.push('erp_updated = ?');
                 values.push(updateData.erpUpdated);
             }
+            if (updateData.erpTrackingNumberUpdated !== undefined) {
+                fields.push('erp_tracking_number_updated = ?');
+                values.push(updateData.erpTrackingNumberUpdated);
+            }
             if (updateData.carrierResponse !== undefined) {
                 fields.push('carrier_response = ?');
                 values.push(JSON.stringify(updateData.carrierResponse));

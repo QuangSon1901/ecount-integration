@@ -14,25 +14,7 @@ class JobService {
                 carrierCode
             },
             delaySeconds,
-            6 // max 6 attempts
-        );
-    }
-
-    /**
-     * Thêm job update ERP
-     */
-    async addUpdateErpJob(orderId, erpOrderCode, trackingNumber, status, ecountLink, delaySeconds = 0) {
-        return await JobModel.create(
-            'update_erp',
-            {
-                orderId,
-                erpOrderCode,
-                trackingNumber,
-                status,
-                ecountLink
-            },
-            delaySeconds,
-            3 // max 3 attempts
+            10
         );
     }
 

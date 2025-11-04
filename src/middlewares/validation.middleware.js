@@ -120,7 +120,7 @@ const orderSchema = Joi.object({
 // Schema cho ERP update
 const erpUpdateSchema = Joi.object({
     erpOrderCode: Joi.string().required(),
-    trackingNumber: Joi.string().required(),
+    trackingNumber: Joi.string().allow(''),
     status: Joi.string().default('Đã hoàn tất'),
     ecountLink: Joi.string().allow('').description('Full hash link từ ECount')
 });

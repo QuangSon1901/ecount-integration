@@ -442,6 +442,7 @@ class YunExpressService extends BaseCarrier {
                 logger.info('Đã lấy thông tin đơn hàng:', {
                     waybillNumber: result.waybill_number,
                     customerOrderNumber: result.customer_order_number,
+                    trackingNumber: result.tracking_number,
                     status: result.status,
                     productCode: result.product_code
                 });

@@ -73,7 +73,7 @@ app.use(errorMiddleware);
 const initializeApp = async () => {
     try {
         await db.testConnection();
-        // jobWorker.start();
+        jobWorker.start();
         // trackingCron.start();
 
     } catch (error) {

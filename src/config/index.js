@@ -29,8 +29,8 @@ module.exports = {
     },
     
     puppeteer: {
-        headless: process.env.PUPPETEER_HEADLESS === 'true',
-        timeout: parseInt(process.env.PUPPETEER_TIMEOUT) || 40000
+        headless: "new",
+        timeout: 40000
     },
     
     cron: {

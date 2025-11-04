@@ -176,12 +176,13 @@ class TrackingCron {
         try {
             logger.info(`Cập nhật ERP cho order delivered ${order.id}`);
 
-            await ecountService.updateTrackingNumber(
+            await ecountService.updateInfoEcount(
+                'status',
                 order.id,
                 order.erp_order_code,
                 order.tracking_number,
                 'Đã hoàn tất',
-                order.ecount_link
+                order.ecount_link,
             );
 
             // Update DB

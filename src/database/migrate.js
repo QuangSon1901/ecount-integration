@@ -66,6 +66,7 @@ const migrations = [
                 -- ERP status
                 erp_status VARCHAR(50) DEFAULT 'Đang xử lý' COMMENT 'Trạng thái trong ERP',
                 erp_updated BOOLEAN DEFAULT FALSE COMMENT 'Đã cập nhật ERP',
+                erp_tracking_number_updated BOOLEAN DEFAULT FALSE COMMENT 'Đã cập nhật ERP',
                 ecount_link TEXT COMMENT 'Hash link ECount',
                 
                 -- Additional services
@@ -103,6 +104,7 @@ const migrations = [
                 INDEX idx_receiver_country (receiver_country),
                 INDEX idx_created_at (created_at),
                 INDEX idx_status_erp_updated (status, erp_updated),
+                INDEX idx_status_erp_tracking_number_updated (status, erp_tracking_number_updated),
                 FULLTEXT INDEX idx_receiver_name (receiver_name)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             COMMENT='Bảng quản lý đơn hàng vận chuyển';
