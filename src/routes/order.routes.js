@@ -54,61 +54,13 @@ router.post('/', validateOrder, orderController.createOrder.bind(orderController
  * @desc    Create order only, skip ERP update
  * @access  Private
  */
-router.post('/create-only', validateOrder, orderController.createOrderOnly.bind(orderController));
+// router.post('/create-only', validateOrder, orderController.createOrderOnly.bind(orderController));
 
 /**
  * @route   POST /api/orders/update-erp
  * @desc    Update ERP with existing tracking number
  * @access  Private
  */
-router.post('/update-erp', validateErpUpdate, orderController.updateErpOnly.bind(orderController));
-
-/**
- * @route   GET /api/orders/jobs/stats
- * @desc    Get jobs statistics
- */
-router.get('/jobs/stats', async (req, res, next) => {
-    try {
-        const stats = await jobService.getStats();
-        res.json({ success: true, data: stats });
-    } catch (error) {
-        next(error);
-    }
-});
-
-/**
- * @route   GET /api/orders/jobs
- * @desc    List jobs
- */
-router.get('/jobs', async (req, res, next) => {
-    try {
-        const { status, jobType, limit } = req.query;
-        const jobs = await jobService.listJobs({ 
-            status, 
-            jobType, 
-            limit: parseInt(limit) || 100 
-        });
-        res.json({ success: true, data: jobs });
-    } catch (error) {
-        next(error);
-    }
-});
-
-/**
- * @route   POST /api/orders/jobs/cleanup
- * @desc    Cleanup old jobs
- */
-router.post('/jobs/cleanup', async (req, res, next) => {
-    try {
-        const { daysOld } = req.body;
-        const count = await jobService.cleanup(daysOld || 7);
-        res.json({ 
-            success: true, 
-            message: `Cleaned up ${count} old jobs` 
-        });
-    } catch (error) {
-        next(error);
-    }
-});
+// router.post('/update-erp', validateErpUpdate, orderController.updateErpOnly.bind(orderController));
 
 module.exports = router;
