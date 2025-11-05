@@ -91,116 +91,144 @@ class ECountService {
      * Lấy browser với session có sẵn
      */
     async getBrowserWithSession(ecountLink) {
-        const session = await sessionManager.getSession();
+    const session = await sessionManager.getSession();
 
-        const browser = await puppeteer.launch({
-            headless: this.puppeteerConfig.headless,
-            defaultViewport: null,
-            args: this.puppeteerConfig.args,
-            ...(this.puppeteerConfig.executablePath && { 
-                executablePath: this.puppeteerConfig.executablePath 
-            })
+    const browser = await puppeteer.launch({
+        headless: this.puppeteerConfig.headless,
+        defaultViewport: null,
+        args: [
+            ...this.puppeteerConfig.args,
+            '--disable-dev-shm-usage',
+            '--no-sandbox',
+            '--disable-setuid-sandbox'
+        ],
+        ...(this.puppeteerConfig.executablePath && { 
+            executablePath: this.puppeteerConfig.executablePath 
+        })
+    });
+
+    try {
+        const [page] = await browser.pages();
+        await page.setViewport({ width: 1366, height: 768 });
+
+        // Set timeouts
+        page.setDefaultNavigationTimeout(60000);
+        page.setDefaultTimeout(60000);
+
+        // Anti-detection
+        await page.evaluateOnNewDocument(() => {
+            Object.defineProperty(navigator, 'webdriver', { get: () => false });
+            Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
+            window.chrome = { runtime: {} };
         });
 
-        try {
-            const [page] = await browser.pages();
-            await page.setViewport({ width: 1366, height: 768 });
+        await page.setUserAgent(
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        );
 
-            // Anti-detection
-            await page.evaluateOnNewDocument(() => {
-                Object.defineProperty(navigator, 'webdriver', { get: () => false });
-                Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
-                window.chrome = { runtime: {} };
+        if (session) {
+            logger.info('Đang sử dụng session có sẵn', {
+                ttl: sessionManager.getSessionTTL() + 's',
+                cookiesCount: session.cookies.length
             });
 
-            await page.setUserAgent(
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            );
+            const urlParams = session.url_params;
+            const baseUrl = this.config.baseUrl.replace('login.ecount.com', 'loginia.ecount.com');
+            const sessionUrl = `${baseUrl}/ec5/view/erp?w_flag=${urlParams.w_flag}&ec_req_sid=${urlParams.ec_req_sid}${ecountLink}`;
+            
+            // QUAN TRỌNG: Navigate đến base domain TRƯỚC để set cookies
+            const baseDomain = new URL(baseUrl).origin;
+            logger.info('Navigate to base domain first:', baseDomain);
+            
+            await page.goto(baseDomain, {
+                waitUntil: 'domcontentloaded',
+                timeout: 30000
+            });
 
-            if (session) {
-                logger.info('Đang sử dụng session có sẵn', {
-                    ttl: sessionManager.getSessionTTL() + 's'
+            await this.sleep(1000);
+
+            // Set cookies - PHẢI có domain đúng
+            try {
+                // Filter và fix cookies nếu cần
+                const cookiesToSet = session.cookies.map(cookie => {
+                    // Đảm bảo domain đúng
+                    const fixedCookie = { ...cookie };
+                    
+                    // Nếu cookie domain không khớp, fix lại
+                    if (fixedCookie.domain && !baseDomain.includes(fixedCookie.domain.replace(/^\./, ''))) {
+                        const baseHostname = new URL(baseDomain).hostname;
+                        fixedCookie.domain = baseHostname;
+                        logger.warn(`Fixed cookie domain: ${cookie.domain} -> ${fixedCookie.domain}`);
+                    }
+                    
+                    return fixedCookie;
                 });
 
-                // Set cookies từ session
-                await page.setCookie(...session.cookies);
+                await page.setCookie(...cookiesToSet);
+                logger.info('Cookies set successfully');
 
-                // Navigate với session params
-                // Lưu ý: session.url_params từ DB (snake_case)
-                const urlParams = session.url_params;
-                const baseUrl = this.config.baseUrl.replace('login.ecount.com', 'loginia.ecount.com');
-                const sessionUrl = `${baseUrl}/ec5/view/erp?w_flag=${urlParams.w_flag}&ec_req_sid=${urlParams.ec_req_sid}${ecountLink}`;
-                
-                logger.info('Navigate to: ' + sessionUrl);
+                // Verify cookies đã được set
+                const currentCookies = await page.cookies();
+                logger.info('Current cookies after set:', currentCookies.length);
 
-                await page.goto(`${baseUrl}/ec5/view/erp?w_flag=${urlParams.w_flag}&ec_req_sid=${urlParams.ec_req_sid}`, {
-                    waitUntil: 'networkidle0',
-                    timeout: this.puppeteerConfig.timeout
-                });
-
-                const timestamp = Date.now();
-                
-                // Screenshot
-                const screenshotPath = path.join(
-                    this.screenshotDir,
-                    `error_${timestamp}.png`
-                );
-
-                await page.screenshot({ path: screenshotPath, fullPage: true });
-
-                await page.goto(sessionUrl, {
-                    waitUntil: 'networkidle0',
-                    timeout: this.puppeteerConfig.timeout
-                });
-
-                await this.sleep(3000);
-
-                // Verify session còn hợp lệ
-                const currentUrl = page.url();
-                logger.info('Current URL after navigation: ' + currentUrl);
-
-                if (!currentUrl.includes('ec_req_sid')) {
-                    logger.warn('Session không còn hợp lệ, cần login lại');
-                    await sessionManager.clearSession();
-                    throw new Error('SESSION_EXPIRED');
-                }
-
-                logger.info('Đã sử dụng session thành công');
-            } else {
-                logger.info('Không có session, đang login...');
-                
-                // Không có session, login bình thường
-                await this.login(page);
-                
-                await this.sleep(2000);
-
-                // Lấy cookies và URL params sau khi login
-                const cookies = await page.cookies();
-                const currentUrl = page.url();
-                const urlObj = new URL(currentUrl);
-                const urlParams = {
-                    w_flag: urlObj.searchParams.get('w_flag'),
-                    ec_req_sid: urlObj.searchParams.get('ec_req_sid')
-                };
-
-                logger.info('Lưu session mới...', {
-                    w_flag: urlParams.w_flag,
-                    ec_req_sid: urlParams.ec_req_sid?.substring(0, 10) + '...'
-                });
-                
-                // Lưu session mới vào DB
-                await sessionManager.saveSession(cookies, urlParams, 30);
-                await this.navigateToOrderManagement(page, ecountLink);
+            } catch (cookieError) {
+                logger.error('Error setting cookies:', cookieError);
+                throw cookieError;
             }
 
-            return { browser, page };
+            await this.sleep(1000);
 
-        } catch (error) {
-            // Nếu có lỗi, đóng browser trước khi throw
-            await browser.close();
-            throw error;
+            logger.info('Navigate to final URL:', sessionUrl);
+            await page.goto(sessionUrl, {
+                waitUntil: 'domcontentloaded',
+                timeout: 60000
+            });
+
+            await this.sleep(3000);
+
+            const currentUrl = page.url();
+            logger.info('Current URL after navigation: ' + currentUrl);
+
+            if (!currentUrl.includes('ec_req_sid')) {
+                logger.warn('Session không còn hợp lệ, cần login lại');
+                await sessionManager.clearSession();
+                throw new Error('SESSION_EXPIRED');
+            }
+
+            logger.info('Đã sử dụng session thành công');
+
+        } else {
+            logger.info('Không có session, đang login...');
+            
+            await this.login(page);
+            await this.sleep(2000);
+
+            // Lưu session mới
+            const cookies = await page.cookies();
+            const currentUrl = page.url();
+            const urlObj = new URL(currentUrl);
+            const urlParams = {
+                w_flag: urlObj.searchParams.get('w_flag'),
+                ec_req_sid: urlObj.searchParams.get('ec_req_sid')
+            };
+
+            logger.info('Lưu session mới...', {
+                w_flag: urlParams.w_flag,
+                ec_req_sid: urlParams.ec_req_sid?.substring(0, 10) + '...',
+                cookiesCount: cookies.length
+            });
+            
+            await sessionManager.saveSession(cookies, urlParams, 30);
+            await this.navigateToOrderManagement(page, ecountLink);
         }
+
+        return { browser, page };
+
+    } catch (error) {
+        await browser.close();
+        throw error;
     }
+}
 
     /**
      * Cập nhật tracking number vào ECount
