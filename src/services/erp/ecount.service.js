@@ -108,6 +108,174 @@ class ECountService {
         }
     }
 
+    async getInfoEcount(orderCode, ecountLink) {
+        if (!ecountLink) {
+            throw new Error('ECount link is required');
+        }
+
+        const browser = await puppeteer.launch({
+            headless: this.puppeteerConfig.headless,
+            defaultViewport: null,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--lang=vi-VN',
+                '--window-size=1366,768',
+                '--disable-blink-features=AutomationControlled',
+            ],
+        });
+
+        let page;
+
+        try {
+            [page] = await browser.pages();
+            await page.setViewport({ width: 1366, height: 768 });
+
+            await page.evaluateOnNewDocument(() => {
+                Object.defineProperty(navigator, 'webdriver', { get: () => false });
+                Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
+                window.chrome = { runtime: {} };
+            });
+
+            await page.setUserAgent(
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            );
+
+            await this.login(page);
+            await this.navigateToOrderManagement(page, ecountLink);
+            await this.searchOrder(page, orderCode);
+
+            const result = await this.getInfoOrder(page);
+
+            return {
+                success: true,
+                orderCode,
+                data: result
+            };
+        } catch (error) {
+            logger.error('Lỗi khi lấy thông tin đơn hàng từ ECount:', error.message);
+
+            if (page) {
+                await this.saveDebugInfo(page, orderCode);
+            }
+
+            throw error;
+
+        } finally {
+            await browser.close();
+        }
+    }
+
+    async getInfoOrder(page) {
+        let dataFrame = page;
+        for (const frame of page.frames()) {
+            try {
+                const hasGrid = await frame.evaluate(() => {
+                    return document.querySelector('#app-root .wrapper-frame-body .contents tbody tr') !== null;
+                });
+                if (hasGrid) {
+                    dataFrame = frame;
+                    break;
+                }
+            } catch (e) {}
+        }
+
+        await dataFrame.waitForSelector('#app-root .wrapper-frame-body .contents tbody tr', { timeout: 20000 });
+
+        await dataFrame.evaluate(() => {
+            const linkModal = document.querySelector('#app-root .wrapper-frame-body .contents tbody tr a[id][data-item-key]');
+            if (!linkModal) throw new Error('Không tìm thấy link để mở modal');
+            linkModal.click();
+        });
+
+        await this.sleep(3000);
+
+        await dataFrame.waitForSelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]', { 
+            visible: true,
+            timeout: 15000 
+        });
+
+        await this.sleep(2000);
+
+        const result = await dataFrame.evaluate(() => {
+            const contentModal = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]')?.closest('[data-container="popup-body"]');
+            const fields = {
+                order_info: {
+                    customer_order_number: contentModal.querySelector('[placeholder="Code-THG"]')?.value || "",
+                    platform_order_number: contentModal.querySelector('[placeholder="OrderID"]')?.value || "",
+                    tracking_number: contentModal.querySelector('[placeholder="Tracking number (Yun)"]')?.value || "",
+                    service_code: contentModal.querySelector('[placeholder="Service"]')?.value || ""
+                },
+                receiver: {
+                    first_name: contentModal.querySelector('[placeholder="Name"]')?.value || "",
+                    last_name: "",
+                    country_code: contentModal.querySelector('[placeholder="Country Code"]')?.value || "",
+                    province: contentModal.querySelector('[placeholder="State"]')?.value || "",
+                    city: contentModal.querySelector('[placeholder="City"]')?.value || "",
+                    address_lines: [contentModal.querySelector('[placeholder="Street line 1"]')?.value || ""],
+                    postal_code: contentModal.querySelector('[placeholder="Zipcode"]')?.value || "",
+                    phone_number: contentModal.querySelector('[placeholder="Phone number"]')?.value || "",
+                    email: contentModal.querySelector('[placeholder="Email"]')?.value || ""
+                },
+                
+                packages: [],
+                declaration_info: []
+            };
+
+            contentModal.querySelectorAll('#grid-main tbody tr').forEach((row, index) => {
+                const prodCode = row.querySelector('[data-columnid="prod_cd"] .grid-input-data')?.textContent?.trim();
+                
+                if(prodCode && prodCode !== '\u00A0' && prodCode !== '') {
+                    const qty = row.querySelector('[data-columnid="qty"] .grid-input-data')?.textContent?.trim() || "0";
+                    const dimensions = row.querySelector('[data-columnid="ADD_TXT_04"] .grid-input-data')?.textContent?.trim() || "";
+                    const weight = row.querySelector('[data-columnid="ADD_TXT_03"] .grid-input-data')?.textContent?.trim() || "0";
+                    
+                    let length = 0, width = 0, height = 0;
+                    if(dimensions) {
+                        const parts = dimensions.split('x');
+                        length = parseFloat(parts[0]) || 0;
+                        width = parseFloat(parts[1]) || 0;
+                        height = parseFloat(parts[2]) || 0;
+                    }
+                    
+                    fields.packages.push({
+                        length: length,
+                        width: width,
+                        height: height,
+                        weight: parseFloat(weight) || 0
+                    });
+                    
+                    fields.declaration_info.push({
+                        sku_code: prodCode,
+                        name_en: row.querySelector('[data-columnid="prod_des"] .grid-input-data')?.textContent?.trim() || "",
+                        name_local: row.querySelector('[data-columnid="prod_des"] .grid-input-data')?.textContent?.trim() || "",
+                        quantity: parseInt(qty) || 1,
+                        unit_price: 0,
+                        unit_weight: parseFloat(weight) || 0,
+                        hs_code: "",
+                        currency: "USD"
+                    });
+                }
+            });
+
+            if(fields.packages.length === 0) {
+                fields.packages.push({
+                    length: 0,
+                    width: 0,
+                    height: 0,
+                    weight: 0
+                });
+            }
+            
+            return fields;
+        })
+
+        await this.sleep(1000);
+        return result;
+    }
+
     /**
      * Lưu screenshot và HTML khi có lỗi
      */
@@ -345,7 +513,7 @@ class ECountService {
 
         await this.sleep(3000);
 
-        await dataFrame.waitForSelector('[data-container="popup-body"] .contents [placeholder="Tracking number"]', { 
+        await dataFrame.waitForSelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]', { 
             visible: true,
             timeout: 15000 
         });
@@ -353,7 +521,7 @@ class ECountService {
         await this.sleep(2000);
 
         const updateSuccess = await dataFrame.evaluate((trackingNumber) => {
-            const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number"]');
+            const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]');
             if (!input) {
                 throw new Error('Không tìm thấy input Tracking number');
             }

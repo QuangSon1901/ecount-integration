@@ -238,16 +238,24 @@ class OrderService {
      * @param {string} carrierCode - Mã nhà vận chuyển (mặc định YUNEXPRESS)
      * @returns {Promise<Object>}
      */
-    async getOrderInfo(orderCode, carrierCode = 'YUNEXPRESS') {
+    async getOrderInfo(orderCode, carrierCode = 'YUNEXPRESS', type = 'carrier', pathDetail = '') {
         try {
-            const carrier = carrierFactory.getCarrier(carrierCode);
-            
             logger.info('Lấy thông tin đơn hàng:', {
                 orderCode,
-                carrier: carrierCode
+                carrier: carrierCode,
+                type
             });
 
-            const result = await carrier.getOrderInfo(orderCode);
+            let result = null;
+            switch (type) {
+                case 'erp':
+                    result = await ecountService.getInfoEcount(orderCode, pathDetail);
+                    break;
+                default:
+                    const carrier = carrierFactory.getCarrier(carrierCode);
+                    result = await carrier.getOrderInfo(orderCode);
+                    break;
+            }
 
             return {
                 success: true,

@@ -1,6 +1,7 @@
 const orderService = require('../services/order.service');
 const { successResponse, errorResponse } = require('../utils/response');
 const logger = require('../utils/logger');
+const { YUNEXPRESS } = require('../config/carriers.config');
 
 class OrderController {
     /**
@@ -108,11 +109,13 @@ class OrderController {
     async getOrderInfo(req, res, next) {
         try {
             const { orderCode } = req.params;
-            const { carrier } = req.query;
+            const { carrier, type, path } = req.query;
             
             const result = await orderService.getOrderInfo(
                 orderCode,
-                carrier || 'YUNEXPRESS'
+                carrier || 'YUNEXPRESS',
+                type || 'carrier',
+                path || '',
             );
             
             return successResponse(res, result.data, result.message);
