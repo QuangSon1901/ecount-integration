@@ -131,7 +131,22 @@ class ECountService {
                 const baseUrl = this.config.baseUrl.replace('login.ecount.com', 'loginia.ecount.com');
                 const sessionUrl = `${baseUrl}/ec5/view/erp?w_flag=${urlParams.w_flag}&ec_req_sid=${urlParams.ec_req_sid}${ecountLink}`;
                 
-                logger.info('Navigate to:' + sessionUrl);
+                logger.info('Navigate to: ' + sessionUrl);
+
+                await page.goto(`${baseUrl}/ec5/view/erp?w_flag=${urlParams.w_flag}&ec_req_sid=${urlParams.ec_req_sid}`, {
+                    waitUntil: 'networkidle0',
+                    timeout: this.puppeteerConfig.timeout
+                });
+
+                const timestamp = Date.now();
+                
+                // Screenshot
+                const screenshotPath = path.join(
+                    this.screenshotDir,
+                    `error_${timestamp}.png`
+                );
+
+                await page.screenshot({ path: screenshotPath, fullPage: true });
 
                 await page.goto(sessionUrl, {
                     waitUntil: 'networkidle0',
