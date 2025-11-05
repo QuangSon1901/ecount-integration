@@ -131,7 +131,7 @@ class ECountService {
                 const baseUrl = this.config.baseUrl.replace('login.ecount.com', 'loginia.ecount.com');
                 const sessionUrl = `${baseUrl}/ec5/view/erp?w_flag=${urlParams.w_flag}&ec_req_sid=${urlParams.ec_req_sid}${ecountLink}`;
                 
-                logger.info('Navigate to:', sessionUrl);
+                logger.info('Navigate to:' + sessionUrl);
 
                 await page.goto(sessionUrl, {
                     waitUntil: 'networkidle0',
@@ -142,7 +142,7 @@ class ECountService {
 
                 // Verify session còn hợp lệ
                 const currentUrl = page.url();
-                logger.info('Current URL after navigation:', currentUrl);
+                logger.info('Current URL after navigation: ' + currentUrl);
 
                 if (!currentUrl.includes('ec_req_sid')) {
                     logger.warn('Session không còn hợp lệ, cần login lại');

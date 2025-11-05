@@ -42,7 +42,7 @@ module.exports = {
             '--lang=vi-VN',
             '--window-size=1366,768',
             '--disable-blink-features=AutomationControlled',
-            '--single-process', // for Docker
+            // '--single-process', // for Docker
             '--disable-web-security',
             '--disable-features=IsolateOrigins,site-per-process'
         ],
