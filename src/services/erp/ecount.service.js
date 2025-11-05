@@ -270,7 +270,7 @@ class ECountService {
         }
     }
 
-    async getInfoEcountOld(orderCode, ecountLink) {
+    async getInfoEcount(orderCode, ecountLink) {
         if (!ecountLink) {
             throw new Error('ECount link is required');
         }
@@ -328,7 +328,7 @@ class ECountService {
     /**
      * Lấy info từ ECount với session
      */
-    async getInfoEcount(orderCode, ecountLink) {
+    async getInfoEcountOld(orderCode, ecountLink) {
         if (!ecountLink) {
             throw new Error('ECount link is required');
         }
