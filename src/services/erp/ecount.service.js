@@ -9,7 +9,7 @@ class ECountService {
     constructor() {
         this.config = config.ecount;
         this.puppeteerConfig = config.puppeteer;
-        
+
         // Tạo thư mục screenshots nếu chưa có
         this.screenshotDir = path.join(__dirname, '../../../logs/screenshots');
         if (!fs.existsSync(this.screenshotDir)) {
@@ -17,8 +17,93 @@ class ECountService {
         }
     }
 
-    async sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+    /**
+     * Chờ network idle (không còn request nào đang xử lý)
+     */
+    async waitForNetworkIdle(page, timeout = config.puppeteer.timeout, maxInflight = 0) {
+        return page.waitForNetworkIdle({
+            timeout,
+            idleTime: 500,
+            maxInflight
+        });
+    }
+
+    /**
+     * Chờ element xuất hiện và sẵn sàng tương tác
+     */
+    async waitForElement(frameOrPage, selector, options = {}) {
+        const defaultOptions = {
+            visible: true,
+            timeout: config.puppeteer.timeout,
+            ...options
+        };
+
+        await frameOrPage.waitForSelector(selector, defaultOptions);
+
+        // Đảm bảo element thực sự có thể click
+        if (defaultOptions.clickable !== false) {
+            await frameOrPage.waitForFunction(
+                (sel) => {
+                    const el = document.querySelector(sel);
+                    if (!el) return false;
+                    const rect = el.getBoundingClientRect();
+                    return rect.width > 0 && rect.height > 0 &&
+                        window.getComputedStyle(el).visibility !== 'hidden' &&
+                        window.getComputedStyle(el).display !== 'none';
+                },
+                { timeout: defaultOptions.timeout },
+                selector
+            );
+        }
+
+        return frameOrPage.$(selector);
+    }
+
+    /**
+     * Tìm frame chứa selector cụ thể
+     */
+    async findFrameWithSelector(page, selector, timeout = config.puppeteer.timeout) {
+        const startTime = Date.now();
+
+        while (Date.now() - startTime < timeout) {
+            const frames = page.frames();
+
+            for (const frame of frames) {
+                try {
+                    const element = await frame.$(selector);
+                    if (element) {
+                        return frame;
+                    }
+                } catch (e) {
+                    // Frame chưa ready, tiếp tục
+                }
+            }
+
+            // Chờ 100ms trước khi thử lại
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        throw new Error(`Không tìm thấy frame chứa selector: ${selector}`);
+    }
+
+    /**
+     * Type text với validation
+     */
+    async typeText(page, selector, text, options = {}) {
+        await this.waitForElement(page, selector);
+        await page.click(selector);
+        await page.type(selector, text, { delay: options.delay || 50 });
+
+        // Verify text đã được nhập
+        await page.waitForFunction(
+            (sel, expectedText) => {
+                const input = document.querySelector(sel);
+                return input && input.value === expectedText;
+            },
+            { timeout: 5000 },
+            selector,
+            text
+        );
     }
 
     /**
@@ -31,8 +116,8 @@ class ECountService {
             headless: this.puppeteerConfig.headless,
             defaultViewport: null,
             args: this.puppeteerConfig.args,
-            ...(this.puppeteerConfig.executablePath && { 
-                executablePath: this.puppeteerConfig.executablePath 
+            ...(this.puppeteerConfig.executablePath && {
+                executablePath: this.puppeteerConfig.executablePath
             })
         });
 
@@ -77,8 +162,8 @@ class ECountService {
 
             return {
                 success: true,
-                cookies: cookies,
-                urlParams: urlParams,
+                // cookies: cookies,
+                // urlParams: urlParams,
                 expiresIn: 1800 // 30 minutes in seconds
             };
 
@@ -91,153 +176,146 @@ class ECountService {
      * Lấy browser với session có sẵn
      */
     async getBrowserWithSession(ecountLink) {
-    const session = await sessionManager.getSession();
+        const session = await sessionManager.getSession();
 
-    const browser = await puppeteer.launch({
-        headless: this.puppeteerConfig.headless,
-        defaultViewport: null,
-        args: [
-            ...this.puppeteerConfig.args,
-            '--disable-dev-shm-usage',
-            '--no-sandbox',
-            '--disable-setuid-sandbox'
-        ],
-        ...(this.puppeteerConfig.executablePath && { 
-            executablePath: this.puppeteerConfig.executablePath 
-        })
-    });
-
-    try {
-        const [page] = await browser.pages();
-        await page.setViewport({ width: 1366, height: 768 });
-
-        // Set timeouts
-        page.setDefaultNavigationTimeout(60000);
-        page.setDefaultTimeout(60000);
-
-        // Anti-detection
-        await page.evaluateOnNewDocument(() => {
-            Object.defineProperty(navigator, 'webdriver', { get: () => false });
-            Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
-            window.chrome = { runtime: {} };
+        const browser = await puppeteer.launch({
+            headless: this.puppeteerConfig.headless,
+            defaultViewport: null,
+            args: [
+                ...this.puppeteerConfig.args,
+                '--disable-dev-shm-usage',
+                '--no-sandbox',
+                '--disable-setuid-sandbox'
+            ],
+            ...(this.puppeteerConfig.executablePath && {
+                executablePath: this.puppeteerConfig.executablePath
+            })
         });
 
-        await page.setUserAgent(
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        );
+        try {
+            const [page] = await browser.pages();
+            await page.setViewport({ width: 1366, height: 768 });
 
-        if (session) {
-            logger.info('Đang sử dụng session có sẵn', {
-                ttl: sessionManager.getSessionTTL() + 's',
-                cookiesCount: session.cookies.length
+            // Set timeouts
+            page.setDefaultNavigationTimeout(60000);
+            page.setDefaultTimeout(60000);
+
+            // Anti-detection
+            await page.evaluateOnNewDocument(() => {
+                Object.defineProperty(navigator, 'webdriver', { get: () => false });
+                Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
+                window.chrome = { runtime: {} };
             });
 
-            const urlParams = session.url_params;
-            const baseUrl = this.config.baseUrl.replace('login.ecount.com', 'loginia.ecount.com');
-            const sessionUrl = `${baseUrl}/ec5/view/erp?w_flag=${urlParams.w_flag}&ec_req_sid=${urlParams.ec_req_sid}${ecountLink}`;
-            
-            // QUAN TRỌNG: Navigate đến base domain TRƯỚC để set cookies
-            const baseDomain = new URL(baseUrl).origin;
-            logger.info('Navigate to base domain first:', baseDomain);
-            
-            await page.goto(baseDomain, {
-                waitUntil: 'domcontentloaded',
-                timeout: 30000
-            });
+            await page.setUserAgent(
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            );
 
-            await this.sleep(1000);
-
-            // Set cookies - PHẢI có domain đúng
-            try {
-                // Filter và fix cookies nếu cần
-                const cookiesToSet = session.cookies.map(cookie => {
-                    // Đảm bảo domain đúng
-                    const fixedCookie = { ...cookie };
-                    
-                    // Nếu cookie domain không khớp, fix lại
-                    if (fixedCookie.domain && !baseDomain.includes(fixedCookie.domain.replace(/^\./, ''))) {
-                        const baseHostname = new URL(baseDomain).hostname;
-                        fixedCookie.domain = baseHostname;
-                        logger.warn(`Fixed cookie domain: ${cookie.domain} -> ${fixedCookie.domain}`);
-                    }
-                    
-                    return fixedCookie;
+            if (session) {
+                logger.info('Đang sử dụng session có sẵn', {
+                    ttl: sessionManager.getSessionTTL() + 's',
+                    cookiesCount: session.cookies.length
                 });
 
-                await page.setCookie(...cookiesToSet);
-                logger.info('Cookies set successfully');
+                const urlParams = session.url_params;
+                const baseUrl = this.config.baseUrl.replace('login.ecount.com', 'loginia.ecount.com');
+                const sessionUrl = `${baseUrl}/ec5/view/erp?w_flag=${urlParams.w_flag}&ec_req_sid=${urlParams.ec_req_sid}${ecountLink}`;
 
-                // Verify cookies đã được set
-                const currentCookies = await page.cookies();
-                logger.info('Current cookies after set:', currentCookies.length);
+                // Navigate đến base domain TRƯỚC để set cookies
+                const baseDomain = new URL(baseUrl).origin;
+                logger.info('Navigate to base domain first:', baseDomain);
 
-            } catch (cookieError) {
-                logger.error('Error setting cookies:', cookieError);
-                throw cookieError;
+                await page.goto(baseDomain, {
+                    waitUntil: 'domcontentloaded',
+                    timeout: config.puppeteer.timeout
+                });
+
+                // Chờ page ready
+                await page.waitForFunction(() => document.readyState === 'complete');
+
+                // Set cookies
+                try {
+                    const cookiesToSet = session.cookies.map(cookie => {
+                        const fixedCookie = { ...cookie };
+
+                        if (fixedCookie.domain && !baseDomain.includes(fixedCookie.domain.replace(/^\./, ''))) {
+                            const baseHostname = new URL(baseDomain).hostname;
+                            fixedCookie.domain = baseHostname;
+                            logger.warn(`Fixed cookie domain: ${cookie.domain} -> ${fixedCookie.domain}`);
+                        }
+
+                        return fixedCookie;
+                    });
+
+                    await page.setCookie(...cookiesToSet);
+                    logger.info('Cookies set successfully');
+
+                    // Verify cookies đã được set
+                    const currentCookies = await page.cookies();
+                    logger.info('Current cookies after set:', currentCookies.length);
+
+                } catch (cookieError) {
+                    logger.error('Error setting cookies:', cookieError);
+                    throw cookieError;
+                }
+
+                logger.info('Navigate to final URL:', sessionUrl);
+                await page.goto(sessionUrl, {
+                    waitUntil: 'domcontentloaded',
+                    timeout: 60000
+                });
+
+                // Chờ page load xong hoàn toàn
+                await page.waitForFunction(
+                    () => document.readyState === 'complete' && document.body !== null,
+                    { timeout: config.puppeteer.timeout }
+                );
+
+                const currentUrl = page.url();
+                logger.info('Current URL after navigation: ' + currentUrl);
+
+                if (!currentUrl.includes('ec_req_sid')) {
+                    logger.warn('Session không còn hợp lệ, cần login lại');
+                    await sessionManager.clearSession();
+                    throw new Error('SESSION_EXPIRED');
+                }
+
+                logger.info('Đã sử dụng session thành công');
+
+            } else {
+                logger.info('Không có session, đang login...');
+
+                await this.login(page);
+
+                // Lưu session mới
+                const cookies = await page.cookies();
+                const currentUrl = page.url();
+                const urlObj = new URL(currentUrl);
+                const urlParams = {
+                    w_flag: urlObj.searchParams.get('w_flag'),
+                    ec_req_sid: urlObj.searchParams.get('ec_req_sid')
+                };
+
+                logger.info('Lưu session mới...', {
+                    w_flag: urlParams.w_flag,
+                    ec_req_sid: urlParams.ec_req_sid?.substring(0, 10) + '...',
+                    cookiesCount: cookies.length
+                });
+
+                await sessionManager.saveSession(cookies, urlParams, 30);
+                await this.navigateToOrderManagement(page, ecountLink);
             }
 
-            await this.sleep(1000);
+            return { browser, page };
 
-            logger.info('Navigate to final URL:', sessionUrl);
-            await page.goto(sessionUrl, {
-                waitUntil: 'domcontentloaded',
-                timeout: 60000
-            });
-
-            await this.sleep(3000);
-
-            const currentUrl = page.url();
-            logger.info('Current URL after navigation: ' + currentUrl);
-
-            if (!currentUrl.includes('ec_req_sid')) {
-                logger.warn('Session không còn hợp lệ, cần login lại');
-                await sessionManager.clearSession();
-                throw new Error('SESSION_EXPIRED');
-            }
-
-            logger.info('Đã sử dụng session thành công');
-
-        } else {
-            logger.info('Không có session, đang login...');
-            
-            await this.login(page);
-            await this.sleep(2000);
-
-            // Lưu session mới
-            const cookies = await page.cookies();
-            const currentUrl = page.url();
-            const urlObj = new URL(currentUrl);
-            const urlParams = {
-                w_flag: urlObj.searchParams.get('w_flag'),
-                ec_req_sid: urlObj.searchParams.get('ec_req_sid')
-            };
-
-            logger.info('Lưu session mới...', {
-                w_flag: urlParams.w_flag,
-                ec_req_sid: urlParams.ec_req_sid?.substring(0, 10) + '...',
-                cookiesCount: cookies.length
-            });
-            
-            await sessionManager.saveSession(cookies, urlParams, 30);
-            await this.navigateToOrderManagement(page, ecountLink);
+        } catch (error) {
+            await browser.close();
+            throw error;
         }
-
-        return { browser, page };
-
-    } catch (error) {
-        await browser.close();
-        throw error;
     }
-}
 
     /**
      * Cập nhật tracking number vào ECount
-     * @param {string} type - Loại update "status", "tracking_number"
-     * @param {number} orderId - ID order trong DB
-     * @param {string} orderCode - Mã đơn hàng trong ECount
-     * @param {string} trackingNumber - Tracking number
-     * @param {string} status - Trạng thái cần cập nhật
-     * @param {string} ecountLink - Hash link đầy đủ từ ECount
      */
     async updateInfoEcount(type, orderId, orderCode, trackingNumber, status = 'Đã hoàn tất', ecountLink) {
         logger.info('Bắt đầu cập nhật tracking vào ECount...', {
@@ -255,8 +333,8 @@ class ECountService {
             headless: this.puppeteerConfig.headless,
             defaultViewport: null,
             args: this.puppeteerConfig.args,
-            ...(this.puppeteerConfig.executablePath && { 
-                executablePath: this.puppeteerConfig.executablePath 
+            ...(this.puppeteerConfig.executablePath && {
+                executablePath: this.puppeteerConfig.executablePath
             })
         });
 
@@ -322,8 +400,8 @@ class ECountService {
             headless: this.puppeteerConfig.headless,
             defaultViewport: null,
             args: this.puppeteerConfig.args,
-            ...(this.puppeteerConfig.executablePath && { 
-                executablePath: this.puppeteerConfig.executablePath 
+            ...(this.puppeteerConfig.executablePath && {
+                executablePath: this.puppeteerConfig.executablePath
             })
         });
 
@@ -396,12 +474,12 @@ class ECountService {
             logger.error(error);
             if (error.message === 'SESSION_EXPIRED') {
                 logger.info('Session hết hạn, thử lại...');
-                
+
                 if (browser) await browser.close();
-                
+
                 await sessionManager.clearSession();
                 await this.createSession();
-                
+
                 return await this.getInfoEcount(orderCode, ecountLink);
             }
 
@@ -421,44 +499,54 @@ class ECountService {
     }
 
     async getInfoOrder(page) {
-        let dataFrame = page;
-        for (const frame of page.frames()) {
-            try {
-                const hasGrid = await frame.evaluate(() => {
-                    return document.querySelector('#app-root .wrapper-frame-body .contents tbody tr') !== null;
-                });
-                if (hasGrid) {
-                    dataFrame = frame;
-                    break;
-                }
-            } catch (e) {}
-        }
+        // Tìm frame chứa grid
+        const dataFrame = await this.findFrameWithSelector(
+            page,
+            '#app-root .wrapper-frame-body .contents tbody tr'
+        );
 
-        await dataFrame.waitForSelector('#app-root .wrapper-frame-body .contents tbody tr', { timeout: 20000 });
+        await this.waitForElement(
+            dataFrame,
+            '#app-root .wrapper-frame-body .contents tbody tr'
+        );
 
+        // Click vào link mở modal
         await dataFrame.evaluate(() => {
             const linkModal = document.querySelector('#app-root .wrapper-frame-body .contents tbody tr a[id][data-item-key]');
             if (!linkModal) throw new Error('Không tìm thấy link để mở modal');
             linkModal.click();
         });
 
-        await this.sleep(3000);
+        // Chờ modal xuất hiện
+        await this.waitForElement(
+            dataFrame,
+            '[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]'
+        );
 
-        await dataFrame.waitForSelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]', { 
-            visible: true,
-            timeout: 15000 
-        });
+        // Chờ thêm để đảm bảo dữ liệu đã load
+        await dataFrame.waitForFunction(
+            () => {
+                const modal = document.querySelector('[data-container="popup-body"]');
+                if (!modal) return false;
 
-        await this.sleep(2000);
+                // Kiểm tra các field chính đã có data
+                const hasData = document.querySelector('[placeholder="Code-THG"]')?.value ||
+                    document.querySelector('[placeholder="OrderID"]')?.value ||
+                    document.querySelector('[placeholder="Name"]')?.value;
+
+                return hasData;
+            },
+            { timeout: 15000 }
+        );
 
         const result = await dataFrame.evaluate(() => {
             const contentModal = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]')?.closest('[data-container="popup-body"]');
             const fields = {
                 order_info: {
                     customer_order_number: contentModal.querySelector('[placeholder="Code-THG"]')?.value || "",
-                    platform_order_number: contentModal.querySelector('[placeholder="OrderID"]')?.value || "",
-                    tracking_number: contentModal.querySelector('[placeholder="Tracking number (Yun)"]')?.value || "",
-                    service_code: contentModal.querySelector('[placeholder="Service"]')?.value || ""
+                    platform_order_number: "",
+                    tracking_number: "",
+                    service_code: ""
                 },
                 receiver: {
                     first_name: contentModal.querySelector('[placeholder="Name"]')?.value || "",
@@ -471,34 +559,34 @@ class ECountService {
                     phone_number: contentModal.querySelector('[placeholder="Phone number"]')?.value || "",
                     email: contentModal.querySelector('[placeholder="Email"]')?.value || ""
                 },
-                
+
                 packages: [],
                 declaration_info: []
             };
 
             contentModal.querySelectorAll('#grid-main tbody tr').forEach((row, index) => {
                 const prodCode = row.querySelector('[data-columnid="prod_cd"] .grid-input-data')?.textContent?.trim();
-                
-                if(prodCode && prodCode !== '\u00A0' && prodCode !== '') {
+
+                if (prodCode && prodCode !== '\u00A0' && prodCode !== '') {
                     const qty = row.querySelector('[data-columnid="qty"] .grid-input-data')?.textContent?.trim() || "0";
                     const dimensions = row.querySelector('[data-columnid="ADD_TXT_04"] .grid-input-data')?.textContent?.trim() || "";
                     const weight = row.querySelector('[data-columnid="ADD_TXT_03"] .grid-input-data')?.textContent?.trim() || "0";
-                    
+
                     let length = 0, width = 0, height = 0;
-                    if(dimensions) {
+                    if (dimensions) {
                         const parts = dimensions.split('x');
                         length = parseFloat(parts[0]) || 0;
                         width = parseFloat(parts[1]) || 0;
                         height = parseFloat(parts[2]) || 0;
                     }
-                    
+
                     fields.packages.push({
                         length: length,
                         width: width,
                         height: height,
                         weight: parseFloat(weight) || 0
                     });
-                    
+
                     fields.declaration_info.push({
                         sku_code: prodCode,
                         name_en: row.querySelector('[data-columnid="prod_des"] .grid-input-data')?.textContent?.trim() || "",
@@ -512,7 +600,7 @@ class ECountService {
                 }
             });
 
-            if(fields.packages.length === 0) {
+            if (fields.packages.length === 0) {
                 fields.packages.push({
                     length: 0,
                     width: 0,
@@ -520,11 +608,10 @@ class ECountService {
                     weight: 0
                 });
             }
-            
-            return fields;
-        })
 
-        await this.sleep(1000);
+            return fields;
+        });
+
         return result;
     }
 
@@ -535,7 +622,7 @@ class ECountService {
         try {
             const timestamp = Date.now();
             const safeOrderCode = orderCode.replace(/[^a-zA-Z0-9]/g, '_');
-            
+
             // Screenshot
             const screenshotPath = path.join(
                 this.screenshotDir,
@@ -543,7 +630,7 @@ class ECountService {
             );
             await page.screenshot({ path: screenshotPath, fullPage: true });
             logger.info(`Screenshot lưu tại: ${screenshotPath}`);
-            
+
             // HTML
             const htmlPath = path.join(
                 this.screenshotDir,
@@ -552,7 +639,7 @@ class ECountService {
             const html = await page.content();
             fs.writeFileSync(htmlPath, html);
             logger.info(`HTML lưu tại: ${htmlPath}`);
-            
+
         } catch (e) {
             logger.error('Không thể lưu debug files:', e.message);
         }
@@ -566,35 +653,39 @@ class ECountService {
             { waitUntil: 'networkidle0', timeout: this.puppeteerConfig.timeout }
         );
 
-        await this.sleep(2000);
+        // Chờ page load xong
+        await page.waitForFunction(() => document.readyState === 'complete');
 
         const hasLoginForm = await page.$('#com_code');
         if (hasLoginForm) {
-            await page.waitForSelector('#com_code', { visible: true, timeout: 10000 });
-            await page.click('#com_code');
-            await this.sleep(500);
-            await page.type('#com_code', this.config.companyCode, { delay: 100 });
-
-            await page.click('#id');
-            await this.sleep(500);
-            await page.type('#id', this.config.id, { delay: 100 });
-
-            await page.click('#passwd');
-            await this.sleep(500);
-            await page.type('#passwd', this.config.password, { delay: 100 });
+            await this.typeText(page, '#com_code', this.config.companyCode);
+            await this.typeText(page, '#id', this.config.id);
+            await this.typeText(page, '#passwd', this.config.password);
 
             await Promise.all([
-                page.waitForNavigation({ waitUntil: 'networkidle0', timeout: this.puppeteerConfig.timeout }),
+                page.waitForNavigation({
+                    waitUntil: 'networkidle0',
+                    timeout: this.puppeteerConfig.timeout
+                }),
                 page.click('button#save')
             ]);
 
-            await this.sleep(3000);
+            // Chờ page sau login load xong
+            await page.waitForFunction(
+                () => document.readyState === 'complete' && document.body !== null,
+                { timeout: config.puppeteer.timeout }
+            );
 
             // Close popup if exists
             const hasPopup = await page.$('#toolbar_sid_toolbar_item_non_regist');
             if (hasPopup) {
                 await page.click('#toolbar_sid_toolbar_item_non_regist');
-                await this.sleep(1000);
+                // Chờ popup đóng
+                await page.waitForFunction(
+                    () => !document.querySelector('#toolbar_sid_toolbar_item_non_regist') ||
+                        window.getComputedStyle(document.querySelector('#toolbar_sid_toolbar_item_non_regist')).display === 'none',
+                    { timeout: 5000 }
+                ).catch(() => { }); // Ignore timeout nếu popup đã đóng
             }
 
             logger.info('Đã đăng nhập');
@@ -603,23 +694,18 @@ class ECountService {
 
     /**
      * Điều hướng đến quản lý đơn hàng với hash link cụ thể
-     * @param {Page} page - Puppeteer page
-     * @param {string} ecountLink - Hash link đầy đủ, ví dụ: "#menuType=MENUTREE_000004&menuSeq=..."
      */
     async navigateToOrderManagement(page, ecountLink) {
-        logger.info('Điều hướng đến quản lý đơn hàng với link: ' + ecountLink, );
+        logger.info('Điều hướng đến quản lý đơn hàng với link: ' + ecountLink);
 
-        await this.sleep(3000);
         await page.waitForFunction(
             () => document.readyState === 'complete' && document.body !== null,
-            { timeout: 30000 }
+            { timeout: config.puppeteer.timeout }
         );
 
         const currentUrl = page.url();
         const urlObj = new URL(currentUrl);
         const baseUrl = urlObj.origin + urlObj.pathname + urlObj.search;
-
-        // Sử dụng hash link từ parameter thay vì config cố định
         const targetUrl = `${baseUrl}${ecountLink}`;
 
         logger.info('Target URL:', targetUrl);
@@ -629,36 +715,36 @@ class ECountService {
             timeout: this.puppeteerConfig.timeout
         });
 
-        await this.sleep(5000);
+        // Chờ page load xong và frame sẵn sàng
+        await page.waitForFunction(
+            () => {
+                const frames = window.frames;
+                return document.readyState === 'complete' && frames.length > 0;
+            },
+            { timeout: config.puppeteer.timeout }
+        );
+
         logger.info('Đã vào trang quản lý đơn hàng');
     }
 
     async searchOrder(page, orderCode) {
-        logger.info('Tìm kiếm đơn hàng:', orderCode);
+        logger.info('Tìm kiếm đơn hàng:' + orderCode);
 
-        let searchFrame = page;
-        for (const frame of page.frames()) {
-            try {
-                const hasSearch = await frame.evaluate(() => {
-                    return document.querySelector('#quick_search') !== null;
-                });
-                if (hasSearch) {
-                    searchFrame = frame;
-                    break;
-                }
-            } catch (e) {}
-        }
+        // Tìm frame chứa search box
+        const searchFrame = await this.findFrameWithSelector(page, '#quick_search');
 
+        // Chờ input sẵn sàng và visible
         await searchFrame.waitForFunction(
             () => {
                 const input = document.querySelector('#quick_search');
-                return input !== null && window.getComputedStyle(input).display !== 'none';
+                return input !== null &&
+                    window.getComputedStyle(input).display !== 'none' &&
+                    !input.disabled;
             },
             { timeout: 20000 }
         );
 
-        await this.sleep(2000);
-
+        // Scroll và focus
         await searchFrame.evaluate(() => {
             const input = document.querySelector('#quick_search');
             if (input) {
@@ -667,33 +753,46 @@ class ECountService {
             }
         });
 
-        await this.sleep(1000);
-        await searchFrame.type('#quick_search', orderCode, { delay: 150 });
-        await page.keyboard.press('Enter');
+        // Chờ input đã focus
+        await searchFrame.waitForFunction(
+            () => document.querySelector('#quick_search') === document.activeElement,
+            { timeout: 5000 }
+        );
 
-        await this.sleep(6000);
+        await searchFrame.type('#quick_search', orderCode, { delay: 100 });
+
+        // Press Enter và chờ kết quả
+        await Promise.all([
+            searchFrame.waitForFunction(
+                () => {
+                    // Chờ grid có data hoặc loading indicator biến mất
+                    const hasData = document.querySelector('#app-root .wrapper-frame-body .contents tbody tr');
+                    const loading = document.querySelector('.loading, .spinner');
+                    return hasData || !loading;
+                },
+                { timeout: config.puppeteer.timeout }
+            ),
+            page.keyboard.press('Enter')
+        ]);
+
         logger.info('Đã tìm thấy đơn hàng');
     }
 
     async updateOrderStatus(page, status) {
         logger.info('Cập nhật trạng thái...');
 
-        let dataFrame = page;
-        for (const frame of page.frames()) {
-            try {
-                const hasGrid = await frame.evaluate(() => {
-                    return document.querySelector('#app-root .wrapper-frame-body .contents tbody tr') !== null;
-                });
-                if (hasGrid) {
-                    dataFrame = frame;
-                    break;
-                }
-            } catch (e) {}
-        }
+        // Tìm frame chứa grid
+        const dataFrame = await this.findFrameWithSelector(
+            page,
+            '#app-root .wrapper-frame-body .contents tbody tr'
+        );
 
-        await dataFrame.waitForSelector('#app-root .wrapper-frame-body .contents tbody tr', { timeout: 20000 });
+        await this.waitForElement(
+            dataFrame,
+            '#app-root .wrapper-frame-body .contents tbody tr'
+        );
 
-        // Step 1: Check checkbox
+        // Click button status
         await dataFrame.evaluate(() => {
             const firstRow = document.querySelector('#app-root .wrapper-frame-body .contents tbody tr');
             if (!firstRow) throw new Error('Không tìm thấy record');
@@ -702,19 +801,16 @@ class ECountService {
             button.click();
         });
 
-        await this.sleep(2000);
+        // Chờ dropdown xuất hiện
+        await this.waitForElement(
+            dataFrame,
+            '.dropdown-menu [data-baseid] li span'
+        );
 
-        // Step 3: Đợi dropdown xuất hiện và click vào status
-        await dataFrame.waitForSelector('.dropdown-menu [data-baseid] li span', {
-            visible: true,
-            timeout: 10000
-        });
-
-        await this.sleep(500);
-
+        // Click vào status
         const statusUpdated = await dataFrame.evaluate((targetStatus) => {
             const spans = document.querySelectorAll('.dropdown-menu [data-baseid] li span');
-            
+
             if (spans.length === 0) {
                 throw new Error('Không tìm thấy danh sách trạng thái');
             }
@@ -735,43 +831,53 @@ class ECountService {
             throw new Error(`Không tìm thấy trạng thái: "${status}"`);
         }
 
-        await this.sleep(3000);
+        // Chờ dropdown đóng và cập nhật xong
+        await dataFrame.waitForFunction(
+            () => {
+                const dropdown = document.querySelector('.dropdown-menu [data-baseid]');
+                return !dropdown || window.getComputedStyle(dropdown).display === 'none';
+            },
+            { timeout: 10000 }
+        );
+
         logger.info('Đã cập nhật trạng thái thành công');
     }
 
     async updateTrackingNumber(page, trackingNumber) {
         logger.info('Cập nhật tracking...');
 
-        let dataFrame = page;
-        for (const frame of page.frames()) {
-            try {
-                const hasGrid = await frame.evaluate(() => {
-                    return document.querySelector('#app-root .wrapper-frame-body .contents tbody tr') !== null;
-                });
-                if (hasGrid) {
-                    dataFrame = frame;
-                    break;
-                }
-            } catch (e) {}
-        }
+        // Tìm frame chứa grid
+        const dataFrame = await this.findFrameWithSelector(
+            page,
+            '#app-root .wrapper-frame-body .contents tbody tr'
+        );
 
-        await dataFrame.waitForSelector('#app-root .wrapper-frame-body .contents tbody tr', { timeout: 20000 });
-        
+        await this.waitForElement(
+            dataFrame,
+            '#app-root .wrapper-frame-body .contents tbody tr'
+        );
+
+        // Click mở modal
         await dataFrame.evaluate(() => {
             const linkModal = document.querySelector('#app-root .wrapper-frame-body .contents tbody tr a[id][data-item-key]');
             if (!linkModal) throw new Error('Không tìm thấy link để mở modal');
             linkModal.click();
-        });
+        });// Chờ modal xuất hiện và input tracking sẵn sàng
+        await this.waitForElement(
+            dataFrame,
+            '[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]'
+        );
 
-        await this.sleep(3000);
+        // Chờ modal load đủ dữ liệu
+        await dataFrame.waitForFunction(
+            () => {
+                const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]');
+                return input && !input.disabled;
+            },
+            { timeout: 15000 }
+        );
 
-        await dataFrame.waitForSelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]', { 
-            visible: true,
-            timeout: 15000 
-        });
-
-        await this.sleep(2000);
-
+        // Update tracking number
         const updateSuccess = await dataFrame.evaluate((trackingNumber) => {
             const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]');
             if (!input) {
@@ -781,7 +887,7 @@ class ECountService {
             input.value = trackingNumber;
             input.dispatchEvent(new Event('input', { bubbles: true }));
             input.dispatchEvent(new Event('change', { bubbles: true }));
-            
+
             return true;
         }, trackingNumber);
 
@@ -789,10 +895,49 @@ class ECountService {
             throw new Error('Không thể cập nhật tracking number');
         }
 
-        await this.sleep(1000);
+        // Verify giá trị đã được set
+        await dataFrame.waitForFunction(
+            (expectedValue) => {
+                const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]');
+                return input && input.value === expectedValue;
+            },
+            { timeout: 5000 },
+            trackingNumber
+        );
+
+        // Press F8 để save
         await page.keyboard.press('F8');
-        await this.sleep(5000);
+
+        // Chờ save xong (modal đóng hoặc có thông báo thành công)
+        await dataFrame.waitForFunction(
+            () => {
+                // Kiểm tra modal đã đóng
+                const modal = document.querySelector('[data-container="popup-body"]');
+                if (!modal || window.getComputedStyle(modal).display === 'none') {
+                    return true;
+                }
+
+                // Hoặc kiểm tra có success message
+                const successMsg = document.querySelector('.success-message, .toast-success');
+                return successMsg !== null;
+            },
+            { timeout: 15000 }
+        ).catch(async () => {
+            // Nếu timeout, kiểm tra xem có loading indicator không
+            const stillLoading = await dataFrame.evaluate(() => {
+                return document.querySelector('.loading, .spinner, .saving') !== null;
+            });
+
+            if (stillLoading) {
+                // Chờ thêm nếu vẫn đang loading
+                await dataFrame.waitForFunction(
+                    () => document.querySelector('.loading, .spinner, .saving') === null,
+                    { timeout: 10000 }
+                );
+            }
+        });
+
+        logger.info('Đã cập nhật tracking number thành công');
     }
 }
-
 module.exports = new ECountService();
