@@ -29,8 +29,24 @@ module.exports = {
     },
     
     puppeteer: {
-        headless: "new",
-        timeout: 40000
+        headless: process.env.PUPPETEER_HEADLESS === 'true' ? 'new' : false,
+        timeout: parseInt(process.env.PUPPETEER_TIMEOUT) || 40000,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu',
+            '--lang=vi-VN',
+            '--window-size=1366,768',
+            '--disable-blink-features=AutomationControlled',
+            '--single-process', // for Docker
+            '--disable-web-security',
+            '--disable-features=IsolateOrigins,site-per-process'
+        ],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
     },
     
     cron: {

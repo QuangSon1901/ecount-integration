@@ -30,15 +30,10 @@ class ECountService {
         const browser = await puppeteer.launch({
             headless: this.puppeteerConfig.headless,
             defaultViewport: null,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu',
-                '--lang=vi-VN',
-                '--window-size=1366,768',
-                '--disable-blink-features=AutomationControlled',
-            ],
+            args: this.puppeteerConfig.args,
+            ...(this.puppeteerConfig.executablePath && { 
+                executablePath: this.puppeteerConfig.executablePath 
+            })
         });
 
         let page;
@@ -101,15 +96,10 @@ class ECountService {
         const browser = await puppeteer.launch({
             headless: this.puppeteerConfig.headless,
             defaultViewport: null,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu',
-                '--lang=vi-VN',
-                '--window-size=1366,768',
-                '--disable-blink-features=AutomationControlled',
-            ],
+            args: this.puppeteerConfig.args,
+            ...(this.puppeteerConfig.executablePath && { 
+                executablePath: this.puppeteerConfig.executablePath 
+            })
         });
 
         try {
@@ -221,15 +211,10 @@ class ECountService {
         const browser = await puppeteer.launch({
             headless: this.puppeteerConfig.headless,
             defaultViewport: null,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu',
-                '--lang=vi-VN',
-                '--window-size=1366,768',
-                '--disable-blink-features=AutomationControlled',
-            ],
+            args: this.puppeteerConfig.args,
+            ...(this.puppeteerConfig.executablePath && { 
+                executablePath: this.puppeteerConfig.executablePath 
+            })
         });
 
         let page;
@@ -293,15 +278,10 @@ class ECountService {
         const browser = await puppeteer.launch({
             headless: this.puppeteerConfig.headless,
             defaultViewport: null,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu',
-                '--lang=vi-VN',
-                '--window-size=1366,768',
-                '--disable-blink-features=AutomationControlled',
-            ],
+            args: this.puppeteerConfig.args,
+            ...(this.puppeteerConfig.executablePath && { 
+                executablePath: this.puppeteerConfig.executablePath 
+            })
         });
 
         let page;
