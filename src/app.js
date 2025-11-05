@@ -3,13 +3,16 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const orderRoutes = require('./routes/order.routes');
+const ecountRoutes = require('./routes/ecount.routes');
 const errorMiddleware = require('./middlewares/error.middleware');
 const logger = require('./utils/logger');
 const db = require('./database/connection');
 const trackingCron = require('./jobs/tracking.cron');
 const fetchTrackingCron = require('./jobs/fetch-tracking.cron');
 const updateStatusCron = require('./jobs/update-status.cron');
+const cleanupSessionsCron = require('./jobs/cleanup-sessions.cron');
 const jobWorker = require('./jobs/worker');
+
 
 const app = express();
 
@@ -59,6 +62,7 @@ app.get('/health', async (req, res) => {
 
 // Routes
 app.use('/api/orders', orderRoutes);
+app.use('/api/ecount', ecountRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -78,6 +82,8 @@ const initializeApp = async () => {
         jobWorker.start();
         fetchTrackingCron.start();
         updateStatusCron.start();
+        cleanupSessionsCron.start();
+        
         // trackingCron.start();
 
     } catch (error) {

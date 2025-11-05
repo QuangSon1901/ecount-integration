@@ -8,6 +8,8 @@ node_modules/
 logs/
 *.log
 
+data/
+
 # Screenshots và debug files
 logs/screenshots/
 

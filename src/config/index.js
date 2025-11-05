@@ -29,7 +29,7 @@ module.exports = {
     },
     
     puppeteer: {
-        headless: "new",
+        headless: false,
         timeout: 40000
     },
     

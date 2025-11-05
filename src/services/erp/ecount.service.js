@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const config = require('../../config');
 const logger = require('../../utils/logger');
+const sessionManager = require('./ecount-session.manager');
 
 class ECountService {
     constructor() {
@@ -18,6 +19,182 @@ class ECountService {
 
     async sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    /**
+     * Tạo session mới và lưu lại
+     */
+    async createSession() {
+        logger.info('Đang tạo session ECount mới...');
+
+        const browser = await puppeteer.launch({
+            headless: this.puppeteerConfig.headless,
+            defaultViewport: null,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--lang=vi-VN',
+                '--window-size=1366,768',
+                '--disable-blink-features=AutomationControlled',
+            ],
+        });
+
+        let page;
+        try {
+            [page] = await browser.pages();
+            await page.setViewport({ width: 1366, height: 768 });
+
+            // Anti-detection
+            await page.evaluateOnNewDocument(() => {
+                Object.defineProperty(navigator, 'webdriver', { get: () => false });
+                Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
+                window.chrome = { runtime: {} };
+            });
+
+            await page.setUserAgent(
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            );
+
+            // Login
+            await this.login(page);
+
+            // Lấy cookies
+            const cookies = await page.cookies();
+
+            // Lấy URL params
+            const currentUrl = page.url();
+            const urlObj = new URL(currentUrl);
+            const urlParams = {
+                w_flag: urlObj.searchParams.get('w_flag'),
+                ec_req_sid: urlObj.searchParams.get('ec_req_sid')
+            };
+
+            // Lưu session (30 phút)
+            await sessionManager.saveSession(cookies, urlParams, 30);
+
+            logger.info('Đã tạo session thành công', {
+                w_flag: urlParams.w_flag,
+                ec_req_sid: urlParams.ec_req_sid?.substring(0, 10) + '...',
+                cookiesCount: cookies.length
+            });
+
+            return {
+                success: true,
+                cookies: cookies,
+                urlParams: urlParams,
+                expiresIn: 1800 // 30 minutes in seconds
+            };
+
+        } finally {
+            await browser.close();
+        }
+    }
+
+    /**
+     * Lấy browser với session có sẵn
+     */
+    async getBrowserWithSession(ecountLink) {
+        const session = await sessionManager.getSession();
+
+        const browser = await puppeteer.launch({
+            headless: this.puppeteerConfig.headless,
+            defaultViewport: null,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--lang=vi-VN',
+                '--window-size=1366,768',
+                '--disable-blink-features=AutomationControlled',
+            ],
+        });
+
+        try {
+            const [page] = await browser.pages();
+            await page.setViewport({ width: 1366, height: 768 });
+
+            // Anti-detection
+            await page.evaluateOnNewDocument(() => {
+                Object.defineProperty(navigator, 'webdriver', { get: () => false });
+                Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
+                window.chrome = { runtime: {} };
+            });
+
+            await page.setUserAgent(
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            );
+
+            if (session) {
+                logger.info('Đang sử dụng session có sẵn', {
+                    ttl: sessionManager.getSessionTTL() + 's'
+                });
+
+                // Set cookies từ session
+                await page.setCookie(...session.cookies);
+
+                // Navigate với session params
+                // Lưu ý: session.url_params từ DB (snake_case)
+                const urlParams = session.url_params;
+                const baseUrl = this.config.baseUrl.replace('login.ecount.com', 'loginia.ecount.com');
+                const sessionUrl = `${baseUrl}/ec5/view/erp?w_flag=${urlParams.w_flag}&ec_req_sid=${urlParams.ec_req_sid}${ecountLink}`;
+                
+                logger.info('Navigate to:', sessionUrl);
+
+                await page.goto(sessionUrl, {
+                    waitUntil: 'networkidle0',
+                    timeout: this.puppeteerConfig.timeout
+                });
+
+                await this.sleep(3000);
+
+                // Verify session còn hợp lệ
+                const currentUrl = page.url();
+                logger.info('Current URL after navigation:', currentUrl);
+
+                if (!currentUrl.includes('ec_req_sid')) {
+                    logger.warn('Session không còn hợp lệ, cần login lại');
+                    await sessionManager.clearSession();
+                    throw new Error('SESSION_EXPIRED');
+                }
+
+                logger.info('Đã sử dụng session thành công');
+            } else {
+                logger.info('Không có session, đang login...');
+                
+                // Không có session, login bình thường
+                await this.login(page);
+                
+                await this.sleep(2000);
+
+                // Lấy cookies và URL params sau khi login
+                const cookies = await page.cookies();
+                const currentUrl = page.url();
+                const urlObj = new URL(currentUrl);
+                const urlParams = {
+                    w_flag: urlObj.searchParams.get('w_flag'),
+                    ec_req_sid: urlObj.searchParams.get('ec_req_sid')
+                };
+
+                logger.info('Lưu session mới...', {
+                    w_flag: urlParams.w_flag,
+                    ec_req_sid: urlParams.ec_req_sid?.substring(0, 10) + '...'
+                });
+                
+                // Lưu session mới vào DB
+                await sessionManager.saveSession(cookies, urlParams, 30);
+                await this.navigateToOrderManagement(page, ecountLink);
+            }
+
+            return { browser, page };
+
+        } catch (error) {
+            // Nếu có lỗi, đóng browser trước khi throw
+            await browser.close();
+            throw error;
+        }
     }
 
     /**
@@ -108,7 +285,7 @@ class ECountService {
         }
     }
 
-    async getInfoEcount(orderCode, ecountLink) {
+    async getInfoEcountOld(orderCode, ecountLink) {
         if (!ecountLink) {
             throw new Error('ECount link is required');
         }
@@ -165,6 +342,58 @@ class ECountService {
 
         } finally {
             await browser.close();
+        }
+    }
+
+    /**
+     * Lấy info từ ECount với session
+     */
+    async getInfoEcount(orderCode, ecountLink) {
+        if (!ecountLink) {
+            throw new Error('ECount link is required');
+        }
+
+        let browser, page;
+
+        try {
+            const result = await this.getBrowserWithSession(ecountLink);
+            browser = result.browser;
+            page = result.page;
+
+            await this.searchOrder(page, orderCode);
+
+            const orderInfo = await this.getInfoOrder(page);
+
+            return {
+                success: true,
+                orderCode,
+                data: orderInfo
+            };
+        } catch (error) {
+            logger.error(error);
+            if (error.message === 'SESSION_EXPIRED') {
+                logger.info('Session hết hạn, thử lại...');
+                
+                if (browser) await browser.close();
+                
+                await sessionManager.clearSession();
+                await this.createSession();
+                
+                return await this.getInfoEcount(orderCode, ecountLink);
+            }
+
+            logger.error('Lỗi khi lấy thông tin từ ECount:', error.message);
+
+            if (page) {
+                await this.saveDebugInfo(page, orderCode);
+            }
+
+            throw error;
+
+        } finally {
+            if (browser) {
+                await browser.close();
+            }
         }
     }
 
@@ -355,7 +584,7 @@ class ECountService {
      * @param {string} ecountLink - Hash link đầy đủ, ví dụ: "#menuType=MENUTREE_000004&menuSeq=..."
      */
     async navigateToOrderManagement(page, ecountLink) {
-        logger.info('Điều hướng đến quản lý đơn hàng với link:', ecountLink);
+        logger.info('Điều hướng đến quản lý đơn hàng với link: ' + ecountLink, );
 
         await this.sleep(3000);
         await page.waitForFunction(

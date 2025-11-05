@@ -305,6 +305,32 @@ const migrations = [
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             COMMENT='Bảng quản lý jobs queue';
         `
+    },
+    {
+        version: 7,
+        name: 'create_sessions_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS sessions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                
+                session_key VARCHAR(100) UNIQUE NOT NULL COMMENT 'Key định danh session',
+                session_type VARCHAR(50) NOT NULL DEFAULT 'ecount' COMMENT 'Loại session',
+                
+                cookies JSON NOT NULL COMMENT 'Browser cookies',
+                url_params JSON COMMENT 'URL parameters',
+                metadata JSON COMMENT 'Metadata khác',
+                
+                expires_at TIMESTAMP NOT NULL COMMENT 'Thời gian hết hạn',
+                
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                
+                INDEX idx_session_key (session_key),
+                INDEX idx_session_type (session_type),
+                INDEX idx_expires_at (expires_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='Bảng lưu trữ sessions';
+        `
     }
 ];
 
@@ -337,6 +363,7 @@ async function runMigrations(fresh = false) {
             await connection.query('DROP TABLE IF EXISTS cron_logs');
             await connection.query('DROP TABLE IF EXISTS orders');
             await connection.query('DROP TABLE IF EXISTS jobs');
+            await connection.query('DROP TABLE IF EXISTS sessions');
             await connection.query('DROP TABLE IF EXISTS migrations');
             await connection.query('SET FOREIGN_KEY_CHECKS = 1');
             
