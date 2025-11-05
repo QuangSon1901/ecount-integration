@@ -270,7 +270,7 @@ class ECountService {
         }
     }
 
-    async getInfoEcount(orderCode, ecountLink) {
+    async getInfoEcountOld(orderCode, ecountLink) {
         if (!ecountLink) {
             throw new Error('ECount link is required');
         }
@@ -328,7 +328,7 @@ class ECountService {
     /**
      * Lấy info từ ECount với session
      */
-    async getInfoEcountOld(orderCode, ecountLink) {
+    async getInfoEcount(orderCode, ecountLink) {
         if (!ecountLink) {
             throw new Error('ECount link is required');
         }
@@ -611,7 +611,7 @@ class ECountService {
                 const input = document.querySelector('#quick_search');
                 return input !== null && window.getComputedStyle(input).display !== 'none';
             },
-            { timeout: 30000 }
+            { timeout: 20000 }
         );
 
         await this.sleep(2000);
