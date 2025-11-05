@@ -611,7 +611,7 @@ class ECountService {
                 const input = document.querySelector('#quick_search');
                 return input !== null && window.getComputedStyle(input).display !== 'none';
             },
-            { timeout: 20000 }
+            { timeout: 30000 }
         );
 
         await this.sleep(2000);
