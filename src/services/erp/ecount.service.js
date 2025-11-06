@@ -520,7 +520,7 @@ class ECountService {
         // Chờ modal xuất hiện
         await this.waitForElement(
             dataFrame,
-            '[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]'
+            '[data-container="popup-body"] .contents [placeholder="Tracking number (USPS/...)"]'
         );
 
         // Chờ thêm để đảm bảo dữ liệu đã load
@@ -540,7 +540,7 @@ class ECountService {
         );
 
         const result = await dataFrame.evaluate(() => {
-            const contentModal = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]')?.closest('[data-container="popup-body"]');
+            const contentModal = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (USPS/...)"]')?.closest('[data-container="popup-body"]');
             const fields = {
                 order_info: {
                     code_thg: contentModal.querySelector('[placeholder="Code-THG"]')?.value || "",
@@ -874,13 +874,13 @@ class ECountService {
         });// Chờ modal xuất hiện và input tracking sẵn sàng
         await this.waitForElement(
             dataFrame,
-            '[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]'
+            '[data-container="popup-body"] .contents [placeholder="Tracking number (USPS/...)"]'
         );
 
         // Chờ modal load đủ dữ liệu
         await dataFrame.waitForFunction(
             () => {
-                const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]');
+                const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (USPS/...)"]');
                 return input && !input.disabled;
             },
             { timeout: 15000 }
@@ -888,7 +888,7 @@ class ECountService {
 
         // Update tracking number
         const updateSuccess = await dataFrame.evaluate((trackingNumber) => {
-            const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]');
+            const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (USPS/...)"]');
             if (!input) {
                 throw new Error('Không tìm thấy input Tracking number');
             }
@@ -907,7 +907,7 @@ class ECountService {
         // Verify giá trị đã được set
         await dataFrame.waitForFunction(
             (expectedValue) => {
-                const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]');
+                const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (USPS/...)"]');
                 return input && input.value === expectedValue;
             },
             { timeout: 5000 },
