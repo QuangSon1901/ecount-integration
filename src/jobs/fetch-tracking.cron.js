@@ -156,7 +156,7 @@ class FetchTrackingCron {
         try {
             const [rows] = await connection.query(
                 `SELECT * FROM orders 
-                WHERE (tracking_number IS NULL OR tracking_number = '')
+                WHERE (tracking_number IS NULL OR tracking_number = '' OR erp_tracking_number_updated = FALSE)
                 AND status IN ('pending', 'created')
                 AND (waybill_number IS NOT NULL OR customer_order_number IS NOT NULL)
                 ORDER BY created_at ASC
