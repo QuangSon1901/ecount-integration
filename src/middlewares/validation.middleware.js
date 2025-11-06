@@ -3,118 +3,376 @@ const { errorResponse } = require('../utils/response');
 
 // Schema cho receiver
 const receiverSchema = Joi.object({
-    firstName: Joi.string().required(),
-    lastName: Joi.string().allow(''),
-    company: Joi.string().allow(''),
-    countryCode: Joi.string().required(),
-    province: Joi.string().allow(''),
-    city: Joi.string().required(),
-    addressLines: Joi.array().items(Joi.string()).min(1).required(),
-    postalCode: Joi.string().allow(''),
-    phoneNumber: Joi.string().required(),
-    email: Joi.string().email().allow(''),
-    certificateType: Joi.string().allow(''),
-    certificateCode: Joi.string().allow('')
+    firstName: Joi.string().min(1).max(50).required()
+        .messages({
+            'string.empty': 'firstName is required',
+            'string.min': 'firstName must be at least 1 character',
+            'string.max': 'firstName must not exceed 50 characters'
+        }),
+    lastName: Joi.string().max(50).allow('')
+        .messages({
+            'string.max': 'lastName must not exceed 50 characters'
+        }),
+    company: Joi.string().max(50).allow('')
+        .messages({
+            'string.max': 'company must not exceed 50 characters'
+        }),
+    countryCode: Joi.string().length(2).required()
+        .messages({
+            'string.empty': 'countryCode is required',
+            'string.length': 'countryCode must be exactly 2 characters'
+        }),
+    province: Joi.string().max(50).allow('')
+        .messages({
+            'string.max': 'province must not exceed 50 characters'
+        }),
+    city: Joi.string().max(50).required()
+        .messages({
+            'string.empty': 'city is required',
+            'string.max': 'city must not exceed 50 characters'
+        }),
+    addressLines: Joi.array()
+        .items(Joi.string().min(1).max(200))
+        .min(1)
+        .max(3)
+        .required()
+        .messages({
+            'array.min': 'addressLines must have at least 1 item',
+            'array.max': 'addressLines must not exceed 3 items',
+            'string.min': 'Each address line must be at least 1 character',
+            'string.max': 'Each address line must not exceed 200 characters'
+        }),
+    postalCode: Joi.string().min(1).max(20).required()
+        .messages({
+            'string.empty': 'postalCode is required',
+            'string.min': 'postalCode must be at least 1 character',
+            'string.max': 'postalCode must not exceed 20 characters'
+        }),
+    phoneNumber: Joi.string().min(1).max(50).required()
+        .messages({
+            'string.empty': 'phoneNumber is required',
+            'string.min': 'phoneNumber must be at least 1 character',
+            'string.max': 'phoneNumber must not exceed 50 characters'
+        }),
+    email: Joi.string().email().max(100).allow('')
+        .messages({
+            'string.email': 'email must be a valid email address',
+            'string.max': 'email must not exceed 100 characters'
+        }),
+    certificateType: Joi.string().max(3).allow('')
+        .messages({
+            'string.max': 'certificateType must not exceed 3 characters'
+        }),
+    certificateCode: Joi.string().max(50).allow('')
+        .messages({
+            'string.max': 'certificateCode must not exceed 50 characters'
+        })
 });
 
 // Schema cho package
 const packageSchema = Joi.object({
-    length: Joi.number().positive().required(),
-    width: Joi.number().positive().required(),
-    height: Joi.number().positive().required(),
-    weight: Joi.number().positive().required()
+    length: Joi.number().min(0).max(10000).allow(null)
+        .messages({
+            'number.min': 'length must be at least 0',
+            'number.max': 'length must not exceed 10000'
+        }),
+    width: Joi.number().min(0).max(10000).allow(null)
+        .messages({
+            'number.min': 'width must be at least 0',
+            'number.max': 'width must not exceed 10000'
+        }),
+    height: Joi.number().min(0).max(10000).allow(null)
+        .messages({
+            'number.min': 'height must be at least 0',
+            'number.max': 'height must not exceed 10000'
+        }),
+    weight: Joi.number().min(0.001).max(10000).required()
+        .messages({
+            'number.base': 'weight must be a number',
+            'number.min': 'weight must be at least 0.001',
+            'number.max': 'weight must not exceed 10000',
+            'any.required': 'weight is required'
+        })
 });
 
 // Schema cho declaration item
 const declarationSchema = Joi.object({
-    sku_code: Joi.string().allow(''),
-    name_local: Joi.string().allow(''), // Tên tiếng Trung/Việt
-    name_en: Joi.string().required(), // Tên tiếng Anh - BẮT BUỘC
-    quantity: Joi.number().integer().positive().required(),
-    unit_price: Joi.number().positive().required(), // FOB Price
-    selling_price: Joi.number().positive().allow(null), // Giá bán thực tế (nếu có)
-    unit_weight: Joi.number().positive().required(),
-    hs_code: Joi.string().allow(''),
-    sales_url: Joi.string().uri().allow(''),
-    currency: Joi.string().length(3).default('USD'), // Mã tiền tệ 3 ký tự
-    material: Joi.string().allow(''),
-    purpose: Joi.string().allow(''), // Use/Mục đích sử dụng
-    brand: Joi.string().allow(''),
-    spec: Joi.string().allow(''), // Specs/Thông số kỹ thuật
-    model: Joi.string().allow(''), // Model Type
-    remark: Joi.string().allow(''),
-    fabric_creation_method: Joi.string().allow(''), // K=Knitted, W=Woven
-    manufacturer_id: Joi.string().allow(''),
+    sku_code: Joi.string().max(50).allow('')
+        .messages({
+            'string.max': 'sku_code must not exceed 50 characters'
+        }),
+    name_local: Joi.string().min(1).max(50).allow('')
+        .messages({
+            'string.min': 'name_local must be at least 1 character',
+            'string.max': 'name_local must not exceed 50 characters'
+        }),
+    name_en: Joi.string().max(50).required()
+        .messages({
+            'string.empty': 'name_en is required',
+            'string.max': 'name_en must not exceed 50 characters'
+        }),
+    quantity: Joi.number().integer().min(1).max(10000).required()
+        .messages({
+            'number.base': 'quantity must be a number',
+            'number.integer': 'quantity must be an integer',
+            'number.min': 'quantity must be at least 1',
+            'number.max': 'quantity must not exceed 10000',
+            'any.required': 'quantity is required'
+        }),
+    unit_price: Joi.number().min(1).max(1000000).required()
+        .messages({
+            'number.base': 'unit_price must be a number',
+            'number.min': 'unit_price must be at least 1',
+            'number.max': 'unit_price must not exceed 1000000',
+            'any.required': 'unit_price is required'
+        }),
+    unit_weight: Joi.number().min(1).max(1000000).required()
+        .messages({
+            'number.base': 'unit_weight must be a number',
+            'number.min': 'unit_weight must be at least 1',
+            'number.max': 'unit_weight must not exceed 1000000',
+            'any.required': 'unit_weight is required'
+        }),
+    hs_code: Joi.string().max(50).allow('')
+        .messages({
+            'string.max': 'hs_code must not exceed 50 characters'
+        }),
+    sales_url: Joi.string().uri().max(200).allow('')
+        .messages({
+            'string.uri': 'sales_url must be a valid URI',
+            'string.max': 'sales_url must not exceed 200 characters'
+        }),
+    currency: Joi.string().length(3).default('USD')
+        .messages({
+            'string.length': 'currency must be exactly 3 characters'
+        }),
+    material: Joi.string().max(50).allow('')
+        .messages({
+            'string.max': 'material must not exceed 50 characters'
+        }),
+    purpose: Joi.string().max(50).allow('')
+        .messages({
+            'string.max': 'purpose must not exceed 50 characters'
+        }),
+    brand: Joi.string().max(50).allow('')
+        .messages({
+            'string.max': 'brand must not exceed 50 characters'
+        }),
+    spec: Joi.string().max(50).allow('')
+        .messages({
+            'string.max': 'spec must not exceed 50 characters'
+        }),
+    model: Joi.string().max(50).allow('')
+        .messages({
+            'string.max': 'model must not exceed 50 characters'
+        }),
+    remark: Joi.string().max(100).allow('')
+        .messages({
+            'string.max': 'remark must not exceed 100 characters'
+        }),
+    fabric_creation_method: Joi.string().allow(''),
+    manufacturer_id: Joi.string().max(50).allow('')
+        .messages({
+            'string.max': 'manufacturer_id must not exceed 50 characters'
+        }),
     manufacturer_name: Joi.string().allow(''),
     manufacturer_address: Joi.string().allow(''),
     manufacturer_city: Joi.string().allow(''),
     manufacturer_province: Joi.string().allow(''),
     manufacturer_country: Joi.string().allow(''),
-    manufacturer_postalcode: Joi.string().allow('')
+    manufacturer_postalcode: Joi.string().allow(''),
+    selling_price: Joi.number().positive().allow(null)
+        .messages({
+            'number.positive': 'selling_price must be greater than 0'
+        })
+});
+
+const customsNumberSchema = Joi.object({
+    tax_number: Joi.string().max(100).allow('')
+        .messages({
+            'string.max': 'tax_number must not exceed 100 characters'
+        }),
+    ioss_code: Joi.string().max(100).allow('')
+        .messages({
+            'string.max': 'ioss_code must not exceed 100 characters'
+        }),
+    vat_code: Joi.string().max(100).allow('')
+        .messages({
+            'string.max': 'vat_code must not exceed 100 characters'
+        }),
+    eori_number: Joi.string().max(100).allow('')
+        .messages({
+            'string.max': 'eori_number must not exceed 100 characters'
+        })
+});
+
+const extraServicesSchema = Joi.object({
+    extra_code: Joi.string().max(20).required()
+        .messages({
+            'string.empty': 'extra_code is required',
+            'string.max': 'extra_code must not exceed 20 characters'
+        }),
+    extra_value: Joi.string().max(128).allow('')
+        .messages({
+            'string.max': 'extra_value must not exceed 128 characters'
+        }),
+    extra_cost: Joi.number().allow(null)
+});
+
+const platformSchema = Joi.object({
+    platform_name: Joi.string().min(1).max(50).allow('')
+        .messages({
+            'string.min': 'platform_name must be at least 1 character',
+            'string.max': 'platform_name must not exceed 50 characters'
+        }),
+    province: Joi.string().min(1).max(50).allow('')
+        .messages({
+            'string.min': 'province must be at least 1 character',
+            'string.max': 'province must not exceed 50 characters'
+        }),
+    address: Joi.string().min(1).max(200).allow('')
+        .messages({
+            'string.min': 'address must be at least 1 character',
+            'string.max': 'address must not exceed 200 characters'
+        }),
+    postal_code: Joi.string().min(1).max(20).allow('')
+        .messages({
+            'string.min': 'postal_code must be at least 1 character',
+            'string.max': 'postal_code must not exceed 20 characters'
+        }),
+    phone_number: Joi.string().min(1).max(50).allow('')
+        .messages({
+            'string.min': 'phone_number must be at least 1 character',
+            'string.max': 'phone_number must not exceed 50 characters'
+        }),
+    email: Joi.string().email().min(1).max(100).allow('')
+        .messages({
+            'string.email': 'email must be a valid email address',
+            'string.min': 'email must be at least 1 character',
+            'string.max': 'email must not exceed 100 characters'
+        }),
+    sale_platform_url: Joi.string().allow(''),
+    goods_type: Joi.string().allow(''),
+    platform_code: Joi.string().min(1).max(50).allow('')
+        .messages({
+            'string.min': 'platform_code must be at least 1 character',
+            'string.max': 'platform_code must not exceed 50 characters'
+        })
+});
+
+const paymentSchema = Joi.object({
+    pay_platform: Joi.string().allow(''),
+    pay_account: Joi.string().allow(''),
+    pay_transaction: Joi.string().allow('')
 });
 
 // Schema chính cho order
 const orderSchema = Joi.object({
-    carrier: Joi.string().valid('YUNEXPRESS', 'DHL', 'FEDEX').default('YUNEXPRESS'),
-    productCode: Joi.string().required(), // VN-YTYCPREC trong mẫu Excel
-    customerOrderNumber: Joi.string().allow(''), // Mã đơn tự sinh nếu để trống
-    platformOrderNumber: Joi.string().allow(''), // 114-0545205-6217035 (Amazon Order ID)
-    trackingNumber: Joi.string().allow(''), // Để trống nếu không có tracking sẵn
+    carrier: Joi.string().valid('YUNEXPRESS').default('YUNEXPRESS'),
+    productCode: Joi.string().min(1).max(50).required()
+        .messages({
+            'string.empty': 'product_code is required',
+            'string.min': 'product_code must be at least 1 character',
+            'string.max': 'product_code must not exceed 50 characters'
+        }),
+    customerOrderNumber: Joi.string().max(50).allow('')
+        .messages({
+            'string.max': 'customer_order_number must not exceed 50 characters'
+        }),
+    platformOrderNumber: Joi.string().max(20).allow('')
+        .messages({
+            'string.max': 'platform_account_code must not exceed 20 characters'
+        }),
+    trackingNumber: Joi.string().max(50),
     referenceNumbers: Joi.array().items(Joi.string()).max(5),
     
-    weightUnit: Joi.string().allow(''),
-    sizeUnit: Joi.string().allow(''),
+    weightUnit: Joi.string()
+        .valid('KG', 'kg', 'G', 'g', 'LBS', 'lbs')
+        .default('KG')
+        .messages({
+            'any.only': 'weight_unit must be one of: KG, kg, G, g, LBS, lbs'
+        }),
+    sizeUnit: Joi.string()
+        .valid('CM', 'cm', 'INCH', 'INCH')
+        .default('CM')
+        .messages({
+            'any.only': 'size_unit must be one of: CM, cm, INCH'
+        }),
     
-    packages: Joi.array().items(packageSchema).min(1).required(),
-    receiver: receiverSchema.required(),
-    declarationInfo: Joi.array().items(declarationSchema).min(1).required(), // BẮT BUỘC phải có
+    packages: Joi.array()
+        .items(packageSchema)
+        .min(1)
+        .required()
+        .messages({
+            'array.min': 'packages must have at least 1 item',
+            'any.required': 'packages is required'
+        }),
+    receiver: receiverSchema.required()
+        .messages({
+            'any.required': 'receiver is required'
+        }),
+    declarationInfo: Joi.array()
+        .items(declarationSchema)
+        .min(1)
+        .required()
+        .messages({
+            'array.min': 'declaration_info must have at least 1 item',
+            'any.required': 'declaration_info is required'
+        }),
     
     sender: receiverSchema, // Optional
     
-    customsNumber: Joi.object({
-        tax_number: Joi.string().allow(''),
-        ioss_code: Joi.string().allow(''), // IOSS Code cho EU
-        vat_code: Joi.string().allow(''), // VAT Number
-        eori_number: Joi.string().allow('') // EORI Number cho EU
-    }),
+    customsNumber: customsNumberSchema,
     
-    extraServices: Joi.array().items(Joi.object({
-        extra_code: Joi.string().required(),
-        extra_value: Joi.string().allow('')
-    })),
+    extraServices: Joi.array()
+        .items(extraServicesSchema)
+        .min(0)
+        .messages({
+            'array.min': 'extra_services must have at least 0 items'
+        }),
     
     // Platform info (optional)
-    platform: Joi.object({
-        platform_name: Joi.string().allow(''),
-        province: Joi.string().allow(''),
-        address: Joi.string().allow(''),
-        postal_code: Joi.string().allow(''),
-        phone_number: Joi.string().allow(''),
-        email: Joi.string().email().allow(''),
-        platform_code: Joi.string().allow('') // E-commerce Platform Code
-    }),
+    platform: platformSchema,
     
     // Payment info (optional)
-    payment: Joi.object({
-        pay_platform: Joi.string().allow(''),
-        pay_account: Joi.string().allow(''),
-        pay_transaction: Joi.string().allow('')
-    }),
+    payment: platformSchema,
     
-    platformAccountCode: Joi.string().allow(''),
-    sourceCode: Joi.string().allow(''),
-    sensitiveType: Joi.string().allow(''), // W=package, D=document, F=sub-order, L=envelope
-    labelType: Joi.string().allow(''),
+    platformAccountCode: Joi.string().max(20).allow('')
+        .messages({
+            'string.max': 'platform_account_code must not exceed 20 characters'
+        }),
+    sourceCode: Joi.string().max(10).allow('')
+        .messages({
+            'string.max': 'source_code must not exceed 10 characters'
+        }),
+    sensitiveType: Joi.string()
+        .valid('W', 'D', 'F', 'L')
+        .allow('')
+        .messages({
+            'any.only': 'sensitive_type must be one of: W, D, F, L'
+        }),
+    labelType: Joi.string()
+        .valid('PDF', 'ZPL', 'PNG')
+        .allow('')
+        .messages({
+            'any.only': 'label_type must be one of: PDF, ZPL, PNG'
+        }),
     goodsType: Joi.string().allow(''), // W=Online shopping, F=FS goods, O=Other
-    dangerousGoodsType: Joi.string().allow(''), // Mã hàng nguy hiểm nếu có
+    dangerousGoodsType: Joi.string().max(30).allow('')
+        .messages({
+            'string.max': 'dangerous_goods_type must not exceed 30 characters'
+        }),
     
     // Pickup point (cho dịch vụ self-pickup)
-    pointRelaisNum: Joi.string().allow(''),
+    pointRelaisNum: Joi.string().max(1000).allow('')
+        .messages({
+            'string.max': 'point_relais_num must not exceed 1000 characters'
+        }),
     
     // ERP fields
-    erpOrderCode: Joi.string().allow(''),
+    erpOrderCode: Joi.string().required(''),
     erpStatus: Joi.string().default('Đang xử lý'),
-    ecountLink: Joi.string().allow('')
+    ecountLink: Joi.string().required('')
 });
 
 // Schema cho ERP update
@@ -141,6 +399,13 @@ const validateOrder = (req, res, next) => {
         }));
         
         return errorResponse(res, 'Validation failed', 400, { errors });
+    }
+
+    const declarationInfo = value.declaration_info || value.declarationInfo || [];
+    const skuErrors = validateSkuCode(declarationInfo);
+    
+    if (skuErrors.length > 0) {
+        return errorResponse(res, 'Validation failed', 400, { errors: skuErrors });
     }
 
     req.body = value;
@@ -189,7 +454,19 @@ const validateOrderMulti = (req, res, next) => {
                 errors: errors
             });
         } else {
-            validatedOrders.push(value);
+            const declarationInfo = value.declaration_info || value.declarationInfo || [];
+            const skuErrors = validateSkuCode(declarationInfo);
+            
+            if (skuErrors.length > 0) {
+                validationErrors.push({
+                    orderIndex: index,
+                    customerOrderNumber: order.customerOrderNumber || order.customer_order_number || `Order ${index + 1}`,
+                    erpOrderCode: order.erpOrderCode || order.erp_order_code,
+                    errors: skuErrors
+                });
+            } else {
+                validatedOrders.push(value);
+            }
         }
     });
 
@@ -231,6 +508,41 @@ const validateErpUpdate = (req, res, next) => {
 
     req.body = value;
     next();
+};
+
+const validateSkuCode = (declarationInfo) => {
+    const errors = [];
+    
+    // Rule 1: Bắt buộc khi có > 1 item
+    if (declarationInfo.length > 1) {
+        declarationInfo.forEach((item, index) => {
+            if (!item.sku_code || item.sku_code.trim() === '') {
+                errors.push({
+                    field: `declaration_info[${index}].sku_code`,
+                    message: 'sku_code is required when there are multiple declaration items'
+                });
+            }
+        });
+    }
+    
+    // Rule 2: Uniqueness (chỉ check các giá trị khác rỗng)
+    const skuCodes = declarationInfo
+        .map((item, index) => ({ sku: item.sku_code?.trim(), index }))
+        .filter(item => item.sku && item.sku !== '');
+    
+    const skuCodeMap = new Map();
+    skuCodes.forEach(({ sku, index }) => {
+        if (skuCodeMap.has(sku)) {
+            errors.push({
+                field: `declaration_info[${index}].sku_code`,
+                message: `sku_code "${sku}" is duplicated. Uniqueness must be met when there is a value (also found at index ${skuCodeMap.get(sku)})`
+            });
+        } else {
+            skuCodeMap.set(sku, index);
+        }
+    });
+    
+    return errors;
 };
 
 module.exports = {
