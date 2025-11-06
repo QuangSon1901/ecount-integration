@@ -197,8 +197,8 @@ class ECountService {
             await page.setViewport({ width: 1366, height: 768 });
 
             // Set timeouts
-            page.setDefaultNavigationTimeout(60000);
-            page.setDefaultTimeout(60000);
+            page.setDefaultNavigationTimeout(config.puppeteer.timeout);
+            page.setDefaultTimeout(config.puppeteer.timeout);
 
             // Anti-detection
             await page.evaluateOnNewDocument(() => {
@@ -262,7 +262,7 @@ class ECountService {
                 logger.info('Navigate to final URL:', sessionUrl);
                 await page.goto(sessionUrl, {
                     waitUntil: 'domcontentloaded',
-                    timeout: 60000
+                    timeout: config.puppeteer.timeout
                 });
 
                 // Chờ page load xong hoàn toàn
@@ -737,7 +737,7 @@ class ECountService {
                     window.getComputedStyle(input).display !== 'none' &&
                     !input.disabled;
             },
-            { timeout: 20000 }
+            { timeout: config.puppeteer.timeout }
         );
 
         // Scroll và focus
@@ -752,10 +752,12 @@ class ECountService {
         // Chờ input đã focus
         await searchFrame.waitForFunction(
             () => document.querySelector('#quick_search') === document.activeElement,
-            { timeout: 5000 }
+            { timeout: config.puppeteer.timeout }
         );
 
         await searchFrame.type('#quick_search', orderCode, { delay: 100 });
+
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
         // Press Enter và chờ kết quả
         await Promise.all([
@@ -775,7 +777,7 @@ class ECountService {
                     const cells = firstRow.querySelectorAll('td');
                     return Array.from(cells).some(cell => {
                         const text = cell.textContent.trim();
-                        return text === orderCode || text.includes(orderCode);
+                        return text == orderCode || text.includes(orderCode);
                     });
                 },
                 { timeout: this.puppeteerConfig.timeout },
@@ -846,7 +848,7 @@ class ECountService {
                 const dropdown = document.querySelector('.dropdown-menu [data-baseid]');
                 return !dropdown || window.getComputedStyle(dropdown).display === 'none';
             },
-            { timeout: 10000 }
+            { timeout: config.puppeteer.timeout }
         );
 
         logger.info('Đã cập nhật trạng thái thành công');
@@ -883,7 +885,7 @@ class ECountService {
                 const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (USPS/...)"]');
                 return input && !input.disabled;
             },
-            { timeout: 15000 }
+            { timeout: config.puppeteer.timeout }
         );
 
         // Update tracking number
@@ -910,7 +912,7 @@ class ECountService {
                 const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (USPS/...)"]');
                 return input && input.value === expectedValue;
             },
-            { timeout: 5000 },
+            { timeout: config.puppeteer.timeout },
             trackingNumber
         );
 
@@ -930,7 +932,7 @@ class ECountService {
                 const successMsg = document.querySelector('.success-message, .toast-success');
                 return successMsg !== null;
             },
-            { timeout: 15000 }
+            { timeout: config.puppeteer.timeout }
         ).catch(async () => {
             // Nếu timeout, kiểm tra xem có loading indicator không
             const stillLoading = await dataFrame.evaluate(() => {
@@ -941,7 +943,7 @@ class ECountService {
                 // Chờ thêm nếu vẫn đang loading
                 await dataFrame.waitForFunction(
                     () => document.querySelector('.loading, .spinner, .saving') === null,
-                    { timeout: 10000 }
+                    { timeout: config.puppeteer.timeout }
                 );
             }
         });
