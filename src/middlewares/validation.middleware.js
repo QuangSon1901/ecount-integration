@@ -119,14 +119,14 @@ const declarationSchema = Joi.object({
             'number.max': 'quantity must not exceed 10000',
             'any.required': 'quantity is required'
         }),
-    unit_price: Joi.number().min(1).max(1000000).required()
+    unit_price: Joi.number().min(0.001).max(1000000).required()
         .messages({
             'number.base': 'unit_price must be a number',
             'number.min': 'unit_price must be at least 1',
             'number.max': 'unit_price must not exceed 1000000',
             'any.required': 'unit_price is required'
         }),
-    unit_weight: Joi.number().min(1).max(1000000).required()
+    unit_weight: Joi.number().min(0.001).max(1000000).required()
         .messages({
             'number.base': 'unit_weight must be a number',
             'number.min': 'unit_weight must be at least 1',
@@ -283,7 +283,7 @@ const orderSchema = Joi.object({
         .messages({
             'string.max': 'platform_account_code must not exceed 20 characters'
         }),
-    trackingNumber: Joi.string().max(50),
+    trackingNumber: Joi.string().max(50).allow(''),
     referenceNumbers: Joi.array().items(Joi.string()).max(5),
     
     weightUnit: Joi.string()
