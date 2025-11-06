@@ -78,10 +78,10 @@ const orderSchema = Joi.object({
         eori_number: Joi.string().allow('') // EORI Number cho EU
     }),
     
-    extraServices: Joi.object({
+    extraServices: Joi.array().items(Joi.object({
         extra_code: Joi.string().required(),
         extra_value: Joi.string().allow('')
-    }),
+    })),
     
     // Platform info (optional)
     platform: Joi.object({
