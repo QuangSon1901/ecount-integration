@@ -360,6 +360,338 @@ class OrderService {
             throw error;
         }
     }
+
+    /**
+     * Lấy orders đang chờ theo các trạng thái
+     */
+    async getPendingOrders(filters = {}) {
+        try {
+            const { status, limit = 50, offset = 0 } = filters;
+
+            let query = '';
+            let params = [];
+            let label = '';
+
+            switch (status) {
+                case 'waiting_creation':
+                    // Orders đang chờ tạo (có job pending)
+                    query = `
+                        SELECT 
+                            o.id,
+                            o.order_number,
+                            o.erp_order_code,
+                            o.customer_order_number,
+                            o.carrier,
+                            o.product_code,
+                            o.status,
+                            o.created_at,
+                            j.id as job_id,
+                            j.status as job_status,
+                            j.attempts,
+                            j.available_at,
+                            j.error_message
+                        FROM orders o
+                        INNER JOIN jobs j ON JSON_EXTRACT(j.payload, '$.orderData.erpOrderCode') = o.erp_order_code
+                        WHERE j.job_type = 'create_order'
+                        AND j.status IN ('pending', 'processing')
+                        ORDER BY o.created_at DESC
+                        LIMIT ? OFFSET ?
+                    `;
+                    params = [limit, offset];
+                    label = 'Đang chờ tạo đơn';
+                    break;
+
+                case 'waiting_tracking_number':
+                    // Orders đã tạo nhưng chưa có tracking number
+                    query = `
+                        SELECT 
+                            o.id,
+                            o.order_number,
+                            o.erp_order_code,
+                            o.customer_order_number,
+                            o.waybill_number,
+                            o.carrier,
+                            o.status,
+                            o.created_at,
+                            COALESCE(j.id, 0) as job_id,
+                            COALESCE(j.status, 'none') as job_status,
+                            j.attempts,
+                            j.error_message
+                        FROM orders o
+                        LEFT JOIN jobs j ON j.job_type = 'tracking_number' 
+                            AND JSON_EXTRACT(j.payload, '$.orderId') = o.id
+                            AND j.status IN ('pending', 'processing')
+                        WHERE (o.tracking_number IS NULL OR o.tracking_number = '')
+                        AND o.status IN ('pending', 'created')
+                        AND o.waybill_number IS NOT NULL
+                        ORDER BY o.created_at ASC
+                        LIMIT ? OFFSET ?
+                    `;
+                    params = [limit, offset];
+                    label = 'Đang chờ tracking number';
+                    break;
+
+                case 'waiting_tracking_update':
+                    // Orders có tracking nhưng chưa update lên ECount
+                    query = `
+                        SELECT 
+                            o.id,
+                            o.order_number,
+                            o.erp_order_code,
+                            o.customer_order_number,
+                            o.tracking_number,
+                            o.carrier,
+                            o.status,
+                            o.erp_tracking_number_updated,
+                            o.created_at,
+                            COALESCE(j.id, 0) as job_id,
+                            COALESCE(j.status, 'none') as job_status,
+                            j.attempts,
+                            j.error_message
+                        FROM orders o
+                        LEFT JOIN jobs j ON j.job_type = 'update_tracking_ecount'
+                            AND JSON_EXTRACT(j.payload, '$.orderId') = o.id
+                            AND j.status IN ('pending', 'processing')
+                        WHERE o.tracking_number IS NOT NULL 
+                        AND o.tracking_number != ''
+                        AND o.erp_tracking_number_updated = FALSE
+                        AND o.erp_order_code IS NOT NULL
+                        AND o.ecount_link IS NOT NULL
+                        ORDER BY o.created_at ASC
+                        LIMIT ? OFFSET ?
+                    `;
+                    params = [limit, offset];
+                    label = 'Đang chờ update tracking lên ECount';
+                    break;
+
+                case 'waiting_status_update':
+                    // Orders delivered nhưng chưa update status lên ECount
+                    query = `
+                        SELECT 
+                            o.id,
+                            o.order_number,
+                            o.erp_order_code,
+                            o.customer_order_number,
+                            o.tracking_number,
+                            o.carrier,
+                            o.status,
+                            o.erp_status,
+                            o.erp_updated,
+                            o.delivered_at,
+                            o.created_at,
+                            COALESCE(j.id, 0) as job_id,
+                            COALESCE(j.status, 'none') as job_status,
+                            j.attempts,
+                            j.error_message
+                        FROM orders o
+                        LEFT JOIN jobs j ON j.job_type = 'update_status_ecount'
+                            AND JSON_EXTRACT(j.payload, '$.orderId') = o.id
+                            AND j.status IN ('pending', 'processing')
+                        WHERE o.status = 'delivered'
+                        AND o.erp_updated = FALSE
+                        AND o.erp_order_code IS NOT NULL
+                        AND o.ecount_link IS NOT NULL
+                        ORDER BY o.delivered_at ASC
+                        LIMIT ? OFFSET ?
+                    `;
+                    params = [limit, offset];
+                    label = 'Đang chờ update trạng thái lên ECount';
+                    break;
+
+                case 'in_transit':
+                    // Orders đang vận chuyển
+                    query = `
+                        SELECT 
+                            o.id,
+                            o.order_number,
+                            o.erp_order_code,
+                            o.customer_order_number,
+                            o.tracking_number,
+                            o.carrier,
+                            o.status,
+                            o.last_tracked_at,
+                            o.created_at
+                        FROM orders o
+                        WHERE o.status IN ('created', 'in_transit', 'out_for_delivery')
+                        AND o.tracking_number IS NOT NULL
+                        ORDER BY o.created_at DESC
+                        LIMIT ? OFFSET ?
+                    `;
+                    params = [limit, offset];
+                    label = 'Đang vận chuyển';
+                    break;
+
+                case 'failed':
+                    // Orders có lỗi
+                    query = `
+                        SELECT 
+                            o.id,
+                            o.order_number,
+                            o.erp_order_code,
+                            o.customer_order_number,
+                            o.tracking_number,
+                            o.carrier,
+                            o.status,
+                            o.error_info,
+                            o.created_at,
+                            j.id as job_id,
+                            j.job_type,
+                            j.status as job_status,
+                            j.attempts,
+                            j.max_attempts,
+                            j.error_message
+                        FROM orders o
+                        LEFT JOIN jobs j ON (
+                            (j.job_type = 'create_order' AND JSON_EXTRACT(j.payload, '$.orderData.erpOrderCode') = o.erp_order_code)
+                            OR (j.job_type IN ('tracking_number', 'update_tracking_ecount', 'update_status_ecount') 
+                                AND JSON_EXTRACT(j.payload, '$.orderId') = o.id)
+                        )
+                        AND j.status = 'failed'
+                        WHERE o.status IN ('failed', 'exception')
+                        OR j.id IS NOT NULL
+                        ORDER BY o.created_at DESC
+                        LIMIT ? OFFSET ?
+                    `;
+                    params = [limit, offset];
+                    label = 'Có lỗi';
+                    break;
+
+                default:
+                    throw new Error('Invalid status parameter');
+            }
+
+            const db = require('../database/connection');
+            const connection = await db.getConnection();
+
+            try {
+                const [orders] = await connection.query(query, params);
+
+                // Parse JSON fields
+                const parsedOrders = orders.map(order => {
+                    if (order.error_info && typeof order.error_info === 'string') {
+                        try {
+                            order.error_info = JSON.parse(order.error_info);
+                        } catch (e) {
+                            // Keep as string
+                        }
+                    }
+                    return order;
+                });
+
+                return {
+                    label: label,
+                    status: status,
+                    total: parsedOrders.length,
+                    limit: limit,
+                    offset: offset,
+                    orders: parsedOrders
+                };
+
+            } finally {
+                connection.release();
+            }
+
+        } catch (error) {
+            logger.error('Lỗi lấy pending orders:', error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Lấy tổng quan orders đang chờ
+     */
+    async getPendingSummary() {
+        try {
+            const db = require('../database/connection');
+            const connection = await db.getConnection();
+
+            try {
+                const queries = {
+                    waiting_creation: `
+                        SELECT COUNT(DISTINCT o.id) as count
+                        FROM orders o
+                        INNER JOIN jobs j ON JSON_EXTRACT(j.payload, '$.orderData.erpOrderCode') = o.erp_order_code
+                        WHERE j.job_type = 'create_order'
+                        AND j.status IN ('pending', 'processing')
+                    `,
+                    waiting_tracking_number: `
+                        SELECT COUNT(*) as count
+                        FROM orders o
+                        WHERE (o.tracking_number IS NULL OR o.tracking_number = '')
+                        AND o.status IN ('pending', 'created')
+                        AND o.waybill_number IS NOT NULL
+                    `,
+                    waiting_tracking_update: `
+                        SELECT COUNT(*) as count
+                        FROM orders o
+                        WHERE o.tracking_number IS NOT NULL 
+                        AND o.tracking_number != ''
+                        AND o.erp_tracking_number_updated = FALSE
+                        AND o.erp_order_code IS NOT NULL
+                        AND o.ecount_link IS NOT NULL
+                    `,
+                    waiting_status_update: `
+                        SELECT COUNT(*) as count
+                        FROM orders o
+                        WHERE o.status = 'delivered'
+                        AND o.erp_updated = FALSE
+                        AND o.erp_order_code IS NOT NULL
+                        AND o.ecount_link IS NOT NULL
+                    `,
+                    in_transit: `
+                        SELECT COUNT(*) as count
+                        FROM orders o
+                        WHERE o.status IN ('created', 'in_transit', 'out_for_delivery')
+                        AND o.tracking_number IS NOT NULL
+                    `,
+                    failed: `
+                        SELECT COUNT(DISTINCT o.id) as count
+                        FROM orders o
+                        LEFT JOIN jobs j ON (
+                            (j.job_type = 'create_order' AND JSON_EXTRACT(j.payload, '$.orderData.erpOrderCode') = o.erp_order_code)
+                            OR (j.job_type IN ('tracking_number', 'update_tracking_ecount', 'update_status_ecount') 
+                                AND JSON_EXTRACT(j.payload, '$.orderId') = o.id)
+                        )
+                        AND j.status = 'failed'
+                        WHERE o.status IN ('failed', 'exception')
+                        OR j.id IS NOT NULL
+                    `
+                };
+
+                const summary = {};
+
+                for (const [key, query] of Object.entries(queries)) {
+                    const [rows] = await connection.query(query);
+                    summary[key] = rows[0].count;
+                }
+
+                // Thêm tổng số orders
+                const [totalRows] = await connection.query('SELECT COUNT(*) as count FROM orders');
+                summary.total_orders = totalRows[0].count;
+
+                // Thêm jobs stats
+                const [jobStats] = await connection.query(`
+                    SELECT status, COUNT(*) as count
+                    FROM jobs
+                    GROUP BY status
+                `);
+
+                summary.jobs = {};
+                jobStats.forEach(row => {
+                    summary.jobs[row.status] = row.count;
+                });
+
+                return summary;
+
+            } finally {
+                connection.release();
+            }
+
+        } catch (error) {
+            logger.error('Lỗi lấy pending summary:', error.message);
+            throw error;
+        }
+    }
 }
 
 module.exports = new OrderService();

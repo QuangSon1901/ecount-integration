@@ -76,5 +76,13 @@ module.exports = {
         maxRetriesPerRequest: null,
         enableReadyCheck: false,
         connectTimeout: 10000
+    },
+
+    telegram: {
+        enabled: process.env.TELEGRAM_ENABLED === 'true',
+        botToken: process.env.TELEGRAM_BOT_TOKEN,
+        chatId: process.env.TELEGRAM_CHAT_ID,
+        onError: process.env.TELEGRAM_ON_ERROR === 'true',
+        includeStack: process.env.TELEGRAM_INCLUDE_STACK === 'true'
     }
 };

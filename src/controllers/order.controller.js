@@ -149,6 +149,40 @@ class OrderController {
     }
 
     /**
+     * GET /api/orders/pending
+     * Lấy danh sách orders đang chờ theo trạng thái
+     */
+    async getPendingOrders(req, res, next) {
+        try {
+            const { status, limit = 50, offset = 0 } = req.query;
+            
+            const result = await orderService.getPendingOrders({
+                status,
+                limit: parseInt(limit),
+                offset: parseInt(offset)
+            });
+            
+            return successResponse(res, result, 'Pending orders retrieved successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * GET /api/orders/pending/summary
+     * Lấy tổng quan orders đang chờ
+     */
+    async getPendingSummary(req, res, next) {
+        try {
+            const result = await orderService.getPendingSummary();
+            
+            return successResponse(res, result, 'Pending summary retrieved successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
      * GET /api/orders/health
      * Health check
      */

@@ -43,6 +43,23 @@ router.get('/health', orderController.healthCheck.bind(orderController));
 // router.get('/info/:orderCode', orderController.getOrderInfo.bind(orderController));
 
 /**
+ * @route   GET /api/orders/pending/summary
+ * @desc    Get summary of pending orders
+ * @access  Public
+ */
+router.get('/pending/summary', orderController.getPendingSummary.bind(orderController));
+
+/**
+ * @route   GET /api/orders/pending
+ * @desc    Get pending orders by status
+ * @access  Public
+ * @query   status - waiting_creation | waiting_tracking_number | waiting_tracking_update | waiting_status_update | in_transit | failed
+ * @query   limit - Number of records (default: 50)
+ * @query   offset - Offset for pagination (default: 0)
+ */
+router.get('/pending', orderController.getPendingOrders.bind(orderController));
+
+/**
  * @route   POST /api/orders
  * @desc    Create order and update ERP (main flow)
  * @access  Private
