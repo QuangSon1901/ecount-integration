@@ -9,6 +9,7 @@ class JobWorker {
         this.isRunning = false;
         this.intervalMs = 5000; // Check mỗi 5 giây
         this.intervalId = null;
+        this.isProcessing = false;
     }
 
     /**
@@ -48,20 +49,23 @@ class JobWorker {
      * Process jobs
      */
     async processJobs() {
+        if (this.isProcessing) {
+            return;
+        }
+
         try {
+            this.isProcessing = true;
             await JobModel.resetStuckJobs(30);
 
-            while (true) {
-                const job = await JobModel.getNextJob();
-                
-                if (!job) {
-                    break;
-                }
-
+            const job = await JobModel.getNextJob();
+            
+            if (job) {
                 await this.handleJob(job);
             }
         } catch (error) {
             logger.error('Error in processJobs:', error);
+        } finally {
+            this.isProcessing = false;
         }
     }
 
