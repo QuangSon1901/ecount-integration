@@ -16,7 +16,7 @@ router.get('/health', orderController.healthCheck.bind(orderController));
  * @desc    Get available carriers
  * @access  Public
  */
-router.get('/carriers', orderController.getCarriers.bind(orderController));
+// router.get('/carriers', orderController.getCarriers.bind(orderController));
 
 /**
  * @route   GET /api/orders/tracking/:trackingNumber
@@ -24,7 +24,7 @@ router.get('/carriers', orderController.getCarriers.bind(orderController));
  * @access  Public
  * @query   carrier - Optional carrier code (YUNEXPRESS, DHL, etc.)
  */
-router.get('/tracking/:trackingNumber', orderController.trackByTrackingNumber.bind(orderController));
+// router.get('/tracking/:trackingNumber', orderController.trackByTrackingNumber.bind(orderController));
 
 /**
  * @route   GET /api/orders/products
@@ -32,7 +32,7 @@ router.get('/tracking/:trackingNumber', orderController.trackByTrackingNumber.bi
  * @access  Public
  * @query   country_code - Optional 2-letter country code (US, GB, etc.)
  */
-router.get('/products', orderController.getProducts.bind(orderController));
+// router.get('/products', orderController.getProducts.bind(orderController));
 
 /**
  * @route   GET /api/orders/info/:orderCode
@@ -40,7 +40,7 @@ router.get('/products', orderController.getProducts.bind(orderController));
  * @access  Public
  * @query   carrier - Optional carrier code (default: YUNEXPRESS)
  */
-router.get('/info/:orderCode', orderController.getOrderInfo.bind(orderController));
+// router.get('/info/:orderCode', orderController.getOrderInfo.bind(orderController));
 
 /**
  * @route   POST /api/orders
@@ -48,6 +48,7 @@ router.get('/info/:orderCode', orderController.getOrderInfo.bind(orderController
  * @access  Private
  */
 router.post('/', validateOrder, orderController.createOrder.bind(orderController));
+router.post('/labels/purchase', validateOrder, orderController.createOrderMulti.bind(orderController));
 
 /**
  * @route   POST /api/orders/create-only

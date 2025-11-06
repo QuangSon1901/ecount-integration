@@ -543,7 +543,8 @@ class ECountService {
             const contentModal = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]')?.closest('[data-container="popup-body"]');
             const fields = {
                 order_info: {
-                    customer_order_number: contentModal.querySelector('[placeholder="Code-THG"]')?.value || "",
+                    code_thg: contentModal.querySelector('[placeholder="Code-THG"]')?.value || "",
+                    customer_order_number: "",
                     platform_order_number: "",
                     tracking_number: "",
                     service_code: ""
@@ -568,23 +569,18 @@ class ECountService {
                 const prodCode = row.querySelector('[data-columnid="prod_cd"] .grid-input-data')?.textContent?.trim();
 
                 if (prodCode && prodCode !== '\u00A0' && prodCode !== '') {
-                    const qty = row.querySelector('[data-columnid="qty"] .grid-input-data')?.textContent?.trim() || "0";
-                    const dimensions = row.querySelector('[data-columnid="ADD_TXT_04"] .grid-input-data')?.textContent?.trim() || "";
-                    const weight = row.querySelector('[data-columnid="ADD_TXT_03"] .grid-input-data')?.textContent?.trim() || "0";
-
-                    let length = 0, width = 0, height = 0;
-                    if (dimensions) {
-                        const parts = dimensions.split('x');
-                        length = parseFloat(parts[0]) || 0;
-                        width = parseFloat(parts[1]) || 0;
-                        height = parseFloat(parts[2]) || 0;
-                    }
+                    const qty = row.querySelector('[data-columnid="qty"] .grid-input-data')?.textContent?.trim().replaceAll(',', '') || 0;
+                    const unit_price = row.querySelector('[data-columnid="p_remarks1"] .grid-input-data')?.textContent?.trim().replaceAll(',', '') || 0;
+                    const length = row.querySelector('[data-columnid="ADD_NUM_03"] .grid-input-data')?.textContent?.trim().replaceAll(',', '') || 0;
+                    const width = row.querySelector('[data-columnid="ADD_NUM_04"] .grid-input-data')?.textContent?.trim().replaceAll(',', '') || 0;
+                    const height = row.querySelector('[data-columnid="ADD_NUM_05"] .grid-input-data')?.textContent?.trim().replaceAll(',', '') || 0;
+                    const weight = row.querySelector('[data-columnid="ADD_NUM_02"] .grid-input-data')?.textContent?.trim().replaceAll(',', '') || 0;
 
                     fields.packages.push({
-                        length: length,
-                        width: width,
-                        height: height,
-                        weight: parseFloat(weight) || 0
+                        length: parseFloat(length) || 0,
+                        width: parseFloat(width) || 0,
+                        height: parseFloat(height) || 0,
+                        weight: parseFloat(weight) || 0,
                     });
 
                     fields.declaration_info.push({
@@ -592,7 +588,7 @@ class ECountService {
                         name_en: row.querySelector('[data-columnid="prod_des"] .grid-input-data')?.textContent?.trim() || "",
                         name_local: row.querySelector('[data-columnid="prod_des"] .grid-input-data')?.textContent?.trim() || "",
                         quantity: parseInt(qty) || 1,
-                        unit_price: 0,
+                        unit_price: parseFloat(unit_price) || 0,
                         unit_weight: parseFloat(weight) || 0,
                         hs_code: "",
                         currency: "USD"
@@ -764,13 +760,26 @@ class ECountService {
         // Press Enter và chờ kết quả
         await Promise.all([
             searchFrame.waitForFunction(
-                () => {
-                    // Chờ grid có data hoặc loading indicator biến mất
-                    const hasData = document.querySelector('#app-root .wrapper-frame-body .contents tbody tr');
-                    const loading = document.querySelector('.loading, .spinner');
-                    return hasData || !loading;
+                (orderCode) => {
+                    // Chờ loading biến mất
+                    const loading = document.querySelector('.page-progress-icon');
+                    if (loading && window.getComputedStyle(loading).display !== 'none') {
+                        return false;
+                    }
+                    
+                    // Lấy row đầu tiên
+                    const firstRow = document.querySelector('#app-root .wrapper-frame-body .contents tbody tr');
+                    if (!firstRow) return false;
+                    
+                    // Check xem có td nào chứa orderCode không
+                    const cells = firstRow.querySelectorAll('td');
+                    return Array.from(cells).some(cell => {
+                        const text = cell.textContent.trim();
+                        return text === orderCode || text.includes(orderCode);
+                    });
                 },
-                { timeout: config.puppeteer.timeout }
+                { timeout: this.puppeteerConfig.timeout },
+                orderCode  // Pass orderCode vào function
             ),
             page.keyboard.press('Enter')
         ]);

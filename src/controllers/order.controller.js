@@ -20,6 +20,10 @@ class OrderController {
         }
     }
 
+    async createOrderMulti(req, res, next) {
+
+    }
+
     /**
      * POST /api/orders/create-only
      * Chỉ tạo đơn hàng, không cập nhật ERP
