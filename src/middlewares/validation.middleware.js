@@ -78,10 +78,10 @@ const orderSchema = Joi.object({
         eori_number: Joi.string().allow('') // EORI Number cho EU
     }),
     
-    extraServices: Joi.array().items(Joi.object({
+    extraServices: Joi.object({
         extra_code: Joi.string().required(),
         extra_value: Joi.string().allow('')
-    })),
+    }),
     
     // Platform info (optional)
     platform: Joi.object({
@@ -148,6 +148,70 @@ const validateOrder = (req, res, next) => {
 };
 
 /**
+ * Middleware validate multi orders
+ */
+const validateOrderMulti = (req, res, next) => {
+    const { orders } = req.body;
+
+    // Check orders array exists
+    if (!orders || !Array.isArray(orders)) {
+        return errorResponse(res, 'orders must be an array', 400);
+    }
+
+    if (orders.length === 0) {
+        return errorResponse(res, 'orders array cannot be empty', 400);
+    }
+
+    if (orders.length > 50) {
+        return errorResponse(res, 'Maximum 50 orders per request', 400);
+    }
+
+    // Validate từng order
+    const validationErrors = [];
+    const validatedOrders = [];
+
+    orders.forEach((order, index) => {
+        const { error, value } = orderSchema.validate(order, {
+            abortEarly: false,
+            stripUnknown: true
+        });
+
+        if (error) {
+            const errors = error.details.map(detail => ({
+                field: detail.path.join('.'),
+                message: detail.message
+            }));
+            
+            validationErrors.push({
+                orderIndex: index,
+                customerOrderNumber: order.customerOrderNumber || `Order ${index + 1}`,
+                erpOrderCode: order.erpOrderCode,
+                errors: errors
+            });
+        } else {
+            validatedOrders.push(value);
+        }
+    });
+
+    // Nếu có lỗi validation, trả về ngay
+    if (validationErrors.length > 0) {
+        return errorResponse(res, 'Validation failed for some orders', 400, { 
+            summary: {
+                total: orders.length,
+                valid: validatedOrders.length,
+                invalid: validationErrors.length
+            },
+            validationErrors 
+        });
+    }
+
+    // Gán lại orders đã validate
+    req.body.orders = validatedOrders;
+    
+    next();
+};
+
+/**
  * Middleware validate ERP update
  */
 const validateErpUpdate = (req, res, next) => {
@@ -171,5 +235,6 @@ const validateErpUpdate = (req, res, next) => {
 
 module.exports = {
     validateOrder,
-    validateErpUpdate
+    validateErpUpdate,
+    validateOrderMulti
 };

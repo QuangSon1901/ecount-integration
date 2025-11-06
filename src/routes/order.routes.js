@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const orderController = require('../controllers/order.controller');
-const { validateOrder, validateErpUpdate } = require('../middlewares/validation.middleware');
+const { validateOrder, validateErpUpdate, validateOrderMulti } = require('../middlewares/validation.middleware');
 const jobService = require('../services/queue/job.service');
 
 /**
@@ -47,8 +47,8 @@ router.get('/health', orderController.healthCheck.bind(orderController));
  * @desc    Create order and update ERP (main flow)
  * @access  Private
  */
+router.post('/labels/purchase', validateOrderMulti, orderController.createOrderMulti.bind(orderController));
 router.post('/', validateOrder, orderController.createOrder.bind(orderController));
-router.post('/labels/purchase', validateOrder, orderController.createOrderMulti.bind(orderController));
 
 /**
  * @route   POST /api/orders/create-only

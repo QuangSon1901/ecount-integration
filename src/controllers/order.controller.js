@@ -21,7 +21,27 @@ class OrderController {
     }
 
     async createOrderMulti(req, res, next) {
+        try {
+            const { orders } = req.body;
+            
+            // Validate
+            if (!orders || !Array.isArray(orders) || orders.length === 0) {
+                return errorResponse(res, 'orders array is required and must not be empty', 400);
+            }
 
+            if (orders.length > 50) {
+                return errorResponse(res, 'Maximum 50 orders per request', 400);
+            }
+
+            logger.info(`Nhận yêu cầu tạo ${orders.length} đơn hàng`);
+            
+            const result = await orderService.processOrderMulti(orders);
+            
+            return successResponse(res, result.data, result.message, 201);
+            
+        } catch (error) {
+            next(error);
+        }
     }
 
     /**

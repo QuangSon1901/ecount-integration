@@ -47,6 +47,80 @@ class OrderService {
     }
 
     /**
+     * Xử lý nhiều đơn hàng cùng lúc
+     */
+    async processOrderMulti(ordersData) {
+        try {
+            logger.info(`Đang push ${ordersData.length} jobs tạo đơn hàng vào queue...`);
+
+            const results = [];
+            const errors = [];
+
+            // Push từng order vào queue
+            for (let i = 0; i < ordersData.length; i++) {
+                const orderData = ordersData[i];
+                
+                try {
+                    // Validate cơ bản
+                    if (!orderData.receiver || !orderData.packages || !orderData.declarationInfo) {
+                        throw new Error('Missing required fields: receiver, packages, or declarationInfo');
+                    }
+
+                    // Push job với delay tăng dần để tránh overload
+                    const delaySeconds = i * 2; // Mỗi job cách nhau 2 giây
+                    const jobId = await jobService.addCreateOrderJob(orderData, delaySeconds);
+
+                    results.push({
+                        index: i,
+                        customerOrderNumber: orderData.customerOrderNumber,
+                        erpOrderCode: orderData.erpOrderCode,
+                        jobId: jobId,
+                        status: 'queued',
+                        delaySeconds: delaySeconds
+                    });
+
+                    logger.info(`✓ Đã push job ${i + 1}/${ordersData.length}`, {
+                        jobId,
+                        customerOrderNumber: orderData.customerOrderNumber,
+                        delaySeconds
+                    });
+
+                } catch (error) {
+                    logger.error(`✗ Lỗi push job ${i + 1}/${ordersData.length}:`, error.message);
+                    
+                    errors.push({
+                        index: i,
+                        customerOrderNumber: orderData.customerOrderNumber,
+                        error: error.message
+                    });
+                }
+            }
+
+            const summary = {
+                total: ordersData.length,
+                queued: results.length,
+                failed: errors.length
+            };
+
+            logger.info('Hoàn tất push jobs:', summary);
+
+            return {
+                success: true,
+                data: {
+                    summary: summary,
+                    results: results,
+                    errors: errors.length > 0 ? errors : undefined
+                },
+                message: `Successfully queued ${results.length}/${ordersData.length} orders`
+            };
+
+        } catch (error) {
+            logger.error('Lỗi processOrderMulti:', error.message);
+            throw error;
+        }
+    }
+
+    /**
      * Sleep helper
      */
     async sleep(ms) {
