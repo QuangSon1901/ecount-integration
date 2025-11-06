@@ -43,6 +43,13 @@ router.get('/health', orderController.healthCheck.bind(orderController));
 // router.get('/info/:orderCode', orderController.getOrderInfo.bind(orderController));
 
 /**
+ * @route   POST /api/orders/status/batch
+ * @desc    Get status of multiple orders by ERP order codes
+ * @access  Public
+ */
+router.post('/status/batch', orderController.getStatusBatch.bind(orderController));
+
+/**
  * @route   GET /api/orders/pending/summary
  * @desc    Get summary of pending orders
  * @access  Public

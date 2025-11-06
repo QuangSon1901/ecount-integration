@@ -692,6 +692,180 @@ class OrderService {
             throw error;
         }
     }
+
+    /**
+     * Lấy trạng thái nhiều đơn hàng theo erp_order_code
+     */
+    async getStatusBatch(erpOrderCodes) {
+        try {
+            const db = require('../database/connection');
+            const connection = await db.getConnection();
+
+            try {
+                // Query để lấy thông tin orders và jobs (chỉ lấy order mới nhất cho mỗi erp_order_code)
+                const placeholders = erpOrderCodes.map(() => '?').join(',');
+                
+                const query = `
+                    SELECT 
+                        o.erp_order_code,
+                        o.order_number,
+                        o.tracking_number,
+                        o.status as order_status,
+                        o.erp_tracking_number_updated,
+                        o.erp_updated,
+                        o.created_at,
+                        
+                        -- Job tạo đơn
+                        j_create.id as create_job_id,
+                        j_create.status as create_job_status,
+                        
+                        -- Job lấy tracking
+                        j_tracking.id as tracking_job_id,
+                        j_tracking.status as tracking_job_status,
+                        
+                        -- Job update tracking lên ECount
+                        j_update_tracking.id as update_tracking_job_id,
+                        j_update_tracking.status as update_tracking_job_status,
+                        
+                        -- Job update status lên ECount
+                        j_update_status.id as update_status_job_id,
+                        j_update_status.status as update_status_job_status
+                        
+                    FROM (
+                        -- Subquery để lấy order mới nhất cho mỗi erp_order_code
+                        SELECT erp_order_code, MAX(id) as max_id
+                        FROM orders
+                        WHERE erp_order_code IN (${placeholders})
+                        GROUP BY erp_order_code
+                    ) latest
+                    
+                    INNER JOIN orders o ON o.id = latest.max_id
+                    
+                    LEFT JOIN jobs j_create ON j_create.job_type = 'create_order' 
+                        AND JSON_EXTRACT(j_create.payload, '$.orderData.erpOrderCode') = o.erp_order_code
+                        AND j_create.status IN ('pending', 'processing')
+                        
+                    LEFT JOIN jobs j_tracking ON j_tracking.job_type = 'tracking_number'
+                        AND JSON_EXTRACT(j_tracking.payload, '$.orderId') = o.id
+                        AND j_tracking.status IN ('pending', 'processing')
+                        
+                    LEFT JOIN jobs j_update_tracking ON j_update_tracking.job_type = 'update_tracking_ecount'
+                        AND JSON_EXTRACT(j_update_tracking.payload, '$.orderId') = o.id
+                        AND j_update_tracking.status IN ('pending', 'processing')
+                        
+                    LEFT JOIN jobs j_update_status ON j_update_status.job_type = 'update_status_ecount'
+                        AND JSON_EXTRACT(j_update_status.payload, '$.orderId') = o.id
+                        AND j_update_status.status IN ('pending', 'processing')
+                `;
+
+                const [orders] = await connection.query(query, erpOrderCodes);
+
+                // Map kết quả
+                const result = erpOrderCodes.map(erpCode => {
+                    const order = orders.find(o => o.erp_order_code === erpCode);
+                    
+                    if (!order) {
+                        return {
+                            erp_order_code: erpCode,
+                            status: 'not_found',
+                            label: 'Không tìm thấy'
+                        };
+                    }
+
+                    return {
+                        erp_order_code: erpCode,
+                        status: this.determineOrderStatus(order),
+                        label: this.getStatusLabel(this.determineOrderStatus(order)),
+                        tracking_number: order.tracking_number || null,
+                        order_number: order.order_number || null,
+                        created_at: order.created_at
+                    };
+                });
+
+                return result;
+
+            } finally {
+                connection.release();
+            }
+
+        } catch (error) {
+            logger.error('Lỗi getStatusBatch:', error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Xác định trạng thái của order
+     */
+    determineOrderStatus(order) {
+        // Đang chờ tạo đơn
+        if (order.create_job_status) {
+            return 'waiting_creation';
+        }
+        
+        // Đang chờ lấy tracking number
+        if (!order.tracking_number && order.order_status === 'pending') {
+            if (order.tracking_job_status) {
+                return 'fetching_tracking';
+            }
+            return 'waiting_tracking';
+        }
+        
+        // Đang chờ update tracking lên ECount
+        if (order.tracking_number && !order.erp_tracking_number_updated) {
+            if (order.update_tracking_job_status) {
+                return 'updating_tracking';
+            }
+            return 'waiting_tracking_update';
+        }
+        
+        // Đang chờ update status lên ECount
+        if (order.order_status === 'delivered' && !order.erp_updated) {
+            if (order.update_status_job_status) {
+                return 'updating_status';
+            }
+            return 'waiting_status_update';
+        }
+        
+        // Đang vận chuyển
+        if (['created', 'in_transit', 'out_for_delivery'].includes(order.order_status)) {
+            return 'in_transit';
+        }
+        
+        // Đã hoàn tất
+        if (order.order_status === 'delivered' && order.erp_updated) {
+            return 'completed';
+        }
+        
+        // Có lỗi
+        if (['failed', 'exception'].includes(order.order_status)) {
+            return 'failed';
+        }
+        
+        return 'unknown';
+    }
+
+    /**
+     * Lấy label tiếng Việt cho status
+     */
+    getStatusLabel(status) {
+        const labels = {
+            'not_found': 'Không tìm thấy',
+            'waiting_creation': 'Đang chờ tạo đơn',
+            'fetching_tracking': 'Đang lấy tracking number',
+            'waiting_tracking': 'Đang chờ tracking number',
+            'updating_tracking': 'Đang cập nhật tracking lên ERP',
+            'waiting_tracking_update': 'Đang chờ cập nhật tracking lên ERP',
+            'updating_status': 'Đang cập nhật trạng thái lên ERP',
+            'waiting_status_update': 'Đang chờ cập nhật trạng thái lên ERP',
+            'in_transit': 'Đang vận chuyển',
+            'completed': 'Đã hoàn tất',
+            'failed': 'Có lỗi',
+            'unknown': 'Không xác định'
+        };
+        
+        return labels[status] || status;
+    }
 }
 
 module.exports = new OrderService();

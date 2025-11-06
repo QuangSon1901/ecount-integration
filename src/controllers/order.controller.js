@@ -183,6 +183,34 @@ class OrderController {
     }
 
     /**
+     * POST /api/orders/status/batch
+     * Lấy trạng thái nhiều đơn hàng theo erp_order_code
+     */
+    async getStatusBatch(req, res, next) {
+        try {
+            const { erp_order_codes } = req.body;
+            
+            // Validate
+            if (!erp_order_codes || !Array.isArray(erp_order_codes) || erp_order_codes.length === 0) {
+                return errorResponse(res, 'erp_order_codes array is required and must not be empty', 400);
+            }
+
+            if (erp_order_codes.length > 100) {
+                return errorResponse(res, 'Maximum 100 order codes per request', 400);
+            }
+
+            logger.info(`Tra cứu trạng thái ${erp_order_codes.length} đơn hàng`);
+            
+            const result = await orderService.getStatusBatch(erp_order_codes);
+            
+            return successResponse(res, result, 'Status retrieved successfully');
+            
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
      * GET /api/orders/health
      * Health check
      */
