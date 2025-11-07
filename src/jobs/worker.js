@@ -208,8 +208,10 @@ class JobWorker {
         };
     }
 
+    // src/jobs/worker.js
+
     /**
-     * Handle tracking number job
+     * Handle tracking number job - CẬP NHẬT
      */
     async handleTrackingNumber(job) {
         const { orderId, orderCode, carrierCode } = job.payload;
@@ -238,9 +240,32 @@ class JobWorker {
             attempt: job.attempts
         });
         
+        // Lấy label URL
+        let labelUrl = null;
+        try {
+            logger.info(`Fetching label for tracking number: ${trackingNumber}`);
+            
+            const labelResult = await carrier.getLabel(trackingNumber);
+            
+            if (labelResult.success && labelResult.data.url) {
+                labelUrl = labelResult.data.url;
+                logger.info(`Label URL found for order ${orderId}:`, {
+                    labelUrl: labelUrl.substring(0, 50) + '...',
+                    labelType: labelResult.data.labelType
+                });
+            } else {
+                logger.warn(`No label URL available for order ${orderId}`);
+            }
+        } catch (labelError) {
+            // Không throw error nếu lấy label thất bại
+            // Vì tracking number đã có rồi
+            logger.error(`Failed to get label for order ${orderId}:`, labelError.message);
+        }
+        
         // Cập nhật vào database
         await OrderModel.update(orderId, {
             trackingNumber: trackingNumber,
+            labelUrl: labelUrl,
             status: 'created',
             carrierResponse: orderInfo.data
         });
@@ -249,6 +274,7 @@ class JobWorker {
             success: true,
             orderId,
             trackingNumber,
+            labelUrl,
             attempts: job.attempts
         };
     }
@@ -264,13 +290,19 @@ class JobWorker {
             trackingNumber
         });
 
+        const order = await OrderModel.findById(orderId);
+        const labelUrl = order?.label_url || null;
+        const waybillNumber = order?.waybill_number || '';
+
         const result = await ecountService.updateInfoEcount(
             'tracking_number',
             orderId,
             erpOrderCode,
             trackingNumber,
             null, // status không cần
-            ecountLink
+            ecountLink,
+            labelUrl,
+            waybillNumber
         );
 
         // Cập nhật database

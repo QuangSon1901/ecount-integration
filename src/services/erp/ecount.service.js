@@ -317,7 +317,7 @@ class ECountService {
     /**
      * Cập nhật tracking number vào ECount
      */
-    async updateInfoEcount(type, orderId, orderCode, trackingNumber, status = 'Đã hoàn tất', ecountLink) {
+    async updateInfoEcount(type, orderId, orderCode, trackingNumber, status = 'Đã hoàn tất', ecountLink, labelUrl = null, waybillNumber = '') {
         logger.info('Bắt đầu cập nhật tracking vào ECount...', {
             orderId,
             orderCode,
@@ -363,7 +363,7 @@ class ECountService {
                     await this.updateOrderStatus(page, status);
                     break;
                 case 'tracking_number':
-                    await this.updateTrackingNumber(page, trackingNumber);
+                    await this.updateTrackingNumber(page, trackingNumber, waybillNumber, labelUrl);
                     break;
             }
 
@@ -842,7 +842,7 @@ class ECountService {
             throw new Error(`Không tìm thấy trạng thái: "${status}"`);
         }
 
-        await new Promise(resolve => setTimeout(resolve, 10000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
         // Chờ dropdown đóng và cập nhật xong
         await dataFrame.waitForFunction(
@@ -856,7 +856,7 @@ class ECountService {
         logger.info('Đã cập nhật trạng thái thành công');
     }
 
-    async updateTrackingNumber(page, trackingNumber) {
+    async updateTrackingNumber(page, trackingNumber, waybillNumber = '', labelUrl = null) {
         logger.info('Cập nhật tracking...');
 
         // Tìm frame chứa grid
@@ -901,8 +901,26 @@ class ECountService {
             input.dispatchEvent(new Event('input', { bubbles: true }));
             input.dispatchEvent(new Event('change', { bubbles: true }));
 
+            if (labelUrl) {
+                const labelInput = document.querySelector('[data-container="popup-body"] .contents [placeholder="Shipping label"]');
+                if (labelInput) {
+                    labelInput.value = labelUrl;
+                    labelInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    labelInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
+            if (waybillNumber && waybillNumber != '') {
+                const labelInput = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]');
+                if (labelInput) {
+                    labelInput.value = labelUrl;
+                    labelInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    labelInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
             return true;
-        }, trackingNumber);
+        }, trackingNumber, waybillNumber, labelUrl);
 
         if (!updateSuccess) {
             throw new Error('Không thể cập nhật tracking number');
@@ -920,7 +938,7 @@ class ECountService {
 
         // Press F8 để save
         await page.keyboard.press('F8');
-        await new Promise(resolve => setTimeout(resolve, 10000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
         // Chờ save xong (modal đóng hoặc có thông báo thành công)
         await dataFrame.waitForFunction(

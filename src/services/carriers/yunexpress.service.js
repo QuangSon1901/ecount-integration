@@ -685,6 +685,85 @@ class YunExpressService extends BaseCarrier {
     }
 
     /**
+     * Lấy label của đơn hàng
+     * API: GET /v1/order/label/get?order_number={orderNumber}
+     * @param {string} orderNumber - Tracking number, waybill number, hoặc customer order number
+     * @returns {Promise<Object>}
+     */
+    async getLabel(orderNumber) {
+        try {
+            const method = 'GET';
+            const uri = '/v1/order/label/get';
+            const url = `${this.baseUrl}${uri}?order_number=${orderNumber}`;
+            const timestamp = Date.now().toString();
+
+            const token = await this.getToken();
+
+            const signatureContent = this.generateSignatureContent(
+                timestamp,
+                method,
+                uri
+            );
+            
+            const signature = this.generateSha256Signature(
+                signatureContent,
+                this.appSecret
+            );
+
+            logger.info('Đang lấy label cho đơn hàng:', orderNumber);
+
+            const response = await axios.get(url, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Accept-Language': 'en-US',
+                    'token': token,
+                    'date': timestamp,
+                    'sign': signature
+                },
+                timeout: 30000
+            });
+
+            if (response.data && response.data.success) {
+                const result = response.data.result;
+                
+                logger.info('Đã lấy label thành công:', {
+                    orderNumber: result.order_number,
+                    labelType: result.label_type,
+                    hasUrl: !!result.url,
+                    hasLabelString: !!result.label_string
+                });
+
+                return {
+                    success: true,
+                    data: {
+                        orderNumber: result.order_number,
+                        url: result.url,
+                        labelType: result.label_type,
+                        labelString: result.label_string || null
+                    },
+                    timestamp: response.data.t
+                };
+            } else {
+                throw new Error('Invalid response from YunExpress label API');
+            }
+
+        } catch (error) {
+            logger.error('Lỗi khi lấy label:', error.message);
+            
+            if (error.response?.data) {
+                logger.error('API Error Details:', {
+                    code: error.response.data.code,
+                    message: error.response.data.msg
+                });
+                throw new Error(`YunExpress API Error: ${error.response.data.msg || error.response.data.code}`);
+            }
+            
+            throw new Error(`Failed to get YunExpress label: ${error.message}`);
+        }
+    }
+
+    /**
      * Validate dữ liệu đơn hàng
      */
     validateOrderData(orderData) {

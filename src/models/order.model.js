@@ -73,7 +73,7 @@ class OrderModel {
     }
 
     /**
-     * Cập nhật order
+     * Cập nhật order - thêm trường labelUrl
      */
     static async update(id, updateData) {
         const connection = await db.getConnection();
@@ -89,6 +89,10 @@ class OrderModel {
             if (updateData.trackingNumber !== undefined) {
                 fields.push('tracking_number = ?');
                 values.push(updateData.trackingNumber);
+            }
+            if (updateData.labelUrl !== undefined) {
+                fields.push('label_url = ?');
+                values.push(updateData.labelUrl);
             }
             if (updateData.status !== undefined) {
                 fields.push('status = ?');
