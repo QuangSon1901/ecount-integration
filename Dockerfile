@@ -1,5 +1,8 @@
 FROM node:18-bullseye-slim
 
+RUN sed -i 's|http://deb.debian.org/debian|http://mirror.cloudflare.com/debian|g' /etc/apt/sources.list && \
+    sed -i 's|http://security.debian.org/debian-security|http://mirror.cloudflare.com/debian-security|g' /etc/apt/sources.list
+
 # Install dependencies for Puppeteer
 RUN apt-get update && apt-get install -y \
     wget \
