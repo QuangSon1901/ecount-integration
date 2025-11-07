@@ -378,7 +378,7 @@ class ECountService {
             };
 
         } catch (error) {
-            logger.error('Lỗi khi cập nhật ECount:', error.message);
+            logger.error('Lỗi khi cập nhật ECount: ' + error.message);
 
             if (page) {
                 await this.saveDebugInfo(page, orderCode);
@@ -809,13 +809,13 @@ class ECountService {
             if (!firstRow) throw new Error('Không tìm thấy record');
 
             const button = firstRow.querySelector('.control-set:has(a) a');
+
             button.click();
         });
 
-        // Chờ dropdown xuất hiện
-        await this.waitForElement(
-            dataFrame,
-            '.dropdown-menu [data-baseid] li span'
+        await dataFrame.waitForSelector(
+            '.dropdown-menu [data-baseid] li span',
+            { visible: true, timeout: 10000 } // Timeout 10s
         );
 
         // Click vào status
@@ -841,6 +841,8 @@ class ECountService {
         if (!statusUpdated) {
             throw new Error(`Không tìm thấy trạng thái: "${status}"`);
         }
+
+        await new Promise(resolve => setTimeout(resolve, 10000));
 
         // Chờ dropdown đóng và cập nhật xong
         await dataFrame.waitForFunction(
@@ -918,6 +920,7 @@ class ECountService {
 
         // Press F8 để save
         await page.keyboard.press('F8');
+        await new Promise(resolve => setTimeout(resolve, 10000));
 
         // Chờ save xong (modal đóng hoặc có thông báo thành công)
         await dataFrame.waitForFunction(
