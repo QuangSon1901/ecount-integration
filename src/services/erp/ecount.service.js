@@ -913,7 +913,7 @@ class ECountService {
             if (waybillNumber && waybillNumber != '') {
                 const labelInput = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (Yun)"]');
                 if (labelInput) {
-                    labelInput.value = labelUrl;
+                    labelInput.value = waybillNumber;
                     labelInput.dispatchEvent(new Event('input', { bubbles: true }));
                     labelInput.dispatchEvent(new Event('change', { bubbles: true }));
                 }

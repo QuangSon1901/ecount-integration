@@ -78,13 +78,15 @@ app.use(errorMiddleware);
 // Initialize database and start cron
 const initializeApp = async () => {
     try {
-        await db.testConnection();
-        jobWorker.start();
-        fetchTrackingCron.start();
-        updateStatusCron.start();
-        cleanupSessionsCron.start();
-        
-        // trackingCron.start();
+        const connected = await db.testConnection();
+        if (connected) {
+            jobWorker.start();
+            fetchTrackingCron.start();
+            updateStatusCron.start();
+            cleanupSessionsCron.start();
+            
+            // trackingCron.start();
+        }
 
     } catch (error) {
         logger.error('Failed to initialize app:', error);
