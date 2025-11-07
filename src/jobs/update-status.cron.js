@@ -159,14 +159,22 @@ class UpdateStatusCron {
         
         try {
             const [rows] = await connection.query(
-                `SELECT * FROM orders 
-                WHERE tracking_number IS NOT NULL 
-                AND tracking_number != ''
-                AND status NOT IN ('delivered', 'cancelled', 'failed')
-                AND erp_updated = FALSE
-                AND erp_order_code IS NOT NULL
-                AND ecount_link IS NOT NULL
-                ORDER BY created_at ASC
+                `SELECT o.*
+                FROM orders o
+                INNER JOIN (
+                    SELECT erp_order_code, MAX(created_at) AS latest
+                    FROM orders
+                    WHERE tracking_number IS NOT NULL
+                    AND tracking_number != ''
+                    AND status NOT IN ('delivered', 'cancelled', 'failed')
+                    AND erp_updated = FALSE
+                    AND erp_order_code IS NOT NULL
+                    AND ecount_link IS NOT NULL
+                    GROUP BY erp_order_code
+                ) latest_orders
+                ON o.erp_order_code = latest_orders.erp_order_code
+                AND o.created_at = latest_orders.latest
+                ORDER BY o.created_at ASC
                 LIMIT ?`,
                 [limit]
             );
