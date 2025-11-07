@@ -73,11 +73,22 @@ class FetchTrackingCron {
 
                         logger.info(`Tracking number found for order ${order.id}: ${trackingNumber}`);
 
+                        let labelUrl = null;
+                        logger.info(`Fetching label for tracking number: ${trackingNumber}`);
+                                    
+                        const labelResult = await carrier.getLabel(trackingNumber);
+                        if (labelResult.success && labelResult.data.url) {
+                            labelUrl = labelResult.data.url;
+                        } else {
+                            throw new Error(`No label URL available for order ${orderId}`);
+                        }
+
                         // Cập nhật tracking number vào DB
                         await OrderModel.update(order.id, {
                             trackingNumber: trackingNumber,
                             status: 'created',
-                            carrierResponse: orderInfo.data
+                            carrierResponse: orderInfo.data,
+                            labelUrl: labelUrl
                         });
 
                         // Nếu có erpOrderCode và ecountLink, push job update lên ECount

@@ -891,7 +891,7 @@ class ECountService {
         );
 
         // Update tracking number
-        const updateSuccess = await dataFrame.evaluate((trackingNumber) => {
+        const updateSuccess = await dataFrame.evaluate((trackingNumber, waybillNumber, labelUrl) => {
             const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking number (USPS/...)"]');
             if (!input) {
                 throw new Error('Không tìm thấy input Tracking number');

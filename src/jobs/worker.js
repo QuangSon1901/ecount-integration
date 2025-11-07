@@ -239,7 +239,7 @@ class JobWorker {
             trackingNumber,
             attempt: job.attempts
         });
-        
+
         // Lấy label URL
         let labelUrl = null;
         try {
