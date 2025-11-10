@@ -7,11 +7,6 @@ const ecountRoutes = require('./routes/ecount.routes');
 const errorMiddleware = require('./middlewares/error.middleware');
 const logger = require('./utils/logger');
 const db = require('./database/connection');
-const trackingCron = require('./jobs/tracking.cron');
-const fetchTrackingCron = require('./jobs/fetch-tracking.cron');
-const updateStatusCron = require('./jobs/update-status.cron');
-const cleanupSessionsCron = require('./jobs/cleanup-sessions.cron');
-const jobWorker = require('./jobs/worker');
 
 
 const app = express();
@@ -75,44 +70,9 @@ app.use((req, res) => {
 // Error handler
 app.use(errorMiddleware);
 
-// Initialize database and start cron
-const initializeApp = async () => {
-    try {
-        const connected = await db.testConnection();
-        if (connected) {
-            jobWorker.start();
-            fetchTrackingCron.start();
-            updateStatusCron.start();
-            cleanupSessionsCron.start();
-            
-            // trackingCron.start();
-        }
-
-    } catch (error) {
-        logger.error('Failed to initialize app:', error);
-        process.exit(1);
-    }
-};
-
-// Initialize when app starts
-initializeApp();
-
-process.on('SIGTERM', async () => {
-    logger.info('SIGTERM signal received: closing services');
-    
-    try {
-        // Stop job worker
-        jobWorker.stop();
-        
-        // Close HTTP server
-        server.close(() => {
-            logger.info('HTTP server closed');
-            process.exit(0);
-        });
-    } catch (error) {
-        logger.error('Error during shutdown:', error);
-        process.exit(1);
-    }
+db.testConnection().catch(err => {
+    logger.error('DB failed:', err);
+    process.exit(1);
 });
 
 module.exports = app;

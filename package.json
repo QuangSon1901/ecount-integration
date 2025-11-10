@@ -5,10 +5,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "worker": "node worker.js",
     "dev": "nodemon server.js",
+    "dev:worker": "nodemon worker.js",
     "migrate": "node src/database/migrate.js",
     "migrate:fresh": "node src/database/migrate.js --fresh",
-    "cron": "node src/jobs/tracking.cron.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": ["shipping", "yunexpress", "ecount", "automation"],
