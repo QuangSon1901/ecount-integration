@@ -166,7 +166,7 @@ class UpdateStatusCron {
                     FROM orders
                     WHERE tracking_number IS NOT NULL
                     AND tracking_number != ''
-                    AND status NOT IN ('delivered', 'cancelled', 'failed')
+                    AND status NOT IN ('cancelled', 'failed')
                     AND erp_updated = FALSE
                     AND erp_order_code IS NOT NULL
                     AND ecount_link IS NOT NULL
