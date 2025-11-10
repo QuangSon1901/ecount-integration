@@ -8,8 +8,8 @@ services:
     env_file: .env
     volumes:
       - ./logs:/app/logs
-    depends_on:
-      - mysql
+    # depends_on:
+    #   - mysql
     networks:
       - app-network
     command: ["node", "server.js"]
@@ -22,8 +22,8 @@ services:
     volumes:
       - ./logs:/app/logs
       - /dev/shm:/dev/shm
-    depends_on:
-      - mysql
+    # depends_on:
+    #   - mysql
     networks:
       - app-network
     shm_size: '2gb'
@@ -31,25 +31,25 @@ services:
       - seccomp:unconfined
     command: ["node", "worker.js"]
 
-  mysql:
-    image: mysql:8.0
-    container_name: yunexpress-mysql
-    restart: unless-stopped
-    ports:
-      - "3306:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      TZ: ${TZ}
-    volumes:
-      - mysql-data:/var/lib/mysql
-    networks:
-      - app-network
+  # mysql:
+  #   image: mysql:8.0
+  #   container_name: yunexpress-mysql
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3306:3306"
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+  #     MYSQL_DATABASE: ${DB_NAME}
+  #     MYSQL_USER: ${DB_USER}
+  #     MYSQL_PASSWORD: ${DB_PASSWORD}
+  #     TZ: ${TZ}
+  #   volumes:
+  #     - mysql-data:/var/lib/mysql
+  #   networks:
+  #     - app-network
 
 networks:
   app-network:
 
-volumes:
-  mysql-data:
+# volumes:
+#   mysql-data:
