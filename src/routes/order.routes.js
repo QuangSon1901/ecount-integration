@@ -24,7 +24,7 @@ router.get('/health', orderController.healthCheck.bind(orderController));
  * @access  Public
  * @query   carrier - Optional carrier code (YUNEXPRESS, DHL, etc.)
  */
-// router.get('/tracking/:trackingNumber', orderController.trackByTrackingNumber.bind(orderController));
+router.get('/tracking/:trackingNumber', orderController.trackByTrackingNumber.bind(orderController));
 
 /**
  * @route   GET /api/orders/products
