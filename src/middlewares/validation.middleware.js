@@ -268,7 +268,7 @@ const paymentSchema = Joi.object({
 
 // Schema chính cho order
 const orderSchema = Joi.object({
-    carrier: Joi.string().valid('YUNEXPRESS').default('YUNEXPRESS'),
+    carrier: Joi.string().valid('YUNEXPRESS', 'YUNEXPRESS_CN').default('YUNEXPRESS'),
     productCode: Joi.string().min(1).max(50).required()
         .messages({
             'string.empty': 'product_code is required',

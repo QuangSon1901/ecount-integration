@@ -20,6 +20,13 @@ module.exports = {
         appSecret: process.env.YUNEXPRESS_APP_SECRET,
         sourceKey: process.env.YUNEXPRESS_SOURCE_KEY
     },
+
+    yunexpress_cn: {
+        baseUrl: process.env.YUNEXPRESS_CN_BASE_URL,
+        appId: process.env.YUNEXPRESS_CN_APP_ID,
+        appSecret: process.env.YUNEXPRESS_CN_APP_SECRET,
+        sourceKey: process.env.YUNEXPRESS_CN_SOURCE_KEY
+    },
     
     ecount: {
         companyCode: process.env.ECOUNT_COMPANY_CODE,

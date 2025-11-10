@@ -4,7 +4,13 @@ module.exports = {
         name: 'YunExpress',
         code: 'YUNEXPRESS',
         enabled: true,
-        productCodes: ['VN-YTYCPREC'] // Các mã sản phẩm có sẵn
+        productCodes: ['YTYCPREC', 'VN-YTYCPREC', 'VNTHZXR', 'VNMUZXR'] // Các mã sản phẩm có sẵn
+    },
+    YUNEXPRESS_CN: {
+        name: 'YunExpress China',
+        code: 'YUNEXPRESS_CN',
+        enabled: true,
+        productCodes: ['ZBZXRPH', 'YTYCPREG', 'YTYCPREC', 'FZZXR', 'BKPHR', 'THPHR', 'THZXR', 'BKZXR', 'MUZXR'] // Các mã sản phẩm có sẵn
     },
     // DHL: {
     //     name: 'DHL',
