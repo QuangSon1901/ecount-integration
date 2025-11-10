@@ -13,7 +13,10 @@ const app = express();
 
 // Security middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: "https://loginia.ecount.com",
+  credentials: true
+}));
 
 // Rate limiting
 const limiter = rateLimit({
