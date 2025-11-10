@@ -42,6 +42,7 @@ services:
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
+      TZ: ${TZ}
     volumes:
       - mysql-data:/var/lib/mysql
     networks:
