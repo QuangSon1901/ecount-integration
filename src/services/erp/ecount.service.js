@@ -520,7 +520,7 @@ class ECountService {
         // Chờ modal xuất hiện
         await this.waitForElement(
             dataFrame,
-            '[data-container="popup-body"] .contents [placeholder="Master tracking"]'
+            '[data-container="popup-body"] .contents [placeholder="Tracking last mile"]'
         );
 
         // Chờ thêm để đảm bảo dữ liệu đã load
@@ -540,7 +540,7 @@ class ECountService {
         );
 
         const result = await dataFrame.evaluate(() => {
-            const contentModal = document.querySelector('[data-container="popup-body"] .contents [placeholder="Master tracking"]')?.closest('[data-container="popup-body"]');
+            const contentModal = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking last mile"]')?.closest('[data-container="popup-body"]');
             const fields = {
                 order_info: {
                     code_thg: contentModal.querySelector('[placeholder="Code-THG"]')?.value || "",
@@ -878,13 +878,13 @@ class ECountService {
         });// Chờ modal xuất hiện và input tracking sẵn sàng
         await this.waitForElement(
             dataFrame,
-            '[data-container="popup-body"] .contents [placeholder="Master tracking"]'
+            '[data-container="popup-body"] .contents [placeholder="Tracking last mile"]'
         );
 
         // Chờ modal load đủ dữ liệu
         await dataFrame.waitForFunction(
             () => {
-                const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Master tracking"]');
+                const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking last mile"]');
                 return input && !input.disabled;
             },
             { timeout: config.puppeteer.timeout }
@@ -892,7 +892,7 @@ class ECountService {
 
         // Update tracking number
         const updateSuccess = await dataFrame.evaluate((trackingNumber, waybillNumber, labelUrl) => {
-            const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Master tracking"]');
+            const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking last mile"]');
             if (!input) {
                 throw new Error('Không tìm thấy input Tracking number');
             }
@@ -911,7 +911,7 @@ class ECountService {
             }
 
             if (waybillNumber && waybillNumber != '') {
-                const labelInput = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking last mile"]');
+                const labelInput = document.querySelector('[data-container="popup-body"] .contents [placeholder="Master tracking"]');
                 if (labelInput) {
                     labelInput.value = waybillNumber;
                     labelInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -929,7 +929,7 @@ class ECountService {
         // Verify giá trị đã được set
         await dataFrame.waitForFunction(
             (expectedValue) => {
-                const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Master tracking"]');
+                const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking last mile"]');
                 return input && input.value === expectedValue;
             },
             { timeout: config.puppeteer.timeout },
