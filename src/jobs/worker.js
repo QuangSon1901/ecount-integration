@@ -301,7 +301,7 @@ class JobWorker {
         
         let labelUrl = null;
         if (order.label_url) {
-            if (order.label_access_key) {
+            if (order.label_access_key && process.env.SHORT_LINK_LABEL=='true') {
                 const baseUrl = process.env.BASE_URL || '';
                 labelUrl = `${baseUrl}/api/labels/${order.label_access_key}`;
             } else {

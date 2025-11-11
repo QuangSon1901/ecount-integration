@@ -91,7 +91,7 @@ class FetchTrackingCron {
                             labelUrl: labelUrl
                         });
 
-                        if (labelUrl && process.env.SHORT_LINK_LABEL=='true') {
+                        if (labelUrl) {
                             try {
                                 await OrderModel.generateLabelAccessKey(order.id);
                             } catch (error) {
