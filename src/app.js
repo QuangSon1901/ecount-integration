@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const orderRoutes = require('./routes/order.routes');
 const ecountRoutes = require('./routes/ecount.routes');
+const labelRoutes = require('./routes/label.routes');
 const errorMiddleware = require('./middlewares/error.middleware');
 const logger = require('./utils/logger');
 const db = require('./database/connection');
@@ -61,6 +62,7 @@ app.get('/health', async (req, res) => {
 // Routes
 app.use('/api/orders', orderRoutes);
 app.use('/api/ecount', ecountRoutes);
+app.use('/api/labels', labelRoutes);
 
 // 404 handler
 app.use((req, res) => {

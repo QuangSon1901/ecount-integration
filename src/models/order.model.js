@@ -259,6 +259,56 @@ class OrderModel {
             connection.release();
         }
     }
+
+    /**
+     * Tìm order theo label access key
+     */
+    static async findByLabelAccessKey(accessKey) {
+        const connection = await db.getConnection();
+        
+        try {
+            const [rows] = await connection.query(
+                'SELECT * FROM orders WHERE label_access_key = ?',
+                [accessKey]
+            );
+            
+            return rows[0] || null;
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
+     * Generate và update label access key (chỉ tạo 1 lần)
+     */
+    static async generateLabelAccessKey(orderId) {
+        const connection = await db.getConnection();
+        const KeyGenerator = require('../utils/key-generator');
+        
+        try {
+            // Check xem đã có key chưa
+            const [existing] = await connection.query(
+                'SELECT label_access_key FROM orders WHERE id = ?',
+                [orderId]
+            );
+            
+            if (existing[0]?.label_access_key) {
+                return existing[0].label_access_key;
+            }
+            
+            // Generate key mới
+            const accessKey = KeyGenerator.generateLabelAccessKey();
+            
+            await connection.query(
+                'UPDATE orders SET label_access_key = ? WHERE id = ?',
+                [accessKey, orderId]
+            );
+            
+            return accessKey;
+        } finally {
+            connection.release();
+        }
+    }
 }
 
 module.exports = OrderModel;

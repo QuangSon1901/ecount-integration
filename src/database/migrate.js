@@ -331,6 +331,15 @@ const migrations = [
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             COMMENT='Bảng lưu trữ sessions';
         `
+    },
+    {
+        version: 8,
+        name: 'add_label_access_key_to_orders',
+        up: `
+            ALTER TABLE orders 
+            ADD COLUMN label_access_key VARCHAR(32) UNIQUE COMMENT 'Key vĩnh viễn để truy cập label URL' AFTER label_url,
+            ADD INDEX idx_label_access_key (label_access_key);
+        `
     }
 ];
 

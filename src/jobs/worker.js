@@ -269,6 +269,14 @@ class JobWorker {
             status: 'created',
             carrierResponse: orderInfo.data
         });
+
+        if (labelUrl) {
+            try {
+                await OrderModel.generateLabelAccessKey(orderId);
+            } catch (error) {
+                logger.error(`Failed to generate access key for order ${orderId}:`, error.message);
+            }
+        }
         
         return {
             success: true,
@@ -291,8 +299,17 @@ class JobWorker {
         });
 
         const order = await OrderModel.findById(orderId);
-        const labelUrl = order?.label_url || null;
         const waybillNumber = order?.waybill_number || '';
+        
+        let labelUrl = null;
+        if (order.label_url) {
+            if (order.label_access_key) {
+                const baseUrl = process.env.BASE_URL || '';
+                labelUrl = `${baseUrl}/api/labels/${order.label_access_key}`;
+            } else {
+                labelUrl = order.label_url;
+            }
+        }
 
         const result = await ecountService.updateInfoEcount(
             'tracking_number',
