@@ -1,7 +1,10 @@
+const { baseUrl } = require("../utils/telegram");
+
 module.exports = {
     env: process.env.NODE_ENV || 'development',
     port: process.env.PORT || 3000,
     apiKey: process.env.API_KEY,
+    baseUrl: process.env.BASE_URL,
     
     database: {
         host: process.env.DB_HOST || 'localhost',

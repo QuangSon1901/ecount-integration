@@ -257,8 +257,6 @@ class JobWorker {
                 logger.warn(`No label URL available for order ${orderId}`);
             }
         } catch (labelError) {
-            // Không throw error nếu lấy label thất bại
-            // Vì tracking number đã có rồi
             logger.error(`Failed to get label for order ${orderId}:`, labelError.message);
         }
         

@@ -91,6 +91,14 @@ class FetchTrackingCron {
                             labelUrl: labelUrl
                         });
 
+                        if (labelUrl) {
+                            try {
+                                await OrderModel.generateLabelAccessKey(order.id);
+                            } catch (error) {
+                                logger.error(`Failed to generate access key for order ${order.id}:`, error.message);
+                            }
+                        }
+
                         // Nếu có erpOrderCode và ecountLink, push job update lên ECount
                         if (order.erp_order_code && order.ecount_link) {
                             await jobService.addUpdateTrackingNumberJob(
