@@ -5,6 +5,8 @@ const rateLimit = require('express-rate-limit');
 const orderRoutes = require('./routes/order.routes');
 const ecountRoutes = require('./routes/ecount.routes');
 const labelRoutes = require('./routes/label.routes');
+const extensionRoutes = require('./routes/extension.routes');
+
 const errorMiddleware = require('./middlewares/error.middleware');
 const logger = require('./utils/logger');
 const db = require('./database/connection');
@@ -63,6 +65,7 @@ app.get('/health', async (req, res) => {
 app.use('/api/orders', orderRoutes);
 app.use('/api/ecount', ecountRoutes);
 app.use('/api/labels', labelRoutes);
+app.use('/extensions', extensionRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Down Label ECount Extension Tool - Hướng dẫn cài đặt</title>
+    <style>
+        /* Copy toàn bộ CSS từ extension1.html */
+        /* Chỉ thay đổi màu chủ đạo nếu muốn */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .download-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 40px;
+            border: 2px dashed #f5576c;
+        }
+
+        .download-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 18px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-size: 1.2em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        .download-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(245, 87, 108, 0.6);
+        }
+
+        .download-btn svg {
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+
+        .steps {
+            margin-top: 30px;
+        }
+
+        .step {
+            background: white;
+            border-left: 4px solid #f5576c;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .step:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .step-number {
+            display: inline-block;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 35px;
+            font-weight: bold;
+            margin-right: 15px;
+            font-size: 1.1em;
+        }
+
+        .step-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #333;
+        }
+
+        .step-content {
+            color: #666;
+            line-height: 1.8;
+            margin-left: 50px;
+        }
+
+        .step-content code {
+            background: #f4f4f4;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #e83e8c;
+            font-size: 0.9em;
+        }
+
+        .note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 30px 0;
+        }
+
+        .note-title {
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .note-content {
+            color: #856404;
+            line-height: 1.7;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .feature {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .feature:hover {
+            background: #e9ecef;
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+        }
+
+        .feature-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .feature-desc {
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #dee2e6;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 15px 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛠️ Down Label ECount Extension Tool</h1>
+            <p>Extension tải nhanh label</p>
+        </div>
+
+        <div class="content">
+            <div class="download-section">
+                <h2 style="margin-bottom: 20px; color: #333;">📦 Tải Extension</h2>
+                <a href="/extensions/download/tool-label" class="download-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    Tải xuống Extension
+                </a>
+                <p style="margin-top: 15px; color: #666;">
+                    <small>File nén .zip | Phiên bản mới nhất</small>
+                </p>
+            </div>
+
+            <h2 style="margin: 40px 0 25px; color: #333; font-size: 2em;">📋 Hướng dẫn cài đặt</h2>
+
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-title">Tải xuống Extension</div>
+                    <div class="step-content">
+                        Nhấn vào nút <strong>"Tải xuống Extension"</strong> ở trên để tải file .zip về máy tính.
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-title">Giải nén file</div>
+                    <div class="step-content">
+                        Giải nén file <code>down-label-ecount-extension-tool.zip</code> vào thư mục riêng
+                        (ví dụ: <code>C:\ChromeExtensions\Tool</code>)
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-title">Mở Chrome Extensions</div>
+                    <div class="step-content">
+                        Truy cập <code>chrome://extensions/</code> trên trình duyệt Chrome
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-title">Bật Developer Mode</div>
+                    <div class="step-content">
+                        Bật công tắc <strong>"Developer mode"</strong> ở góc trên bên phải
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <div class="step-title">Load Extension</div>
+                    <div class="step-content">
+                        Nhấn nút <strong>"Load unpacked"</strong> và chọn thư mục đã giải nén
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">6</div>
+                    <div class="step-title">Xác nhận cài đặt</div>
+                    <div class="step-content">
+                        Extension sẽ xuất hiện trong danh sách. Đảm bảo extension được <strong>bật</strong>.
+                    </div>
+                </div>
+            </div>
+
+            <div class="note">
+                <div class="note-title">⚠️ Lưu ý quan trọng</div>
+                <div class="note-content">
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Không xóa thư mục đã giải nén sau khi cài đặt</li>
+                        <li>Extension cần quyền truy cập vào trang ECount để hoạt động</li>
+                        <li>Đảm bảo đăng nhập ECount trước khi sử dụng extension</li>
+                        <li>Nếu gặp lỗi, thử tắt và bật lại extension</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h2 style="margin: 40px 0 25px; color: #333; font-size: 2em;">🎯 Cách sử dụng</h2>
+
+            <div class="steps">
+                <div class="step">
+                    <div class="step-title">Chức năng chính</div>
+                    <div class="step-content">
+                        1. Theo dõi trạng thái đơn hàng theo thời gian thực<br>
+                        2. Cập nhật tracking number tự động từ hệ thống vận chuyển<br>
+                        3. Xử lý hàng loạt nhiều đơn hàng cùng lúc<br>
+                        4. Xuất báo cáo và thống kê đơn hàng
+                    </div>
+                </div>
+            </div>
+
+            <div class="note" style="background: #d1ecf1; border-left-color: #0c5460;">
+                <div class="note-title" style="color: #0c5460;">💡 Cần hỗ trợ?</div>
+                <div class="note-content" style="color: #0c5460;">
+                    Liên hệ bộ phận IT để được hỗ trợ kỹ thuật và hướng dẫn chi tiết hơn.
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>ECount Integration System</strong></p>
+            <p style="margin-top: 10px; font-size: 0.9em;">
+                Phát triển bởi IT Team | © 2025
+            </p>
+        </div>
+    </div>
+</body>
+
+</html>
