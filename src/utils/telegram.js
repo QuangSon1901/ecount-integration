@@ -112,7 +112,7 @@ class TelegramNotifier {
             timeZone: 'Asia/Ho_Chi_Minh'
         });
 
-        let message = `✅ <b>${title}</b>\n\n`;
+        let message = `✅ <b>${title}</b>\n`;
         message += `⏰ <b>Time:</b> ${timestamp}\n`;
 
         Object.entries(details).forEach(([key, value]) => {
@@ -140,7 +140,7 @@ class TelegramNotifier {
             timeZone: 'Asia/Ho_Chi_Minh'
         });
 
-        let message = `⚠️ <b>${title}</b>\n\n`;
+        let message = `⚠️ <b>${title}</b>\n`;
         message += `⏰ <b>Time:</b> ${timestamp}\n`;
 
         Object.entries(details).forEach(([key, value]) => {
@@ -165,17 +165,17 @@ class TelegramNotifier {
      */
     getIconForKey(key) {
         const iconMap = {
-            orderId: '🔖',
-            erpOrderCode: '📦',
-            trackingNumber: '🔍',
-            jobId: '⚙️',
-            status: '📊',
-            carrier: '🚚',
-            action: '🎯',
-            count: '🔢',
-            duration: '⏱️',
-            error: '❌',
-            success: '✅'
+            orderId: '',
+            erpOrderCode: '',
+            trackingNumber: '',
+            jobId: '',
+            status: '',
+            carrier: '',
+            action: '',
+            count: '',
+            duration: '',
+            error: '',
+            success: ''
         };
         return iconMap[key] || '•';
     }
