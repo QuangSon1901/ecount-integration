@@ -69,23 +69,23 @@ class TelegramNotifier {
         });
 
         let message = `🚨 <b>ERROR ALERT</b>\n\n`;
-        message += `⏰ <b>Time:</b> ${timestamp}\n`;
-        message += `📋 <b>Message:</b> ${error.message || error}\n`;
+        message += `<b>Time:</b> ${timestamp}\n`;
+        message += `<b>Message:</b> ${error.message || error}\n`;
 
         if (context.orderId) {
-            message += `🔖 <b>Order ID:</b> ${context.orderId}\n`;
+            message += `<b>Order ID:</b> ${context.orderId}\n`;
         }
         if (context.erpOrderCode) {
-            message += `📦 <b>ERP Code:</b> ${context.erpOrderCode}\n`;
+            message += `<b>ERP Code:</b> ${context.erpOrderCode}\n`;
         }
         if (context.trackingNumber) {
-            message += `🔍 <b>Tracking:</b> ${context.trackingNumber}\n`;
+            message += `<b>Tracking:</b> ${context.trackingNumber}\n`;
         }
         if (context.jobId) {
-            message += `⚙️ <b>Job ID:</b> ${context.jobId}\n`;
+            message += `<b>Job ID:</b> ${context.jobId}\n`;
         }
         if (context.action) {
-            message += `🎯 <b>Action:</b> ${context.action}\n`;
+            message += `<b>Action:</b> ${context.action}\n`;
         }
 
         if (error.stack && process.env.TELEGRAM_INCLUDE_STACK === 'true') {
@@ -113,7 +113,7 @@ class TelegramNotifier {
         });
 
         let message = `✅ <b>${title}</b>\n`;
-        message += `⏰ <b>Time:</b> ${timestamp}\n`;
+        message += `<b>Time:</b> ${timestamp}\n`;
 
         Object.entries(details).forEach(([key, value]) => {
             const icon = this.getIconForKey(key);
@@ -141,7 +141,7 @@ class TelegramNotifier {
         });
 
         let message = `⚠️ <b>${title}</b>\n`;
-        message += `⏰ <b>Time:</b> ${timestamp}\n`;
+        message += `<b>Time:</b> ${timestamp}\n`;
 
         Object.entries(details).forEach(([key, value]) => {
             const icon = this.getIconForKey(key);
@@ -209,17 +209,17 @@ class TelegramNotifier {
         });
 
         let message = `📊 <b>JOB COMPLETED: ${jobName}</b>\n\n`;
-        message += `⏰ <b>Time:</b> ${timestamp}\n`;
-        message += `🔢 <b>Processed:</b> ${stats.processed}\n`;
-        message += `✅ <b>Success:</b> ${stats.success}\n`;
-        message += `❌ <b>Failed:</b> ${stats.failed}\n`;
+        message += `<b>Time:</b> ${timestamp}\n`;
+        message += `<b>Processed:</b> ${stats.processed}\n`;
+        message += `<b>Success:</b> ${stats.success}\n`;
+        message += `<b>Failed:</b> ${stats.failed}\n`;
 
         if (stats.updated !== undefined) {
-            message += `📝 <b>Updated:</b> ${stats.updated}\n`;
+            message += `<b>Updated:</b> ${stats.updated}\n`;
         }
 
         if (stats.duration) {
-            message += `⏱️ <b>Duration:</b> ${stats.duration}\n`;
+            message += `<b>Duration:</b> ${stats.duration}\n`;
         }
 
         return message;
