@@ -5,12 +5,13 @@ const fs = require('fs');
 const logger = require('../utils/logger');
 const { errorResponse } = require('../utils/response');
 
+const extensionMiddleware = require('../middlewares/extension.middleware');
 /**
  * @route   GET /extensions/tool1
  * @desc    Trang hướng dẫn cài đặt Extension 1
  * @access  Public
  */
-router.get('/tool-express', (req, res) => {
+router.get('/tool-express', extensionMiddleware, (req, res) => {
     const viewPath = path.join(__dirname, '../../public/views/ecount-extension.html');
     
     if (!fs.existsSync(viewPath)) {
@@ -42,7 +43,7 @@ router.get('/tool-label', (req, res) => {
  * @desc    Tải xuống Extension 1
  * @access  Public
  */
-router.get('/download/tool-express', (req, res) => {
+router.get('/download/tool-express', extensionMiddleware, (req, res) => {
     const filePath = path.join(__dirname, '../../public/extensions/ecount-extension.zip');
     
     if (!fs.existsSync(filePath)) {
