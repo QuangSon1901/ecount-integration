@@ -3,6 +3,7 @@ const OrderModel = require('../models/order.model');
 const carrierFactory = require('../services/carriers');
 const ecountService = require('../services/erp/ecount.service');
 const logger = require('../utils/logger');
+const telegram = require('../utils/telegram');
 
 class JobWorker {
     constructor() {
@@ -108,6 +109,11 @@ class JobWorker {
         } catch (error) {
             logger.error(`Job ${job.id} failed:`, error.message);
             await JobModel.markFailed(job.id, error.message, true);
+
+            await telegram.notifyError(error, {
+                action: job.job_type,
+                jobName: job.job_type,
+            });
         }
     }
 
