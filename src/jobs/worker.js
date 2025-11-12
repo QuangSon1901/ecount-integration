@@ -110,10 +110,16 @@ class JobWorker {
             logger.error(`Job ${job.id} failed:`, error.message);
             await JobModel.markFailed(job.id, error.message, true);
 
+            const { orderData } = job.payload;
             await telegram.notifyError(error, {
                 action: job.job_type,
                 jobName: job.job_type,
-                orderId: 123
+                orderId: orderData.customerOrderNumber,
+                waybillNumber: orderData.waybillNumber || null,
+                trackingNumber: orderData.trackingNumber || null,
+                erpOrderCode: orderData.erpOrderCode,
+                attempt: job.attempts,
+                maxAttempts: job.max_attempts
             });
         }
     }
