@@ -95,7 +95,7 @@ class FetchTrackingCron {
                             try {
                                 await OrderModel.generateLabelAccessKey(order.id);
                             } catch (error) {
-                                logger.error(`Failed to generate access key for order ${order.id}:`, error.message);
+                                logger.error(`Failed to generate access key for order ${order.id}: ${error.message}`);
                             }
                         }
 
@@ -124,7 +124,7 @@ class FetchTrackingCron {
 
                 } catch (error) {
                     stats.failed++;
-                    logger.error(`Lỗi xử lý order ${order.id}:`, error.message);
+                    logger.error(`Lỗi xử lý order ${order.id}: ${error.message}`);
                 }
             }
 
@@ -145,7 +145,7 @@ class FetchTrackingCron {
             });
 
         } catch (error) {
-            logger.error('Fetch tracking job thất bại:', error);
+            logger.error('Fetch tracking job thất bại: ' + error);
 
             // Update cron log thất bại
             if (cronLogId) {

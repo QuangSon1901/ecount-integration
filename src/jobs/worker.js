@@ -64,7 +64,7 @@ class JobWorker {
                 await this.handleJob(job);
             }
         } catch (error) {
-            logger.error('Error in processJobs:', error);
+            logger.error('Error in processJobs:' + error);
         } finally {
             this.isProcessing = false;
         }
@@ -113,6 +113,7 @@ class JobWorker {
             await telegram.notifyError(error, {
                 action: job.job_type,
                 jobName: job.job_type,
+                orderId: 123
             });
         }
     }
@@ -263,7 +264,7 @@ class JobWorker {
                 logger.warn(`No label URL available for order ${orderId}`);
             }
         } catch (labelError) {
-            logger.error(`Failed to get label for order ${orderId}:`, labelError.message);
+            logger.error(`Failed to get label for order ${orderId}: ` + labelError.message);
         }
         
         // Cập nhật vào database
@@ -278,7 +279,7 @@ class JobWorker {
             try {
                 await OrderModel.generateLabelAccessKey(orderId);
             } catch (error) {
-                logger.error(`Failed to generate access key for order ${orderId}:`, error.message);
+                logger.error(`Failed to generate access key for order ${orderId}: ${error.message}`);
             }
         }
         

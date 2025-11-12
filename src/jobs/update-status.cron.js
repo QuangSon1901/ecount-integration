@@ -109,7 +109,7 @@ class UpdateStatusCron {
 
                 } catch (error) {
                     stats.failed++;
-                    logger.error(`Lỗi xử lý order ${order.id}:`, error.message);
+                    logger.error(`Lỗi xử lý order ${order.id}: ${error.message}`);
                 }
             }
 
@@ -130,7 +130,7 @@ class UpdateStatusCron {
             });
 
         } catch (error) {
-            logger.error('Update status job thất bại:', error);
+            logger.error('Update status job thất bại: ', + error);
 
             // Update cron log thất bại
             if (cronLogId) {
