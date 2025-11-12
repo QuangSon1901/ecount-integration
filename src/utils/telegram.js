@@ -68,7 +68,7 @@ class TelegramNotifier {
             timeZone: 'Asia/Ho_Chi_Minh'
         });
 
-        let message = `🚨 <b>ERROR ALERT</b>\n\n`;
+        let message = `🚨 <b>ERROR ALERT</b>\n`;
         message += `<b>Time:</b> ${timestamp}\n`;
         message += `<b>Message:</b> ${error.message || error}\n`;
 
