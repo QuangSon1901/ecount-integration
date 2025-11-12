@@ -1,6 +1,6 @@
 const basicAuth = require('express-basic-auth');
 const logger = require('../utils/logger');
-const { validateUser } = require('../../config/htpasswd');
+const { validateUser } = require('../config/htpasswd');
 
 const basicAuthMiddleware = basicAuth({
     authorizer: (username, password) => {
