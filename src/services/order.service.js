@@ -927,7 +927,7 @@ class OrderService {
         
         // Đang vận chuyển
         if (['created', 'in_transit', 'out_for_delivery'].includes(order.order_status)) {
-            return 'in_transit';
+            return order.order_status;
         }
         
         // Đã hoàn tất
@@ -948,18 +948,20 @@ class OrderService {
      */
     getStatusLabel(status) {
         const labels = {
-            'not_found': 'Không tìm thấy',
-            'waiting_creation': 'Đang chờ tạo đơn',
-            'fetching_tracking': 'Đang lấy tracking number',
-            'waiting_tracking': 'Đang chờ tracking number',
-            'updating_tracking': 'Đang cập nhật tracking lên ERP',
-            'waiting_tracking_update': 'Đang chờ cập nhật tracking lên ERP',
-            'updating_status': 'Đang cập nhật trạng thái lên ERP',
-            'waiting_status_update': 'Đang chờ cập nhật trạng thái lên ERP',
-            'in_transit': 'Đang vận chuyển',
-            'completed': 'Đã hoàn tất',
-            'failed': 'Có lỗi',
-            'unknown': 'Không xác định'
+            'not_found': 'Not found',
+            'waiting_creation': 'Waiting creation',
+            'fetching_tracking': 'Fetching tracking number',
+            'waiting_tracking': 'Waiting tracking number',
+            'updating_tracking': 'Updating tracking number to ERP',
+            'waiting_tracking_update': 'Waiting tracking number to ERP',
+            'updating_status': 'Updating status number to ERP',
+            'waiting_status_update': 'Waiting status number to ERP',
+            'created': 'Electronic forecast information reception',
+            'in_transit': 'In transit',
+            'out_for_delivery': 'In transit',
+            'completed': 'Successful delivery',
+            'failed': 'May be abnormal',
+            'unknown': 'Unknown'
         };
         
         return labels[status] || status;
