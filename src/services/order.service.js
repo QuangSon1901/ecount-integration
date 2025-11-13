@@ -47,18 +47,105 @@ class OrderService {
     }
 
     /**
-     * Xử lý nhiều đơn hàng cùng lúc
+     * Xử lý nhiều đơn hàng cùng lúc - CÓ KIỂM TRA TRÙNG LẶP
      */
     async processOrderMulti(ordersData) {
         try {
-            logger.info(`Đang push ${ordersData.length} jobs tạo đơn hàng vào queue...`);
+            logger.info(`Đang kiểm tra ${ordersData.length} đơn hàng trước khi push jobs...`);
+
+            // Bước 1: Lấy tất cả erpOrderCode cần kiểm tra
+            const erpOrderCodes = ordersData
+                .map(order => order.erpOrderCode)
+                .filter(code => code); // Lọc bỏ undefined/null
+
+            if (erpOrderCodes.length === 0) {
+                throw new Error('Không có erpOrderCode hợp lệ trong danh sách đơn hàng');
+            }
+
+            // Bước 2: Check trạng thái tất cả orders trong hệ thống
+            const existingStatuses = await this.getStatusBatch(erpOrderCodes);
+            
+            // Bước 3: Phân loại orders
+            const blocked = []; // Đơn đang xử lý, không cho push job
+            const allowed = []; // Đơn được phép push job
+            
+            ordersData.forEach((orderData, index) => {
+                const erpCode = orderData.erpOrderCode;
+                const statusInfo = existingStatuses.find(s => s.erp_order_code === erpCode);
+                
+                if (!statusInfo) {
+                    // Không tìm thấy status info - cho phép
+                    allowed.push({ index, orderData, reason: 'not_checked' });
+                    return;
+                }
+
+                const status = statusInfo.status;
+                
+                // CÁC TRẠNG THÁI CHO PHÉP PUSH JOB MỚI
+                const allowedStatuses = [
+                    'not_found',      // Chưa tồn tại
+                    'failed',         // Đã lỗi - cho phép thử lại
+                    'unknown',        // Không xác định
+                    // 'completed'       // Đã hoàn tất - cho phép tạo lại (trường hợp đặc biệt)
+                ];
+
+                if (allowedStatuses.includes(status)) {
+                    allowed.push({ 
+                        index, 
+                        orderData,
+                        existingStatus: status,
+                        reason: status === 'not_found' ? 'new_order' : 'retry_allowed'
+                    });
+                } else {
+                    // CÁC TRẠNG THÁI BỊ CHẶN
+                    blocked.push({
+                        index,
+                        erpOrderCode: erpCode,
+                        customerOrderNumber: orderData.customerOrderNumber,
+                        status: status,
+                        label: statusInfo.label,
+                        trackingNumber: statusInfo.tracking_number,
+                        orderNumber: statusInfo.order_number,
+                        field: erpCode,
+                        message: 'order_in_progress'
+                    });
+                }
+            });
+
+            logger.info('Kết quả kiểm tra:', {
+                total: ordersData.length,
+                allowed: allowed.length,
+                blocked: blocked.length
+            });
+
+            // Bước 4: Nếu có đơn bị chặn, response ngay không push job
+            if (blocked.length > 0) {
+                logger.warn(`Có ${blocked.length} đơn hàng đang được xử lý, không thể push job mới`);
+                
+                return {
+                    success: false,
+                    data: {
+                        summary: {
+                            total: ordersData.length,
+                            blocked: blocked.length,
+                            allowed: allowed.length,
+                            queued: 0
+                        },
+                        validationErrors: blocked,
+                        message: 'Có đơn hàng đang được xử lý trong hệ thống'
+                    },
+                    message: `Không thể tạo đơn: ${blocked.length}/${ordersData.length} đơn hàng đang được xử lý`
+                };
+            }
+
+            // Bước 5: Tất cả đơn đều OK, bắt đầu push jobs
+            logger.info(`Tất cả ${allowed.length} đơn hàng hợp lệ, bắt đầu push jobs...`);
 
             const results = [];
             const errors = [];
 
-            // Push từng order vào queue
-            for (let i = 0; i < ordersData.length; i++) {
-                const orderData = ordersData[i];
+            for (let i = 0; i < allowed.length; i++) {
+                const { index, orderData, existingStatus } = allowed[i];
                 
                 try {
                     // Validate cơ bản
@@ -71,25 +158,28 @@ class OrderService {
                     const jobId = await jobService.addCreateOrderJob(orderData, delaySeconds);
 
                     results.push({
-                        index: i,
+                        index: index,
                         customerOrderNumber: orderData.customerOrderNumber,
                         erpOrderCode: orderData.erpOrderCode,
                         jobId: jobId,
                         status: 'queued',
-                        delaySeconds: delaySeconds
+                        delaySeconds: delaySeconds,
+                        existingStatus: existingStatus || 'new'
                     });
 
-                    logger.info(`✓ Đã push job ${i + 1}/${ordersData.length}`, {
+                    logger.info(`✓ Đã push job ${i + 1}/${allowed.length}`, {
                         jobId,
+                        erpOrderCode: orderData.erpOrderCode,
                         customerOrderNumber: orderData.customerOrderNumber,
                         delaySeconds
                     });
 
                 } catch (error) {
-                    logger.error(`✗ Lỗi push job ${i + 1}/${ordersData.length}:`, error.message);
+                    logger.error(`✗ Lỗi push job ${i + 1}/${allowed.length}:`, error.message);
                     
                     errors.push({
-                        index: i,
+                        index: index,
+                        erpOrderCode: orderData.erpOrderCode,
                         customerOrderNumber: orderData.customerOrderNumber,
                         error: error.message
                     });
@@ -98,6 +188,9 @@ class OrderService {
 
             const summary = {
                 total: ordersData.length,
+                checked: ordersData.length,
+                allowed: allowed.length,
+                blocked: blocked.length,
                 queued: results.length,
                 failed: errors.length
             };

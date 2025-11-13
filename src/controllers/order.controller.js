@@ -29,14 +29,25 @@ class OrderController {
                 return errorResponse(res, 'orders array is required and must not be empty', 400);
             }
 
-            if (orders.length > 50) {
-                return errorResponse(res, 'Maximum 50 orders per request', 400);
+            if (orders.length > 100) {
+                return errorResponse(res, 'Maximum 100 orders per request', 400);
             }
 
             logger.info(`Nhận yêu cầu tạo ${orders.length} đơn hàng`);
             
             const result = await orderService.processOrderMulti(orders);
             
+            // Nếu có đơn bị block, trả về 409 Conflict
+            if (!result.success && result.data.blocked && result.data.blocked.length > 0) {
+                return res.status(409).json({
+                    success: false,
+                    message: result.message,
+                    data: result.data,
+                    timestamp: new Date().toISOString()
+                });
+            }
+            
+            // Success case
             return successResponse(res, result.data, result.message, 201);
             
         } catch (error) {
