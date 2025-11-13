@@ -15,7 +15,9 @@ const db = require('./database/connection');
 const app = express();
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" } // Cho phép load ảnh/file từ domain khác
+}));
 app.use(cors({
   origin: "https://loginia.ecount.com",
   credentials: true
@@ -32,6 +34,19 @@ app.use('/api/', limiter);
 // Body parser
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+const uploadsDir = path.join(__dirname, '../public/uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    logger.info('Created uploads directory:', uploadsDir);
+}
+
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads'), {
+    maxAge: '7d', // Cache 7 ngày
+    etag: true,
+    lastModified: true
+}));
+
 
 // Request logging
 app.use((req, res, next) => {
