@@ -107,7 +107,8 @@ class OrderService {
                         trackingNumber: statusInfo.tracking_number,
                         orderNumber: statusInfo.order_number,
                         field: erpCode,
-                        message: 'order_in_progress'
+                        message: statusInfo.label,
+                        reason: 'order_in_progress'
                     });
                 }
             });

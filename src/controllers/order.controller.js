@@ -38,7 +38,7 @@ class OrderController {
             const result = await orderService.processOrderMulti(orders);
             
             // Nếu có đơn bị block, trả về 409 Conflict
-            if (!result.success && result.data.blocked && result.data.blocked.length > 0) {
+            if (!result.success && result.data.validationErrors && result.data.validationErrors.length > 0) {
                 return res.status(409).json({
                     success: false,
                     message: result.message,
