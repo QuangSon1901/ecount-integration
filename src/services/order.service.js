@@ -75,7 +75,7 @@ class OrderService {
                 
                 if (!statusInfo) {
                     // Không tìm thấy status info - cho phép
-                    allowed.push({ index, orderData, reason: 'not_checked' });
+                    allowed.push({ orderIndex: index, orderData, reason: 'not_checked' });
                     return;
                 }
 
@@ -91,7 +91,7 @@ class OrderService {
 
                 if (allowedStatuses.includes(status)) {
                     allowed.push({ 
-                        index, 
+                        orderIndex: index, 
                         orderData,
                         existingStatus: status,
                         reason: status === 'not_found' ? 'new_order' : 'retry_allowed'
@@ -99,7 +99,7 @@ class OrderService {
                 } else {
                     // CÁC TRẠNG THÁI BỊ CHẶN
                     blocked.push({
-                        index,
+                        orderIndex: index,
                         erpOrderCode: erpCode,
                         customerOrderNumber: orderData.customerOrderNumber,
                         status: status,
