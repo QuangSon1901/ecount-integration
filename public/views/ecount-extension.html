@@ -4,22 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ECount Extension Tool - Hướng dẫn cài đặt</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --text: #1f2937;
-            --text-light: #6b7280;
-            --bg: #f9fafb;
-            --card: #ffffff;
-            --border: #e5e7eb;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --radius: 12px;
-            --shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
         * {
             margin: 0;
             padding: 0;
@@ -27,306 +12,295 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.6;
-            padding: 2rem 1rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.7;
+            color: #2c3e50;
+            background: #f5f7fa;
+            padding: 0;
         }
 
         .container {
-            max-width: 900px;
+            max-width: 800px;
             margin: 0 auto;
-            background: var(--card);
-            border-radius: var(--radius);
-            overflow: hidden;
-            box-shadow: var(--shadow);
+            background: white;
         }
 
-        /* Header */
         .header {
-            padding: 3rem 2.5rem 2rem;
-            text-align: center;
-            border-bottom: 1px solid var(--border);
+            background: white;
+            border-bottom: 1px solid #e1e8ed;
+            padding: 48px 40px 32px;
         }
 
         .header h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--text);
-            margin-bottom: 0.5rem;
+            font-size: 32px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
         }
 
         .header p {
-            font-size: 1rem;
-            color: var(--text-light);
-            font-weight: 500;
+            font-size: 16px;
+            color: #6b7280;
+            font-weight: 400;
         }
 
-        /* Content */
         .content {
-            padding: 2.5rem;
+            padding: 40px;
         }
 
-        /* Download Section */
         .download-section {
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            border: 1px solid #bae6fd;
-            border-radius: var(--radius);
-            padding: 2rem;
-            text-align: center;
-            margin-bottom: 3rem;
+            background: #fafbfc;
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+            padding: 32px;
+            margin-bottom: 48px;
         }
 
         .download-section h2 {
-            font-size: 1.25rem;
+            font-size: 18px;
             font-weight: 600;
-            color: var(--text);
-            margin-bottom: 1.25rem;
+            color: #1a1a1a;
+            margin-bottom: 20px;
         }
 
         .download-btn {
             display: inline-flex;
             align-items: center;
-            gap: 0.75rem;
-            background: var(--primary);
+            gap: 8px;
+            background: #2563eb;
             color: white;
-            padding: 0.875rem 1.75rem;
-            border-radius: 8px;
+            padding: 12px 24px;
+            border-radius: 6px;
             text-decoration: none;
-            font-weight: 600;
-            font-size: 1rem;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+            font-size: 15px;
+            font-weight: 500;
+            transition: background 0.2s;
         }
 
         .download-btn:hover {
-            background: var(--primary-hover);
-            transform: translateY(-1px);
-            box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.4);
+            background: #1d4ed8;
         }
 
         .download-btn svg {
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
         }
 
         .download-meta {
-            margin-top: 0.75rem;
-            font-size: 0.875rem;
-            color: var(--text-light);
+            margin-top: 12px;
+            font-size: 14px;
+            color: #6b7280;
         }
 
-        /* Section Title */
         .section-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--text);
-            margin: 2.5rem 0 1.5rem;
-            position: relative;
-            padding-left: 1rem;
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin: 48px 0 24px;
+            letter-spacing: -0.3px;
         }
 
-        .section-title::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 4px;
-            height: 1.5rem;
-            background: var(--primary);
-            border-radius: 2px;
+        .features {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 48px;
         }
 
-        /* Steps */
-        .steps {
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
+        .feature {
+            padding: 20px;
+            background: #fafbfc;
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+        }
+
+        .feature-icon {
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+
+        .feature-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+        }
+
+        .feature-desc {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.5;
         }
 
         .step {
-            display: flex;
-            gap: 1.25rem;
-            padding: 1.5rem;
-            background: #f8fafc;
-            border-radius: var(--radius);
-            border: 1px solid var(--border);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-bottom: 32px;
+            padding-bottom: 32px;
+            border-bottom: 1px solid #f0f0f0;
         }
 
-        .step:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        .step:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .step-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 12px;
         }
 
         .step-number {
             flex-shrink: 0;
-            width: 40px;
-            height: 40px;
-            background: var(--primary);
+            width: 32px;
+            height: 32px;
+            background: #2563eb;
             color: white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 700;
-            font-size: 1.125rem;
-        }
-
-        .step-content h3 {
-            font-size: 1.125rem;
+            font-size: 15px;
             font-weight: 600;
-            color: var(--text);
-            margin-bottom: 0.5rem;
         }
 
-        .step-content p {
-            font-size: 0.95rem;
+        .step-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+            padding-top: 4px;
+        }
+
+        .step-content {
+            margin-left: 48px;
             color: #4b5563;
-            line-height: 1.7;
+            font-size: 15px;
+        }
+
+        .step-content strong {
+            color: #1a1a1a;
+            font-weight: 500;
         }
 
         .step-content code {
-            background: #e5e7eb;
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 14px;
             color: #dc2626;
-            padding: 0.125rem 0.375rem;
-            border-radius: 4px;
-            font-family: 'SF Mono', Monaco, monospace;
-            font-size: 0.875rem;
         }
 
-        /* Note */
         .note {
-            margin: 2rem 0;
-            padding: 1.25rem 1.5rem;
-            border-radius: var(--radius);
-            border-left: 4px solid;
-            background: #fffaeb;
-            border-color: var(--warning);
-        }
-
-        .note.info {
-            background: #f0f9ff;
-            border-color: var(--primary);
+            background: #fffbeb;
+            border-left: 3px solid #f59e0b;
+            padding: 20px 24px;
+            border-radius: 6px;
+            margin: 32px 0;
         }
 
         .note-title {
+            font-size: 15px;
             font-weight: 600;
-            font-size: 0.95rem;
-            margin-bottom: 0.5rem;
             color: #92400e;
+            margin-bottom: 8px;
+        }
+
+        .note-content {
+            color: #78350f;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .note-content ul {
+            margin-left: 20px;
+            margin-top: 8px;
+        }
+
+        .note-content li {
+            margin-bottom: 6px;
+        }
+
+        .note.info {
+            background: #eff6ff;
+            border-left-color: #3b82f6;
         }
 
         .note.info .note-title {
             color: #1e40af;
         }
 
-        .note-content {
-            font-size: 0.9rem;
-            color: #78350f;
-            line-height: 1.6;
-        }
-
         .note.info .note-content {
             color: #1e3a8a;
         }
 
-        .note-content ul {
-            margin-top: 0.75rem;
-            margin-left: 1.25rem;
-        }
-
-        .note-content li {
-            margin-bottom: 0.4rem;
-        }
-
-        /* Usage List */
         .usage-list {
-            background: #f8fafc;
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 1.5rem 1.75rem;
+            background: #fafbfc;
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+            padding: 24px 28px;
         }
 
         .usage-list ol {
-            margin-left: 1.25rem;
+            margin-left: 20px;
         }
 
         .usage-list li {
-            margin-bottom: 0.75rem;
+            margin-bottom: 8px;
             color: #4b5563;
-            font-size: 0.95rem;
-            position: relative;
+            font-size: 15px;
         }
 
-        .usage-list li::marker {
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        /* Footer */
         .footer {
-            background: #f1f5f9;
-            padding: 2rem;
+            background: #fafbfc;
+            border-top: 1px solid #e1e8ed;
+            padding: 32px 40px;
             text-align: center;
-            border-top: 1px solid var(--border);
-            font-size: 0.875rem;
         }
 
         .footer-title {
+            font-size: 15px;
             font-weight: 600;
-            color: var(--text);
-            margin-bottom: 0.25rem;
+            color: #1a1a1a;
+            margin-bottom: 4px;
         }
 
         .footer-meta {
-            color: var(--text-light);
+            font-size: 14px;
+            color: #6b7280;
         }
 
-        /* Responsive */
         @media (max-width: 768px) {
-            body {
-                padding: 1rem 0.5rem;
-            }
-
             .header, .content, .footer {
-                padding: 2rem 1.5rem;
+                padding-left: 24px;
+                padding-right: 24px;
             }
 
-            .step {
-                flex-direction: column;
+            .features {
+                grid-template-columns: 1fr;
             }
 
-            .step-number {
-                width: 36px;
-                height: 36px;
-                font-size: 1rem;
-            }
-
-            .section-title {
-                font-size: 1.375rem;
-                margin: 2rem 0 1.25rem;
+            .step-content {
+                margin-left: 0;
+                margin-top: 12px;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div class="header">
             <h1>ECount Extension Tool</h1>
-            <p>Extension tự động mua tem & cập nhật tracking number</p>
+            <p>Extension tự động mua tem và cập nhật tracking number</p>
         </div>
 
-        <!-- Content -->
         <div class="content">
-            <!-- Download Section -->
             <div class="download-section">
                 <h2>Tải xuống Extension</h2>
                 <a href="/extensions/download/tool-express" class="download-btn">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -336,93 +310,108 @@
                 <div class="download-meta">File .zip • Phiên bản mới nhất</div>
             </div>
 
-            <!-- Installation Guide -->
             <h2 class="section-title">Hướng dẫn cài đặt</h2>
 
             <div class="steps">
                 <div class="step">
-                    <div class="step-number">1</div>
+                    <div class="step-header">
+                        <div class="step-number">1</div>
+                        <div class="step-title">Tải xuống Extension</div>
+                    </div>
                     <div class="step-content">
-                        <h3>Tải xuống Extension</h3>
-                        <p>Nhấn nút <strong>Tải xuống Extension</strong> để tải file <code>.zip</code> về máy.</p>
+                        Nhấn vào nút <strong>Tải xuống Extension</strong> ở trên để tải file .zip về máy tính. File sẽ được lưu vào thư mục Downloads của bạn.
                     </div>
                 </div>
 
                 <div class="step">
-                    <div class="step-number">2</div>
+                    <div class="step-header">
+                        <div class="step-number">2</div>
+                        <div class="step-title">Giải nén file</div>
+                    </div>
                     <div class="step-content">
-                        <h3>Giải nén file</h3>
-                        <p>Chuột phải vào file <code>ecount-extension-tool.zip</code> → <strong>Extract All...</strong><br>Tạo thư mục riêng như: <code>C:\ChromeExtensions\Tool</code></p>
+                        Nhấn chuột phải vào file <code>ecount-extension-tool.zip</code> và chọn <strong>Extract All...</strong> hoặc <strong>Giải nén</strong>.<br>
+                        Chọn thư mục để giải nén (nên tạo thư mục riêng, ví dụ: <code>C:\ChromeExtensions\Tool</code>)
                     </div>
                 </div>
 
                 <div class="step">
-                    <div class="step-number">3</div>
+                    <div class="step-header">
+                        <div class="step-number">3</div>
+                        <div class="step-title">Mở Chrome Extensions</div>
+                    </div>
                     <div class="step-content">
-                        <h3>Mở Chrome Extensions</h3>
-                        <p>Truy cập: <code>chrome://extensions/</code><br>Hoặc: Menu ⋮ → <strong>More tools</strong> → <strong>Extensions</strong></p>
+                        Mở trình duyệt Chrome và truy cập: <code>chrome://extensions/</code><br>
+                        Hoặc vào menu <strong>⋮</strong> (góc trên bên phải) → <strong>More tools</strong> → <strong>Extensions</strong>
                     </div>
                 </div>
 
                 <div class="step">
-                    <div class="step-number">4</div>
+                    <div class="step-header">
+                        <div class="step-number">4</div>
+                        <div class="step-title">Bật Developer Mode</div>
+                    </div>
                     <div class="step-content">
-                        <h3>Bật Developer Mode</h3>
-                        <p>Bật công tắc <strong>Developer mode</strong> ở góc trên bên phải.<br>Sẽ xuất hiện nút <code>Load unpacked</code></p>
+                        Tìm công tắc <strong>Developer mode</strong> ở góc trên bên phải và bật nó lên.<br>
+                        Sau khi bật, bạn sẽ thấy xuất hiện thêm các nút: <code>Load unpacked</code>, <code>Pack extension</code>, <code>Update</code>
                     </div>
                 </div>
 
                 <div class="step">
-                    <div class="step-number">5</div>
+                    <div class="step-header">
+                        <div class="step-number">5</div>
+                        <div class="step-title">Load Extension</div>
+                    </div>
                     <div class="step-content">
-                        <h3>Load Extension</h3>
-                        <p>Nhấn <strong>Load unpacked</strong> → Chọn thư mục đã giải nén → <strong>Select Folder</strong></p>
+                        Nhấn nút <strong>Load unpacked</strong> (hoặc "Tải tiện ích mở rộng đã giải nén")<br>
+                        Chọn thư mục mà bạn đã giải nén extension ở Bước 2<br>
+                        Nhấn <strong>Select Folder</strong> để xác nhận
                     </div>
                 </div>
 
                 <div class="step">
-                    <div class="step-number">6</div>
+                    <div class="step-header">
+                        <div class="step-number">6</div>
+                        <div class="step-title">Xác nhận cài đặt</div>
+                    </div>
                     <div class="step-content">
-                        <h3>Xác nhận cài đặt</h3>
-                        <p>Extension xuất hiện trong danh sách → Đảm bảo đã <strong>bật</strong> (nút xanh).<br>Ghim lên thanh công cụ bằng biểu tượng 📌</p>
+                        Extension sẽ xuất hiện trong danh sách với biểu tượng và tên của nó.<br>
+                        Đảm bảo extension được <strong>bật</strong> (toggle switch màu xanh).<br>
+                        Bạn có thể ghim extension lên thanh công cụ bằng cách nhấn vào biểu tượng 📌
                     </div>
                 </div>
             </div>
 
-            <!-- Important Note -->
             <div class="note">
                 <div class="note-title">Lưu ý quan trọng</div>
                 <div class="note-content">
                     <ul>
-                        <li>Không xóa thư mục đã giải nén — Chrome cần nó để chạy extension</li>
-                        <li>Nếu không hoạt động, nhấn <strong>Update</strong> trên trang Extensions</li>
-                        <li>Chỉ hoạt động trên <code>https://loginia.ecount.com</code></li>
-                        <li>Phải đăng nhập ECount trước khi sử dụng</li>
+                        <li>Không xóa thư mục đã giải nén sau khi cài đặt, vì Chrome sẽ load extension từ thư mục đó</li>
+                        <li>Nếu extension không hoạt động, thử nhấn nút <strong>Update</strong> ở trang Extensions</li>
+                        <li>Extension chỉ hoạt động trên trang ECount ERP (<code>https://loginia.ecount.com</code>)</li>
+                        <li>Đảm bảo bạn đã đăng nhập vào ECount trước khi sử dụng</li>
                     </ul>
                 </div>
             </div>
 
-            <!-- Usage -->
             <h2 class="section-title">Cách sử dụng</h2>
+
             <div class="usage-list">
                 <ol>
-                    <li>Truy cập trang đơn hàng trong ECount ERP</li>
-                    <li>Extension tự động hiển thị các nút chức năng</li>
-                    <li>Chọn đơn hàng → Nhấn nút xử lý</li>
-                    <li>Tự động mua tem & cập nhật tracking number</li>
+                    <li>Truy cập vào trang đơn hàng trong ECount ERP</li>
+                    <li>Extension sẽ tự động hiển thị các nút chức năng</li>
+                    <li>Chọn đơn hàng và nhấn nút để xử lý</li>
+                    <li>Extension sẽ tự động mua tem và cập nhật tracking number</li>
                 </ol>
             </div>
 
-            <!-- Support -->
             <div class="note info">
                 <div class="note-title">Cần hỗ trợ?</div>
                 <div class="note-content">
-                    Liên hệ bộ phận IT để được hỗ trợ cài đặt hoặc xử lý lỗi.
+                    Nếu bạn gặp bất kỳ vấn đề nào trong quá trình cài đặt hoặc sử dụng, vui lòng liên hệ với bộ phận IT để được hỗ trợ.
                 </div>
             </div>
         </div>
 
-        <!-- Footer -->
         <div class="footer">
             <div class="footer-title">ECount Extension Tool</div>
             <div class="footer-meta">Phát triển bởi IT Team THG-FULFILL • © 2025</div>
