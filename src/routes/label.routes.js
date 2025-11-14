@@ -14,6 +14,6 @@ router.get('/:accessKey', labelController.getLabelByAccessKey.bind(labelControll
  * @desc    Get label information without redirect
  * @access  Public
  */
-router.get('/:accessKey/info', labelController.getLabelInfo.bind(labelController));
+// router.get('/:accessKey/info', labelController.getLabelInfo.bind(labelController));
 
 module.exports = router;

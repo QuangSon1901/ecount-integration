@@ -9,7 +9,7 @@ const jobService = require('../services/queue/job.service');
  * @desc    Health check
  * @access  Public
  */
-router.get('/health', orderController.healthCheck.bind(orderController));
+// router.get('/health', orderController.healthCheck.bind(orderController));
 
 /**
  * @route   GET /api/orders/carriers
