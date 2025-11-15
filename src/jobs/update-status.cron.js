@@ -4,6 +4,7 @@ const CronLogModel = require('../models/cron-log.model');
 const jobService = require('../services/queue/job.service');
 const carrierFactory = require('../services/carriers');
 const logger = require('../utils/logger');
+const telegram = require('../utils/telegram');
 
 class UpdateStatusCron {
     constructor() {
@@ -96,6 +97,39 @@ class UpdateStatusCron {
                             stats.updated++;
 
                             logger.info(`Added job to update status to ECount for order ${order.id}`);
+                        } else if (trackingResult.status != 'F' && trackingResult.status != 'T') {
+                            let labelStatus = '';
+                            switch (trackingResult.status) {
+                                case 'F':
+                                    labelStatus = 'Electronic forecast information reception';
+                                    break;
+                                case 'T':
+                                    labelStatus = 'In transit';
+                                    break;
+                                case 'E':
+                                    labelStatus = 'May be abnormal';
+                                    break;
+                                case 'R':
+                                    labelStatus = 'Package returned';
+                                    break;
+                                case 'C':
+                                    labelStatus = 'Order Cancellation';
+                                    break;
+                                default:
+                                    labelStatus = 'Order not found';
+                                    break;
+                            }
+
+                            await telegram.notifyError(error, {
+                                action: 'Track Express Status',
+                                jobName: 'Track Express Status',
+                                orderId: order.customer_order_number,
+                                waybillNumber: order.waybill_number || null,
+                                trackingNumber: order.tracking_number || null,
+                                erpOrderCode: order.erp_order_code,
+                                status: trackingResult.status,
+                                labelStatus: labelStatus
+                            }, {type: 'error'});
                         }
 
                         stats.success++;

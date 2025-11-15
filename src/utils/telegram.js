@@ -5,6 +5,7 @@ class TelegramNotifier {
     constructor() {
         this.botToken = process.env.TELEGRAM_BOT_TOKEN;
         this.chatId = process.env.TELEGRAM_CHAT_ID;
+        this.chatIdError = process.env.TELEGRAM_CHAT_ID_ERROR;
         this.enabled = process.env.TELEGRAM_ENABLED === 'true';
         this.baseUrl = `https://api.telegram.org/bot${this.botToken}`;
     }
@@ -25,7 +26,7 @@ class TelegramNotifier {
 
         try {
             const payload = {
-                chat_id: this.chatId,
+                chat_id: options.chatId || this.chatId,
                 text: message,
                 parse_mode: options.parseMode || 'HTML',
                 disable_web_page_preview: options.disablePreview !== false,
@@ -99,9 +100,13 @@ class TelegramNotifier {
     /**
      * Gửi error notification
      */
-    async notifyError(error, context = {}) {
+    async notifyError(error, context = {}, options = {}) {
+        if (options?.type == 'error') {
+            options = {...options, chatId: this.chatIdError}
+        }
+
         const message = this.formatErrorMessage(error, context);
-        return await this.sendMessage(message);
+        return await this.sendMessage(message, options);
     }
 
     /**
