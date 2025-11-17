@@ -392,6 +392,28 @@ class OrderService {
         }
     }
 
+    async inquiryByOrderNumber(orderNumber, carrierCode = null) {
+        try {
+            let carrier = carrierFactory.getCarrier(carrierCode);
+            const orderResult = await carrier.getOrderInfo(orderNumber);
+
+            return {
+                success: true,
+                data: {
+                    orderNumber: orderNumber,
+                    carrier: carrierCode,
+                    data: orderResult,
+                    updatedAt: new Date().toISOString()
+                },
+                message: 'Order information retrieved successfully'
+            };
+
+        } catch (error) {
+            logger.error('Lỗi order by tracking number:', error.message);
+            throw error;
+        }
+    }
+
     async getProducts(country_code, carrierCode = 'YUNEXPRESS') {
         try {
             const carrier = carrierFactory.getCarrier(carrierCode);

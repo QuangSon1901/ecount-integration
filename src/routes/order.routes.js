@@ -25,6 +25,7 @@ const jobService = require('../services/queue/job.service');
  * @query   carrier - Optional carrier code (YUNEXPRESS, DHL, etc.)
  */
 router.get('/tracking/:trackingNumber', orderController.trackByTrackingNumber.bind(orderController));
+router.get('/inquiry/:orderNumber', orderController.inquiryByOrderNumber.bind(orderController));
 
 /**
  * @route   GET /api/orders/products

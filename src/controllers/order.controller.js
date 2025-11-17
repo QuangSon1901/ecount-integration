@@ -121,6 +121,22 @@ class OrderController {
         }
     }
 
+    async inquiryByOrderNumber(req, res, next) {
+        try {
+            const { orderNumber } = req.params;
+            const { carrier } = req.query;
+            
+            const result = await orderService.inquiryByOrderNumber(
+                orderNumber,
+                carrier
+            );
+            
+            return successResponse(res, result.data, result.message);
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async getProducts(req, res, next) {
         try {
             const { country_code } = req.query;
