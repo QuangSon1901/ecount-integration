@@ -340,6 +340,35 @@ const migrations = [
             ADD COLUMN label_access_key VARCHAR(32) UNIQUE COMMENT 'Key vĩnh viễn để truy cập label URL' AFTER label_url,
             ADD INDEX idx_label_access_key (label_access_key);
         `
+    },
+    {
+        version: 9,
+        name: 'update_orders_status_columns',
+        up: `
+            ALTER TABLE orders 
+            MODIFY COLUMN status ENUM(
+                'new',
+                'scheduled',
+                'received',
+                'shipped',
+                'deleted',
+                'warning',
+                'pending',
+                'created',
+                'in_transit',
+                'out_for_delivery',
+                'delivered',
+                'exception',
+                'returned',
+                'cancelled',
+                'failed'
+            ) NOT NULL DEFAULT 'pending' COMMENT 'Trạng thái đơn hàng',
+            ADD COLUMN order_status ENUM('T','C','S','R','D','F','Q','P','V') 
+                NOT NULL DEFAULT 'T' 
+                COMMENT 'Trạng thái đơn hàng ERP (T=Đang xử lý, C=Đã hủy, S=Đã gửi, R=Đã nhận, D=Đã giao, F=Thất bại, Q=Chờ xác nhận, P=Đang đóng gói, V=Đã xác minh)' 
+                AFTER status,
+            ADD INDEX idx_order_status (order_status);
+        `
     }
 ];
 
