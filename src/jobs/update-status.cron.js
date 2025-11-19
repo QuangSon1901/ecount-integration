@@ -71,7 +71,7 @@ class UpdateStatusCron {
 
                     // So sánh status mới với status hiện tại
                     if (trackingResult.status !== order.status || inquiryResult.data.status !== order.orderStatus) {
-                        logger.info(`Status changed for order ${order.id}: ${order.status} → ${trackingResult.status}`);
+                        logger.info(`Status changed for order ${order.id}: ${order.status} → ${trackingResult.status} + ${order.orderStatus} → ${inquiryResult.data.status}`);
 
                         // Cập nhật status trong DB
                         const updateData = {
