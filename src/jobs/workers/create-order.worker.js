@@ -7,7 +7,10 @@ const logger = require('../../utils/logger');
 
 class CreateOrderWorker extends BaseWorker {
     constructor() {
-        super('create_order', 5000);
+        super('create_order', {
+            intervalMs: 3000,    // Check mỗi 3s
+            concurrency: 5       // Chạy đồng thời 5 jobs
+        });
     }
 
     async processJob(job) {

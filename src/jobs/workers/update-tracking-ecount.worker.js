@@ -7,7 +7,10 @@ const logger = require('../../utils/logger');
 
 class UpdateTrackingEcountWorker extends BaseWorker {
     constructor() {
-        super('update_tracking_ecount', 5000);
+        super('update_tracking_ecount', {
+            intervalMs: 5000,
+            concurrency: 1  // Chạy đồng thời 1 jobs (vì có Puppeteer nặng)
+        });
     }
 
     async processJob(job) {

@@ -7,7 +7,10 @@ const logger = require('../../utils/logger');
 
 class TrackingNumberWorker extends BaseWorker {
     constructor() {
-        super('tracking_number', 5000);
+        super('tracking_number', {
+            intervalMs: 5000,
+            concurrency: 3  // Chạy đồng thời 3 jobs
+        });
     }
 
     async processJob(job) {

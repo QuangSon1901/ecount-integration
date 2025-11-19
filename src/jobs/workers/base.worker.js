@@ -3,12 +3,13 @@ const JobModel = require('../../models/job.model');
 const logger = require('../../utils/logger');
 
 class BaseWorker {
-    constructor(jobType, intervalMs = 5000) {
+    constructor(jobType, options = {}) {
         this.jobType = jobType;
-        this.intervalMs = intervalMs;
+        this.intervalMs = options.intervalMs || 5000;
+        this.concurrency = options.concurrency || 1; // Số jobs chạy đồng thời
         this.isRunning = false;
         this.intervalId = null;
-        this.isProcessing = false;
+        this.activeJobs = new Set(); // Track jobs đang xử lý
     }
 
     start() {
@@ -18,7 +19,7 @@ class BaseWorker {
         }
 
         this.isRunning = true;
-        logger.info(`${this.jobType} worker started`);
+        logger.info(`${this.jobType} worker started with concurrency=${this.concurrency}`);
 
         this.processJobs();
         this.intervalId = setInterval(() => {
@@ -36,27 +37,38 @@ class BaseWorker {
     }
 
     async processJobs() {
-        if (this.isProcessing) {
-            return;
-        }
-
         try {
-            this.isProcessing = true;
+            // Reset stuck jobs
             await JobModel.resetStuckJobs(30);
 
-            const job = await this.getNextJob();
+            // Lấy số slots còn trống
+            const availableSlots = this.concurrency - this.activeJobs.size;
             
-            if (job) {
-                await this.handleJob(job);
+            if (availableSlots <= 0) {
+                // Đã full concurrency, bỏ qua
+                return;
             }
+
+            // Lấy nhiều jobs cùng lúc
+            const jobs = await this.getNextJobs(availableSlots);
+            
+            if (jobs.length === 0) {
+                return;
+            }
+
+            logger.debug(`${this.jobType} worker: processing ${jobs.length} jobs (${this.activeJobs.size}/${this.concurrency} slots used)`);
+
+            // Xử lý song song
+            jobs.forEach(job => {
+                this.handleJobAsync(job);
+            });
+
         } catch (error) {
             logger.error(`Error in ${this.jobType} worker:`, error);
-        } finally {
-            this.isProcessing = false;
         }
     }
 
-    async getNextJob() {
+    async getNextJobs(limit) {
         const db = require('../../database/connection');
         const connection = await db.getConnection();
         
@@ -70,38 +82,42 @@ class BaseWorker {
                 AND available_at <= NOW()
                 AND attempts < max_attempts
                 ORDER BY available_at ASC
-                LIMIT 1
+                LIMIT ?
                 FOR UPDATE SKIP LOCKED`,
-                [this.jobType]
+                [this.jobType, limit]
             );
             
             if (rows.length === 0) {
                 await connection.commit();
-                return null;
+                return [];
             }
             
-            const job = rows[0];
-            
+            // Update tất cả jobs sang processing
+            const jobIds = rows.map(r => r.id);
             await connection.query(
                 `UPDATE jobs 
                 SET status = 'processing', 
                     started_at = NOW(),
                     attempts = attempts + 1
-                WHERE id = ?`,
-                [job.id]
+                WHERE id IN (?)`,
+                [jobIds]
             );
             
             await connection.commit();
             
-            if (typeof job.payload === 'string') {
-                try {
-                    job.payload = JSON.parse(job.payload);
-                } catch (e) {
-                    logger.error(`Failed to parse payload for job ${job.id}:`, e);
+            // Parse JSON
+            const jobs = rows.map(job => {
+                if (typeof job.payload === 'string') {
+                    try {
+                        job.payload = JSON.parse(job.payload);
+                    } catch (e) {
+                        logger.error(`Failed to parse payload for job ${job.id}:`, e);
+                    }
                 }
-            }
+                return job;
+            });
             
-            return job;
+            return jobs;
             
         } catch (error) {
             await connection.rollback();
@@ -111,10 +127,25 @@ class BaseWorker {
         }
     }
 
+    async handleJobAsync(job) {
+        // Track job đang xử lý
+        this.activeJobs.add(job.id);
+
+        try {
+            await this.handleJob(job);
+        } catch (error) {
+            logger.error(`Unexpected error handling job ${job.id}:`, error);
+        } finally {
+            // Remove khỏi active jobs
+            this.activeJobs.delete(job.id);
+        }
+    }
+
     async handleJob(job) {
         logger.info(`Processing ${this.jobType} job ${job.id}`, {
             attempt: job.attempts,
-            maxAttempts: job.max_attempts
+            maxAttempts: job.max_attempts,
+            activeJobs: this.activeJobs.size
         });
 
         try {
@@ -136,6 +167,15 @@ class BaseWorker {
 
     async onJobMaxAttemptsReached(job, error) {
         // Override in subclass if needed
+    }
+
+    getStats() {
+        return {
+            jobType: this.jobType,
+            concurrency: this.concurrency,
+            activeJobs: this.activeJobs.size,
+            availableSlots: this.concurrency - this.activeJobs.size
+        };
     }
 }
 

@@ -13,20 +13,19 @@ class WorkerManager {
     start() {
         logger.info('Starting all workers...');
 
-        // Khởi tạo các workers
         this.workers = [
-            new CreateOrderWorker(),
-            new TrackingNumberWorker(),
-            new UpdateTrackingEcountWorker(),
-            new UpdateStatusEcountWorker()
+            new CreateOrderWorker(),           // 5 concurrent
+            new TrackingNumberWorker(),        // 3 concurrent
+            new UpdateTrackingEcountWorker(),  // 2 concurrent
+            new UpdateStatusEcountWorker()     // 2 concurrent
         ];
 
-        // Start tất cả workers
         this.workers.forEach(worker => {
             worker.start();
         });
 
-        logger.info(`Started ${this.workers.length} workers`);
+        const totalConcurrency = this.workers.reduce((sum, w) => sum + w.concurrency, 0);
+        logger.info(`Started ${this.workers.length} workers with total concurrency=${totalConcurrency}`);
     }
 
     stop() {
@@ -37,6 +36,10 @@ class WorkerManager {
         });
 
         logger.info('All workers stopped');
+    }
+
+    getStats() {
+        return this.workers.map(worker => worker.getStats());
     }
 }
 
