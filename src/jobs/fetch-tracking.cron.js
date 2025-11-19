@@ -66,32 +66,49 @@ class FetchTrackingCron {
                         carrier: order.carrier
                     });
 
-                    const orderInfo = await carrier.getOrderInfo(orderCode);
+                    // Lưu giá trị cũ để so sánh
+                    const oldTrackingNumber = order.tracking_number || '';
+                    const oldLabelUrl = order.label_url || '';
 
-                    if (orderInfo.success && orderInfo.data.trackingNumber) {
-                        const trackingNumber = orderInfo.data.trackingNumber;
+                    let trackingNumber = oldTrackingNumber;
+                    if (trackingNumber === '') {
+                        const orderInfo = await carrier.getOrderInfo(orderCode);
+                        trackingNumber = orderInfo.success && orderInfo.data.trackingNumber ? orderInfo.data.trackingNumber : trackingNumber;
+                    }
+                    
+                    let labelUrl = oldLabelUrl;
+                    if (labelUrl === '') {
+                        const labelResult = await carrier.getLabel(order.waybill_number);
+                        labelUrl = labelResult.success && labelResult.data.url ? labelResult.data.url : labelUrl;
+                    }
+                    
+                    // Kiểm tra xem có thay đổi không
+                    const trackingChanged = trackingNumber !== oldTrackingNumber;
+                    const labelChanged = labelUrl !== oldLabelUrl;
+                    const hasChanges = trackingChanged || labelChanged;
 
-                        logger.info(`Tracking number found for order ${order.id}: ${trackingNumber}`);
-
-                        let labelUrl = null;
-                        logger.info(`Fetching label for tracking number: ${trackingNumber}`);
-                                    
-                        const labelResult = await carrier.getLabel(trackingNumber);
-                        if (labelResult.success && labelResult.data.url) {
-                            labelUrl = labelResult.data.url;
-                        } else {
-                            throw new Error(`No label URL available for order ${orderId}`);
+                    // Chỉ update khi có thay đổi
+                    if (hasChanges) {
+                        // Kiểm tra phải có ít nhất 1 trong 2 giá trị
+                        if (trackingNumber === '' && labelUrl === '') {
+                            throw new Error(`No tracking number or label URL available for order ${order.id}`);
                         }
 
-                        // Cập nhật tracking number vào DB
                         await OrderModel.update(order.id, {
-                            trackingNumber: trackingNumber,
+                            tracking_number: trackingNumber,
                             status: 'created',
-                            carrierResponse: orderInfo.data,
-                            labelUrl: labelUrl
+                            label_url: labelUrl
                         });
 
-                        if (labelUrl) {
+                        logger.info(`Updated order ${order.id}`, {
+                            trackingChanged,
+                            labelChanged,
+                            trackingNumber,
+                            labelUrl
+                        });
+
+                        // Generate access key nếu có label URL mới
+                        if (labelUrl !== '' && labelChanged) {
                             try {
                                 await OrderModel.generateLabelAccessKey(order.id);
                             } catch (error) {
@@ -99,8 +116,8 @@ class FetchTrackingCron {
                             }
                         }
 
-                        // Nếu có erpOrderCode và ecountLink, push job update lên ECount
-                        if (order.erp_order_code && order.ecount_link) {
+                        // Push job update lên ECount nếu có thay đổi tracking number
+                        if (order.erp_order_code && order.ecount_link && trackingChanged && trackingNumber !== '') {
                             await jobService.addUpdateTrackingNumberJob(
                                 order.id,
                                 order.erp_order_code,
@@ -115,8 +132,7 @@ class FetchTrackingCron {
 
                         stats.success++;
                     } else {
-                        logger.info(`Tracking number not available yet for order ${order.id}`);
-                        stats.success++; // Vẫn tính là success vì không có lỗi
+                        logger.info(`No changes for order ${order.id}, skipping update`);
                     }
 
                     // Sleep để tránh rate limit
@@ -179,7 +195,7 @@ class FetchTrackingCron {
             INNER JOIN (
                 SELECT erp_order_code, MAX(created_at) AS latest
                 FROM orders
-                WHERE (tracking_number IS NULL OR tracking_number = '' OR erp_tracking_number_updated = FALSE)
+                WHERE (tracking_number IS NULL OR tracking_number = '' OR erp_tracking_number_updated = FALSE OR label_url = '' OR label_url IS NULL)
                 AND status IN ('pending', 'created')
                 AND (waybill_number IS NOT NULL OR customer_order_number IS NOT NULL)
                 AND erp_order_code IS NOT NULL

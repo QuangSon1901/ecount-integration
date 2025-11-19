@@ -26,6 +26,7 @@ const jobService = require('../services/queue/job.service');
  */
 router.get('/tracking/:trackingNumber', orderController.trackByTrackingNumber.bind(orderController));
 router.get('/inquiry/:orderNumber', orderController.inquiryByOrderNumber.bind(orderController));
+router.get('/label/:orderNumber', orderController.labelByOrderNumber.bind(orderController));
 
 /**
  * @route   GET /api/orders/products
