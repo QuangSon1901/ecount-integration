@@ -103,6 +103,8 @@ class TelegramNotifier {
     async notifyError(error, context = {}, options = {}) {
         if (options?.type == 'error') {
             options = {...options, chatId: this.chatIdError}
+        } else {
+            options = {...options, chatId: this.chatId}
         }
 
         const message = this.formatErrorMessage(error, context);
