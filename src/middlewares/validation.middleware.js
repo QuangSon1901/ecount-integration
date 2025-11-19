@@ -181,7 +181,7 @@ const declarationSchema = Joi.object({
     manufacturer_province: Joi.string().allow(''),
     manufacturer_country: Joi.string().allow(''),
     manufacturer_postalcode: Joi.string().allow(''),
-    selling_price: Joi.number().positive().allow(null)
+    selling_price: Joi.number().positive().allow('')
         .messages({
             'number.positive': 'selling_price must be greater than 0'
         })
