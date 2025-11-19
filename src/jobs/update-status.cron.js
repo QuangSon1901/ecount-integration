@@ -86,7 +86,7 @@ class UpdateStatusCron {
 
                         await OrderModel.update(order.id, updateData);
 
-                        const labelStatus = this.mapToLabelStatus(newPackageStatus, newOrderStatus);
+                        const labelStatus = this.mapToLabelStatus(trackingResult.packageStatus, inquiryResult.data.status);
 
                         if (order.erp_order_code && order.ecount_link && labelStatus) {
                             await jobService.addUpdateStatusJob(
@@ -112,8 +112,8 @@ class UpdateStatusCron {
                                     waybillNumber: order.waybill_number || null,
                                     trackingNumber: order.tracking_number || null,
                                     erpOrderCode: order.erp_order_code,
-                                    packageStatus: newPackageStatus,
-                                    orderStatus: newOrderStatus,
+                                    packageStatus: trackingResult.packageStatus,
+                                    orderStatus: inquiryResult.data.status,
                                     trackingStatus: trackingResult.status,
                                     labelStatus: labelStatus
                                 }, 

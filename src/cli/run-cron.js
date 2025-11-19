@@ -5,14 +5,13 @@ require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
 const logger = require('../utils/logger');
 
-// Import các cron jobs
-const UpdateStatusJob = require('../jobs/update-status.cron');
+// Import các cron jobs (đây là instances, không phải classes)
+const updateStatusJob = require('../jobs/update-status.cron');
 
 // Map các job có sẵn
 const jobs = {
-    'update-status': UpdateStatusJob,
+    'update-status': updateStatusJob,
     // Thêm các job khác nếu có
-    // 'sync-orders': SyncOrdersJob,
 };
 
 async function runCron() {
@@ -27,9 +26,9 @@ async function runCron() {
         process.exit(1);
     }
 
-    const JobClass = jobs[jobName];
+    const job = jobs[jobName];
     
-    if (!JobClass) {
+    if (!job) {
         console.error(`❌ Job "${jobName}" not found!`);
         console.log('\nAvailable jobs:');
         Object.keys(jobs).forEach(name => {
@@ -42,7 +41,7 @@ async function runCron() {
         logger.info(`🚀 Starting cron job: ${jobName}`);
         console.log(`🚀 Starting cron job: ${jobName}\n`);
         
-        const job = new JobClass();
+        // Gọi method run() trực tiếp trên instance
         await job.run();
         
         logger.info(`✅ Cron job completed: ${jobName}`);
