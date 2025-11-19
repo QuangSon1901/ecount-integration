@@ -94,36 +94,36 @@ class JobWorker {
 
                 case 'update_tracking_ecount':
                     result = await this.handleUpdateTrackingEcount(job);
-                    // if (result.trackingNumber && result.trackingNumber != '') {
-                    //     const { orderId, trackingNumber } = result;
-                    //     const { orderCode: erpOrderCode, ecountLink } = job.payload;
+                    if (result.trackingNumber && result.trackingNumber != '') {
+                        const { orderId, trackingNumber } = result;
+                        const { orderCode: erpOrderCode, ecountLink } = job.payload;
                         
-                    //     logger.info(`Auto-pushing update status job for order ${orderId}`, {
-                    //         status: 'Scheduled',
-                    //         trackingNumber
-                    //     });
+                        logger.info(`Auto-pushing update status job for order ${orderId}`, {
+                            status: 'Scheduled',
+                            trackingNumber
+                        });
 
-                    //     // const updateData = {
-                    //     //     status: trackingResult.status,
-                    //     //     orderStatus: inquiryResult.data.status,
-                    //     //     trackingInfo: trackingResult.trackingInfo,
-                    //     //     lastTrackedAt: new Date()
-                    //     // };
-                    //     // await OrderModel.update(order.id, updateData);
+                        // const updateData = {
+                        //     status: trackingResult.status,
+                        //     orderStatus: inquiryResult.data.status,
+                        //     trackingInfo: trackingResult.trackingInfo,
+                        //     lastTrackedAt: new Date()
+                        // };
+                        // await OrderModel.update(order.id, updateData);
 
-                    //     await JobModel.create(
-                    //         'update_status_ecount',
-                    //         {
-                    //             orderId: orderId,
-                    //             erpOrderCode: erpOrderCode,
-                    //             trackingNumber: trackingNumber,
-                    //             status: 'Scheduled',
-                    //             ecountLink: ecountLink
-                    //         },
-                    //         5,
-                    //         5
-                    //     );
-                    // }
+                        await JobModel.create(
+                            'update_status_ecount',
+                            {
+                                orderId: orderId,
+                                erpOrderCode: erpOrderCode,
+                                trackingNumber: trackingNumber,
+                                status: 'Scheduled',
+                                ecountLink: ecountLink
+                            },
+                            5,
+                            5
+                        );
+                    }
                     break;
 
                 case 'update_status_ecount':
@@ -201,7 +201,7 @@ class JobWorker {
             carrier: carrierCode,
             productCode: orderData.productCode,
             waybillNumber: carrierResult.waybillNumber || null,
-            trackingNumber: '',
+            trackingNumber: carrierResult.trackingNumber || null,
             barCodes: carrierResult.barCodes || null,
             packageWeight: totalWeight,
             packageLength: firstPackage.length || null,
@@ -224,7 +224,7 @@ class JobWorker {
             trackType: carrierResult.trackType || null,
             remoteArea: carrierResult.remoteArea || null,
             erpStatus: orderData.erpStatus || 'Đang xử lý',
-            ecountLink: '#menuType=MENUTREE_000004&menuSeq=MENUTREE_000004&groupSeq=MENUTREE_000030&prgId=C000004&depth=1',
+            ecountLink: orderData.ecountLink || null,
             extraServices: orderData.extraServices || [],
             sensitiveType: orderData.sensitiveType || null,
             goodsType: orderData.goodsType || null,

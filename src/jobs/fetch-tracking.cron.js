@@ -175,19 +175,30 @@ class FetchTrackingCron {
         try {
             const [rows] = await connection.query(
                 `SELECT o.*
-                FROM orders o
-                INNER JOIN (
-                    SELECT erp_order_code, MAX(created_at) AS latest
-                    FROM orders
-                    WHERE (tracking_number IS NULL OR tracking_number = '' OR erp_tracking_number_updated = FALSE)
-                    AND status IN ('pending', 'created')
-                    AND (waybill_number IS NOT NULL OR customer_order_number IS NOT NULL)
-                    GROUP BY erp_order_code
-                ) latest_orders
-                ON o.erp_order_code = latest_orders.erp_order_code
-                AND o.created_at = latest_orders.latest
-                ORDER BY o.created_at ASC
-                LIMIT ?`,
+            FROM orders o
+            INNER JOIN (
+                SELECT erp_order_code, MAX(created_at) AS latest
+                FROM orders
+                WHERE (tracking_number IS NULL OR tracking_number = '' OR erp_tracking_number_updated = FALSE)
+                AND status IN ('pending', 'created')
+                AND (waybill_number IS NOT NULL OR customer_order_number IS NOT NULL)
+                AND erp_order_code IS NOT NULL
+                AND ecount_link IS NOT NULL
+                GROUP BY erp_order_code
+            ) latest_orders
+            ON o.erp_order_code = latest_orders.erp_order_code
+            AND o.created_at = latest_orders.latest
+            
+            -- Không có job update_tracking_ecount đang pending/processing cho order này
+            LEFT JOIN jobs j_update_tracking 
+                ON j_update_tracking.job_type = 'update_tracking_ecount'
+                AND JSON_EXTRACT(j_update_tracking.payload, '$.orderId') = o.id
+                AND j_update_tracking.status IN ('pending', 'processing')
+            
+            WHERE j_update_tracking.id IS NULL
+            
+            ORDER BY o.created_at ASC
+            LIMIT ?`,
                 [limit]
             );
             
