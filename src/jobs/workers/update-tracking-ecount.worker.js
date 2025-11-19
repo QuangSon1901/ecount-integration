@@ -1,37 +1,28 @@
 // src/jobs/workers/update-tracking-ecount.worker.js
-const BaseWorker = require('../base.worker');
+const BaseWorker = require('./base.worker');
 const OrderModel = require('../../models/order.model');
 const ecountService = require('../../services/erp/ecount.service');
+const telegram = require('../../utils/telegram');
 const logger = require('../../utils/logger');
 
 class UpdateTrackingEcountWorker extends BaseWorker {
     constructor() {
-        super('update_tracking_ecount', 4000); // Check mỗi 4 giây
+        super('update_tracking_ecount', 5000);
     }
 
-    async handleJob(job) {
-        logger.info(`[UPDATE_TRACKING] Processing job ${job.id}`, {
-            attempt: job.attempts,
-            maxAttempts: job.max_attempts
-        });
-
-        try {
-            const result = await this.updateTracking(job);
-            await this.markCompleted(job.id, result);
-        } catch (error) {
-            logger.error(`[UPDATE_TRACKING] Job ${job.id} failed:`, error.message);
-            await this.markFailed(job.id, error.message, true);
-        }
-    }
-
-    async updateTracking(job) {
+    async processJob(job) {
         const { orderId, erpOrderCode, trackingNumber, ecountLink } = job.payload;
+
+        logger.info(`Updating tracking number to ECount for order ${orderId}`, {
+            erpOrderCode,
+            trackingNumber
+        });
 
         const order = await OrderModel.findById(orderId);
         if (order.erp_tracking_number_updated == true) {
-            return { skipped: true };
+            return {};
         }
-
+        
         const waybillNumber = order?.waybill_number || '';
         
         let labelUrl = null;
@@ -59,9 +50,20 @@ class UpdateTrackingEcountWorker extends BaseWorker {
             erpTrackingNumberUpdated: true,
         });
 
-        logger.info(`[UPDATE_TRACKING] Updated for order ${orderId}`);
+        logger.info(`Tracking number updated to ECount for order ${orderId}`);
 
         return result;
+    }
+
+    async onJobMaxAttemptsReached(job, error) {
+        const { orderId, erpOrderCode, trackingNumber } = job.payload;
+        await telegram.notifyError(error, {
+            action: job.job_type,
+            jobName: job.job_type,
+            orderId: orderId,
+            erpOrderCode: erpOrderCode,
+            trackingNumber: trackingNumber
+        });
     }
 }
 

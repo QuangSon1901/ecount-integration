@@ -1,31 +1,22 @@
 // src/jobs/workers/update-status-ecount.worker.js
-const BaseWorker = require('../base.worker');
+const BaseWorker = require('./base.worker');
 const OrderModel = require('../../models/order.model');
 const ecountService = require('../../services/erp/ecount.service');
+const telegram = require('../../utils/telegram');
 const logger = require('../../utils/logger');
 
 class UpdateStatusEcountWorker extends BaseWorker {
     constructor() {
-        super('update_status_ecount', 4000); // Check mỗi 4 giây
+        super('update_status_ecount', 5000);
     }
 
-    async handleJob(job) {
-        logger.info(`[UPDATE_STATUS] Processing job ${job.id}`, {
-            attempt: job.attempts,
-            maxAttempts: job.max_attempts
-        });
-
-        try {
-            const result = await this.updateStatus(job);
-            await this.markCompleted(job.id, result);
-        } catch (error) {
-            logger.error(`[UPDATE_STATUS] Job ${job.id} failed:`, error.message);
-            await this.markFailed(job.id, error.message, true);
-        }
-    }
-
-    async updateStatus(job) {
+    async processJob(job) {
         const { orderId, erpOrderCode, trackingNumber, status, ecountLink } = job.payload;
+
+        logger.info(`Updating status to ECount for order ${orderId}`, {
+            erpOrderCode,
+            status
+        });
 
         const result = await ecountService.updateInfoEcount(
             'status',
@@ -41,9 +32,21 @@ class UpdateStatusEcountWorker extends BaseWorker {
             erpStatus: status
         });
 
-        logger.info(`[UPDATE_STATUS] Updated for order ${orderId}`);
+        logger.info(`Status updated to ECount for order ${orderId}`);
 
         return result;
+    }
+
+    async onJobMaxAttemptsReached(job, error) {
+        const { orderId, erpOrderCode, trackingNumber, status } = job.payload;
+        await telegram.notifyError(error, {
+            action: job.job_type,
+            jobName: job.job_type,
+            orderId: orderId,
+            erpOrderCode: erpOrderCode,
+            trackingNumber: trackingNumber,
+            status: status
+        });
     }
 }
 

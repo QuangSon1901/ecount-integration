@@ -1,42 +1,22 @@
 // src/jobs/workers/create-order.worker.js
-const BaseWorker = require('../base.worker');
+const BaseWorker = require('./base.worker');
 const OrderModel = require('../../models/order.model');
 const carrierFactory = require('../../services/carriers');
-const logger = require('../../utils/logger');
 const telegram = require('../../utils/telegram');
+const logger = require('../../utils/logger');
 
 class CreateOrderWorker extends BaseWorker {
     constructor() {
-        super('create_order', 3000); // Check mỗi 3 giây
+        super('create_order', 5000);
     }
 
-    async handleJob(job) {
-        logger.info(`[CREATE_ORDER] Processing job ${job.id}`, {
-            attempt: job.attempts,
-            maxAttempts: job.max_attempts
-        });
-
-        try {
-            const result = await this.createOrder(job);
-            await this.markCompleted(job.id, result);
-        } catch (error) {
-            logger.error(`[CREATE_ORDER] Job ${job.id} failed:`, error.message);
-            await this.markFailed(job.id, error.message, true);
-
-            if (job.attempts == job.max_attempts - 1) {
-                const { orderData } = job.payload;
-                await telegram.notifyError(error, {
-                    action: 'create_order',
-                    jobName: 'Create Order',
-                    orderId: orderData.customerOrderNumber,
-                    erpOrderCode: orderData.erpOrderCode,
-                });
-            }
-        }
-    }
-
-    async createOrder(job) {
+    async processJob(job) {
         const { orderData } = job.payload;
+
+        logger.info(`Creating order`, {
+            customerOrderNumber: orderData.customerOrderNumber,
+            attempt: job.attempts
+        });
 
         const carrierCode = (orderData.carrier || 'YUNEXPRESS').toUpperCase();
         const carrier = carrierFactory.getCarrier(carrierCode);
@@ -49,13 +29,12 @@ class CreateOrderWorker extends BaseWorker {
             throw new Error('Failed to create order with carrier');
         }
 
-        logger.info('[CREATE_ORDER] Order created with carrier', {
+        logger.info('Order created with carrier', {
             waybillNumber: carrierResult.waybillNumber,
             customerOrderNumber: carrierResult.customerOrderNumber,
             trackingNumber: carrierResult.trackingNumber || ''
         });
 
-        // Lưu vào database
         const orderNumber = this.generateOrderNumber();
         const firstPackage = orderData.packages?.[0] || {};
         const totalWeight = orderData.packages?.reduce((sum, pkg) => sum + (pkg.weight || 0), 0) || null;
@@ -106,7 +85,7 @@ class CreateOrderWorker extends BaseWorker {
             carrierResponse: carrierResult.carrierResponse
         });
 
-        logger.info('[CREATE_ORDER] Order saved to database', { 
+        logger.info('Order saved to database', { 
             orderId, 
             orderNumber,
             trackingNumber: carrierResult.trackingNumber || ''
@@ -120,6 +99,18 @@ class CreateOrderWorker extends BaseWorker {
             trackingNumber: carrierResult.trackingNumber,
             hasTrackingNumber: !!carrierResult.trackingNumber
         };
+    }
+
+    async onJobMaxAttemptsReached(job, error) {
+        const { orderData } = job.payload;
+        await telegram.notifyError(error, {
+            action: job.job_type,
+            jobName: job.job_type,
+            orderId: orderData.customerOrderNumber,
+            waybillNumber: orderData.waybillNumber || null,
+            trackingNumber: orderData.trackingNumber || null,
+            erpOrderCode: orderData.erpOrderCode,
+        });
     }
 
     generateOrderNumber() {

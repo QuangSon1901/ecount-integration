@@ -1,31 +1,23 @@
 // src/jobs/workers/tracking-number.worker.js
-const BaseWorker = require('../base.worker');
+const BaseWorker = require('./base.worker');
 const OrderModel = require('../../models/order.model');
 const carrierFactory = require('../../services/carriers');
+const telegram = require('../../utils/telegram');
 const logger = require('../../utils/logger');
 
 class TrackingNumberWorker extends BaseWorker {
     constructor() {
-        super('tracking_number', 5000); // Check mỗi 5 giây
+        super('tracking_number', 5000);
     }
 
-    async handleJob(job) {
-        logger.info(`[TRACKING_NUMBER] Processing job ${job.id}`, {
-            attempt: job.attempts,
-            maxAttempts: job.max_attempts
-        });
-
-        try {
-            const result = await this.fetchTrackingNumber(job);
-            await this.markCompleted(job.id, result);
-        } catch (error) {
-            logger.error(`[TRACKING_NUMBER] Job ${job.id} failed:`, error.message);
-            await this.markFailed(job.id, error.message, true);
-        }
-    }
-
-    async fetchTrackingNumber(job) {
+    async processJob(job) {
         const { orderId, orderCode, carrierCode } = job.payload;
+
+        logger.info(`Fetching tracking number for order ${orderId}`, {
+            orderCode,
+            carrierCode,
+            attempt: job.attempts
+        });
 
         const carrier = carrierFactory.getCarrier(carrierCode);
         const orderInfo = await carrier.getOrderInfo(orderCode);
@@ -36,24 +28,30 @@ class TrackingNumberWorker extends BaseWorker {
 
         const trackingNumber = orderInfo.data.trackingNumber;
         
-        logger.info(`[TRACKING_NUMBER] Found for order ${orderId}:`, {
+        logger.info(`Tracking number found for order ${orderId}:`, {
             trackingNumber,
             attempt: job.attempts
         });
 
-        // Lấy label URL
         let labelUrl = null;
         try {
+            logger.info(`Fetching label for tracking number: ${trackingNumber}`);
+            
             const labelResult = await carrier.getLabel(trackingNumber);
             
             if (labelResult.success && labelResult.data.url) {
                 labelUrl = labelResult.data.url;
+                logger.info(`Label URL found for order ${orderId}:`, {
+                    labelUrl: labelUrl.substring(0, 50) + '...',
+                    labelType: labelResult.data.labelType
+                });
+            } else {
+                logger.warn(`No label URL available for order ${orderId}`);
             }
         } catch (labelError) {
-            logger.error(`[TRACKING_NUMBER] Failed to get label for order ${orderId}:`, labelError.message);
+            logger.error(`Failed to get label for order ${orderId}: ` + labelError.message);
         }
         
-        // Cập nhật database
         await OrderModel.update(orderId, {
             trackingNumber: trackingNumber,
             labelUrl: labelUrl,
@@ -65,7 +63,7 @@ class TrackingNumberWorker extends BaseWorker {
             try {
                 await OrderModel.generateLabelAccessKey(orderId);
             } catch (error) {
-                logger.error(`[TRACKING_NUMBER] Failed to generate access key:`, error.message);
+                logger.error(`Failed to generate access key for order ${orderId}: ${error.message}`);
             }
         }
         
@@ -76,6 +74,16 @@ class TrackingNumberWorker extends BaseWorker {
             labelUrl,
             attempts: job.attempts
         };
+    }
+
+    async onJobMaxAttemptsReached(job, error) {
+        const { orderId, orderCode } = job.payload;
+        await telegram.notifyError(error, {
+            action: job.job_type,
+            jobName: job.job_type,
+            orderId: orderId,
+            orderCode: orderCode
+        });
     }
 }
 
