@@ -842,16 +842,7 @@ class ECountService {
             throw new Error(`Không tìm thấy trạng thái: "${status}"`);
         }
 
-        await new Promise(resolve => setTimeout(resolve, 5000));
-
-        // Chờ dropdown đóng và cập nhật xong
-        await dataFrame.waitForFunction(
-            () => {
-                const dropdown = document.querySelector('.dropdown-menu [data-baseid]');
-                return !dropdown || window.getComputedStyle(dropdown).display === 'none';
-            },
-            { timeout: config.puppeteer.timeout }
-        );
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
         logger.info('Đã cập nhật trạng thái thành công');
     }
@@ -938,37 +929,7 @@ class ECountService {
 
         // Press F8 để save
         await page.keyboard.press('F8');
-        await new Promise(resolve => setTimeout(resolve, 5000));
-
-        // Chờ save xong (modal đóng hoặc có thông báo thành công)
-        await dataFrame.waitForFunction(
-            () => {
-                // Kiểm tra modal đã đóng
-                const modal = document.querySelector('[data-container="popup-body"]');
-                if (!modal || window.getComputedStyle(modal).display === 'none') {
-                    return true;
-                }
-
-                // Hoặc kiểm tra có success message
-                const successMsg = document.querySelector('.success-message, .toast-success');
-                return successMsg !== null;
-            },
-            { timeout: config.puppeteer.timeout }
-        ).catch(async () => {
-            // Nếu timeout, kiểm tra xem có loading indicator không
-            const stillLoading = await dataFrame.evaluate(() => {
-                return document.querySelector('.loading, .spinner, .saving') !== null;
-            });
-
-            if (stillLoading) {
-                // Chờ thêm nếu vẫn đang loading
-                await dataFrame.waitForFunction(
-                    () => document.querySelector('.loading, .spinner, .saving') === null,
-                    { timeout: config.puppeteer.timeout }
-                );
-            }
-        });
-
+        await new Promise(resolve => setTimeout(resolve, 3000));
         logger.info('Đã cập nhật tracking number thành công');
     }
 }
