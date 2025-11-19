@@ -94,28 +94,36 @@ class JobWorker {
 
                 case 'update_tracking_ecount':
                     result = await this.handleUpdateTrackingEcount(job);
-                    if (result.trackingNumber && result.trackingNumber != '') {
-                        const { orderId, trackingNumber } = result;
-                        const { orderCode: erpOrderCode, ecountLink } = job.payload;
+                    // if (result.trackingNumber && result.trackingNumber != '') {
+                    //     const { orderId, trackingNumber } = result;
+                    //     const { orderCode: erpOrderCode, ecountLink } = job.payload;
                         
-                        logger.info(`Auto-pushing update status job for order ${orderId}`, {
-                            status: 'Scheduled',
-                            trackingNumber
-                        });
+                    //     logger.info(`Auto-pushing update status job for order ${orderId}`, {
+                    //         status: 'Scheduled',
+                    //         trackingNumber
+                    //     });
 
-                        await JobModel.create(
-                            'update_status_ecount',
-                            {
-                                orderId: orderId,
-                                erpOrderCode: erpOrderCode,
-                                trackingNumber: trackingNumber,
-                                status: 'Scheduled',
-                                ecountLink: ecountLink
-                            },
-                            5,
-                            5
-                        );
-                    }
+                    //     // const updateData = {
+                    //     //     status: trackingResult.status,
+                    //     //     orderStatus: inquiryResult.data.status,
+                    //     //     trackingInfo: trackingResult.trackingInfo,
+                    //     //     lastTrackedAt: new Date()
+                    //     // };
+                    //     // await OrderModel.update(order.id, updateData);
+
+                    //     await JobModel.create(
+                    //         'update_status_ecount',
+                    //         {
+                    //             orderId: orderId,
+                    //             erpOrderCode: erpOrderCode,
+                    //             trackingNumber: trackingNumber,
+                    //             status: 'Scheduled',
+                    //             ecountLink: ecountLink
+                    //         },
+                    //         5,
+                    //         5
+                    //     );
+                    // }
                     break;
 
                 case 'update_status_ecount':
