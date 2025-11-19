@@ -76,11 +76,11 @@ class UpdateStatusCron {
                     const carrier = carrierFactory.getCarrier(order.carrier);
                     
                     logger.info(`Tracking status for order ${order.id}`, {
-                        trackingNumber: order.tracking_number,
+                        trackingNumber: order.waybill_number,
                         currentStatus: order.status
                     });
 
-                    const trackingResult = await carrier.trackOrder(order.tracking_number);
+                    const trackingResult = await carrier.trackOrder(order.waybill_number);
                     const inquiryResult = await carrier.getOrderInfo(order.waybill_number);
 
                     // So sánh status mới với status hiện tại
@@ -379,8 +379,8 @@ class UpdateStatusCron {
             INNER JOIN (
                 SELECT erp_order_code, MAX(created_at) AS latest
                 FROM orders
-                WHERE tracking_number IS NOT NULL
-                AND tracking_number != ''
+                WHERE waybill_number IS NOT NULL
+                AND waybill_number != ''
                 AND status NOT IN ('received', 'returned', 'deleted', 'cancelled', 'failed', 'pending')
                 AND erp_order_code IS NOT NULL
                 AND ecount_link IS NOT NULL
