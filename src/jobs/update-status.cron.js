@@ -239,22 +239,12 @@ class UpdateStatusCron {
         // Tính số ngày từ lần update cuối
         const daysOverdue = this.calculateDaysOverdue(order);
         const threshold = this.getWarningThreshold(order.product_code);
-        console.log(lastUpdate);
-        console.log(daysOverdue);
-        console.log(threshold);
-        
 
         // Chỉ warning nếu >= threshold VÀ chưa warning hôm nay
         if (daysOverdue >= threshold) {
-            // Check xem đã warning hôm nay chưa (dựa vào updated_at)
+            // Check xem đã warning chưa
             if (order.updated_at) {
-                const lastWarningDate = new Date(order.updated_at);
-                const today = new Date();
-                lastWarningDate.setHours(0, 0, 0, 0);
-                today.setHours(0, 0, 0, 0);
-                
-                // Nếu updated_at là hôm nay -> đã warning rồi
-                if (lastWarningDate.getTime() === today.getTime()) {
+                if (order.erp_status == 'Warning') {
                     return false;
                 }
             }
