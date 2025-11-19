@@ -9,7 +9,7 @@ class UpdateTrackingEcountWorker extends BaseWorker {
     constructor() {
         super('update_tracking_ecount', {
             intervalMs: 5000,
-            concurrency: 3  // Chạy đồng thời 1 jobs (vì có Puppeteer nặng)
+            concurrency: 2  // Chạy đồng thời 1 jobs (vì có Puppeteer nặng)
         });
     }
 
