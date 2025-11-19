@@ -90,6 +90,28 @@ class JobWorker {
 
                 case 'tracking_number':
                     result = await this.handleTrackingNumber(job);
+                    if (result.trackingNumber && result.trackingNumber != '') {
+                        const { orderId, trackingNumber } = result;
+                        const { orderCode: erpOrderCode, ecountLink } = job.payload;
+                        
+                        logger.info(`Auto-pushing update status job for order ${orderId}`, {
+                            status: 'Scheduled',
+                            trackingNumber
+                        });
+
+                        await JobModel.create(
+                            'update_status_ecount',
+                            {
+                                orderId: orderId,
+                                erpOrderCode: erpOrderCode,
+                                trackingNumber: trackingNumber,
+                                status: 'Scheduled',
+                                ecountLink: ecountLink
+                            },
+                            5,
+                            5
+                        );
+                    }
                     break;
 
                 case 'update_tracking_ecount':
