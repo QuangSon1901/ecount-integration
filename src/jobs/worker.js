@@ -224,7 +224,7 @@ class JobWorker {
             trackType: carrierResult.trackType || null,
             remoteArea: carrierResult.remoteArea || null,
             erpStatus: orderData.erpStatus || 'Đang xử lý',
-            ecountLink: orderData.ecountLink || null,
+            ecountLink: '#menuType=MENUTREE_000004&menuSeq=MENUTREE_000004&groupSeq=MENUTREE_000030&prgId=C000004&depth=1',
             extraServices: orderData.extraServices || [],
             sensitiveType: orderData.sensitiveType || null,
             goodsType: orderData.goodsType || null,
