@@ -95,9 +95,9 @@ class FetchTrackingCron {
                         }
 
                         await OrderModel.update(order.id, {
-                            tracking_number: trackingNumber,
+                            trackingNumber: trackingNumber,
                             status: 'created',
-                            label_url: labelUrl
+                            labelUrl: labelUrl
                         });
 
                         logger.info(`Updated order ${order.id}`, {
@@ -117,7 +117,7 @@ class FetchTrackingCron {
                         }
 
                         // Push job update lên ECount nếu có thay đổi tracking number
-                        if (order.erp_order_code && order.ecount_link && trackingChanged && trackingNumber !== '') {
+                        if (order.erp_order_code && order.ecount_link) {
                             await jobService.addUpdateTrackingNumberJob(
                                 order.id,
                                 order.erp_order_code,
