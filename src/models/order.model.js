@@ -98,6 +98,10 @@ class OrderModel {
                 fields.push('status = ?');
                 values.push(updateData.status);
             }
+            if (updateData.orderStatus !== undefined) {
+                fields.push('order_status = ?');
+                values.push(updateData.orderStatus);
+            }
             if (updateData.erpStatus !== undefined) {
                 fields.push('erp_status = ?');
                 values.push(updateData.erpStatus);

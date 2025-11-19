@@ -278,7 +278,7 @@ class YunExpressService extends BaseCarrier {
     parseTrackingStatus(packageStatus, trackInfo = null) {
         const statusMap = {
             'N': 'not_found',       // Order not found
-            'F': 'created',         // Electronic forecast information reception (chưa có vận đơn thật)
+            'F': 'created',         // Electronic forecast information reception
             'T': 'in_transit',      // In transit
             'D': 'delivered',       // Successful delivery
             'E': 'exception',       // May be abnormal
@@ -501,7 +501,7 @@ class YunExpressService extends BaseCarrier {
             'Draft': 'Nháp',
             'T': 'Đã xử lý',
             'C': 'Đã xóa',
-            'S': 'Đã dự báo',
+            'S': 'Đã lên lịch',
             'R': 'Đã nhận',
             'D': 'Hết hàng',
             'F': 'Đã trả lại',

@@ -978,10 +978,10 @@ class OrderService {
             'waiting_tracking_update': 'Waiting tracking number to ERP',
             'updating_status': 'Updating status number to ERP',
             'waiting_status_update': 'Waiting status number to ERP',
-            'created': 'Electronic forecast information reception',
-            'in_transit': 'In transit',
-            'out_for_delivery': 'In transit',
-            'completed': 'Successful delivery',
+            'created': 'Scheduled',
+            'in_transit': 'Shipped',
+            'out_for_delivery': 'Shipped',
+            'completed': 'Have been received/Deliveried',
             'failed': 'May be abnormal',
             'unknown': 'Unknown'
         };
