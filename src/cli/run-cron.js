@@ -6,12 +6,13 @@ require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const logger = require('../utils/logger');
 
 // Import các cron jobs (đây là instances, không phải classes)
+const fetchTrackingCron = require('./src/jobs/fetch-tracking.cron');
 const updateStatusJob = require('../jobs/update-status.cron');
 
 // Map các job có sẵn
 const jobs = {
     'update-status': updateStatusJob,
-    // Thêm các job khác nếu có
+    'tracking': fetchTrackingCron,
 };
 
 async function runCron() {
