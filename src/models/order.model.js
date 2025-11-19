@@ -122,6 +122,10 @@ class OrderModel {
                 fields.push('tracking_info = ?');
                 values.push(JSON.stringify(updateData.trackingInfo));
             }
+            if (updateData.lastTrackedAt !== undefined) {
+                fields.push('last_tracked_at = ?');
+                values.push(updateData.lastTrackedAt);
+            }
             if (updateData.deliveredAt !== undefined) {
                 fields.push('delivered_at = ?');
                 values.push(updateData.deliveredAt);

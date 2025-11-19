@@ -10,6 +10,19 @@ class UpdateStatusCron {
     constructor() {
         this.isRunning = false;
         this.schedule = '*/30 * * * *'; // Chạy mỗi 30 phút
+
+        this.warningThresholds = {
+            'VN-YTYCPREC': 10, // 5 + 5 ngày
+            'YTYCPREC': 10,
+            'VN-THZXR': 10,    // 5 + 5 ngày
+            'VNTHZXR': 10,
+            'THZXR': 10,
+            'VNBKZXR': 10,     // 5 + 5 ngày
+            'BKZXR': 10,
+            'VNMUZXR': 11,     // 5 + 6 ngày
+            'MUZXR': 11,
+            'default': 10      // Mặc định 10 ngày
+        };
     }
 
     /**
@@ -40,7 +53,8 @@ class UpdateStatusCron {
             processed: 0,
             success: 0,
             failed: 0,
-            updated: 0 // Số order có status thay đổi và push job
+            updated: 0, // Số order có status thay đổi và push job
+            warned: 0 // Số đơn warning
         };
 
         try {
@@ -77,7 +91,8 @@ class UpdateStatusCron {
                         const updateData = {
                             status: trackingResult.status,
                             orderStatus: inquiryResult.data.status,
-                            trackingInfo: trackingResult.trackingInfo
+                            trackingInfo: trackingResult.trackingInfo,
+                            lastTrackedAt: new Date()
                         };
 
                         if (trackingResult.status === 'delivered') {
@@ -117,13 +132,53 @@ class UpdateStatusCron {
                                     trackingStatus: trackingResult.status,
                                     labelStatus: labelStatus
                                 }, 
-                                {type: 'warning'}
+                                {type: 'error'}
                             );
                         }
 
                         stats.success++;
                     } else {
                         logger.info(`Status unchanged for order ${order.id}: ${order.status}`);
+
+                        if (this.shouldWarnOverdue(order)) {
+                            const daysOverdue = this.calculateDaysOverdue(order);
+                            const threshold = this.getWarningThreshold(order.product_code);
+                            
+                            logger.warn(`Order ${order.id} overdue: ${daysOverdue} days (threshold: ${threshold})`);
+
+                            // Push job update status "Warning" lên ERP
+                            await jobService.addUpdateStatusJob(
+                                order.id,
+                                order.erp_order_code,
+                                order.tracking_number,
+                                'Warning',
+                                order.ecount_link,
+                                5
+                            );
+
+                            // Gửi telegram warning
+                            await telegram.notifyError(
+                                new Error(`Order overdue: ${daysOverdue} days without update`),
+                                {
+                                    action: 'Overdue Order Warning',
+                                    jobName: 'Update Status Job',
+                                    orderId: order.customer_order_number,
+                                    erpOrderCode: order.erp_order_code,
+                                    waybillNumber: order.waybill_number,
+                                    trackingNumber: order.tracking_number,
+                                    productCode: order.product_code,
+                                    status: order.status,
+                                    daysOverdue: daysOverdue,
+                                    warningThreshold: threshold,
+                                    lastTrackedAt: order.last_tracked_at || order.created_at,
+                                    message: `⚠️ Đơn hàng ${daysOverdue} ngày không cập nhật (ngưỡng: ${threshold} ngày)`
+                                },
+                                { type: 'error' }
+                            );
+
+                            stats.warned++;
+                        }
+
                         stats.success++; // Vẫn tính là success
                     }
 
@@ -171,6 +226,57 @@ class UpdateStatusCron {
         } finally {
             this.isRunning = false;
         }
+    }
+
+    /**
+     * Check xem có nên warning không
+     */
+    shouldWarnOverdue(order) {
+        // Không warning nếu chưa có last_tracked_at
+        const lastUpdate = order.last_tracked_at || order.created_at;
+        if (!lastUpdate) return false;
+
+        // Tính số ngày từ lần update cuối
+        const daysOverdue = this.calculateDaysOverdue(order);
+        const threshold = this.getWarningThreshold(order.product_code);
+
+        // Chỉ warning nếu >= threshold VÀ chưa warning hôm nay
+        if (daysOverdue >= threshold) {
+            // Check xem đã warning hôm nay chưa (dựa vào updated_at)
+            if (order.updated_at) {
+                const lastWarningDate = new Date(order.updated_at);
+                const today = new Date();
+                lastWarningDate.setHours(0, 0, 0, 0);
+                today.setHours(0, 0, 0, 0);
+                
+                // Nếu updated_at là hôm nay -> đã warning rồi
+                if (lastWarningDate.getTime() === today.getTime()) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Tính số ngày kể từ lần update cuối
+     */
+    calculateDaysOverdue(order) {
+        const lastUpdate = order.last_tracked_at ? new Date(order.last_tracked_at) : new Date(order.created_at);
+        const now = new Date();
+        const diffTime = Math.abs(now - lastUpdate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays;
+    }
+
+    /**
+     * Lấy ngưỡng warning theo product code
+     */
+    getWarningThreshold(productCode) {
+        const normalized = productCode?.toUpperCase().trim();
+        return this.warningThresholds[normalized] || this.warningThresholds['default'];
     }
 
     /**
