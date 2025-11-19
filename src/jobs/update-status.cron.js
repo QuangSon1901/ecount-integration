@@ -239,6 +239,10 @@ class UpdateStatusCron {
         // Tính số ngày từ lần update cuối
         const daysOverdue = this.calculateDaysOverdue(order);
         const threshold = this.getWarningThreshold(order.product_code);
+        console.log(lastUpdate);
+        console.log(daysOverdue);
+        console.log(threshold);
+        
 
         // Chỉ warning nếu >= threshold VÀ chưa warning hôm nay
         if (daysOverdue >= threshold) {
