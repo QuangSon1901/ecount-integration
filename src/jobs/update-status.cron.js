@@ -70,8 +70,8 @@ class UpdateStatusCron {
                     const inquiryResult = await carrier.getOrderInfo(order.waybill_number);
 
                     // So sánh status mới với status hiện tại
-                        logger.info(`Status changed for order ${order.id}: ${order.status} → ${trackingResult.status} + ${order.order_status} → ${inquiryResult.data.status}`);
                     if (trackingResult.status !== order.status || inquiryResult.data.status !== order.order_status) {
+                        logger.info(`Status changed for order ${order.id}: ${order.status} → ${trackingResult.status} + ${order.order_status} → ${inquiryResult.data.status}`);
 
                         // Cập nhật status trong DB
                         const updateData = {
