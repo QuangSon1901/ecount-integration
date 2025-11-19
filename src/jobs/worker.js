@@ -90,6 +90,10 @@ class JobWorker {
 
                 case 'tracking_number':
                     result = await this.handleTrackingNumber(job);
+                    break;
+
+                case 'update_tracking_ecount':
+                    result = await this.handleUpdateTrackingEcount(job);
                     if (result.trackingNumber && result.trackingNumber != '') {
                         const { orderId, trackingNumber } = result;
                         const { orderCode: erpOrderCode, ecountLink } = job.payload;
@@ -112,10 +116,6 @@ class JobWorker {
                             5
                         );
                     }
-                    break;
-
-                case 'update_tracking_ecount':
-                    result = await this.handleUpdateTrackingEcount(job);
                     break;
 
                 case 'update_status_ecount':
