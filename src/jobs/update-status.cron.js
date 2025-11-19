@@ -9,7 +9,7 @@ const telegram = require('../utils/telegram');
 class UpdateStatusCron {
     constructor() {
         this.isRunning = false;
-        this.schedule = '*/30 * * * *'; // Chạy mỗi 30 phút
+        this.schedule = '*/5 * * * *'; // Chạy mỗi 30 phút
 
         this.warningThresholds = {
             'VN-YTYCPREC': 10, // 5 + 5 ngày
@@ -375,21 +375,30 @@ class UpdateStatusCron {
         try {
             const [rows] = await connection.query(
                 `SELECT o.*
-                FROM orders o
-                INNER JOIN (
-                    SELECT erp_order_code, MAX(created_at) AS latest
-                    FROM orders
-                    WHERE tracking_number IS NOT NULL
-                    AND tracking_number != ''
-                    AND status NOT IN ('received', 'returned', 'deleted', 'cancelled', 'failed')
-                    AND erp_order_code IS NOT NULL
-                    AND ecount_link IS NOT NULL
-                    GROUP BY erp_order_code
-                ) latest_orders
-                ON o.erp_order_code = latest_orders.erp_order_code
-                AND o.created_at = latest_orders.latest
-                ORDER BY o.created_at ASC
-                LIMIT ?`,
+            FROM orders o
+            INNER JOIN (
+                SELECT erp_order_code, MAX(created_at) AS latest
+                FROM orders
+                WHERE tracking_number IS NOT NULL
+                AND tracking_number != ''
+                AND status NOT IN ('received', 'returned', 'deleted', 'cancelled', 'failed', 'pending')
+                AND erp_order_code IS NOT NULL
+                AND ecount_link IS NOT NULL
+                GROUP BY erp_order_code
+            ) latest_orders
+            ON o.erp_order_code = latest_orders.erp_order_code
+            AND o.created_at = latest_orders.latest
+            
+            -- Không có job update_status_ecount đang pending/processing cho order này
+            LEFT JOIN jobs j_update_status 
+                ON j_update_status.job_type = 'update_status_ecount'
+                AND JSON_EXTRACT(j_update_status.payload, '$.orderId') = o.id
+                AND j_update_status.status IN ('pending', 'processing')
+            
+            WHERE j_update_status.id IS NULL
+            
+            ORDER BY o.created_at ASC
+            LIMIT ?`,
                 [limit]
             );
             
