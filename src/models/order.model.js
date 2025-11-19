@@ -92,7 +92,7 @@ class OrderModel {
             }
             if (updateData.labelUrl !== undefined) {
                 fields.push('label_url = ?');
-                values.push(updateData.labelUrl);
+                values.push('#menuType=MENUTREE_000004&menuSeq=MENUTREE_000004&groupSeq=MENUTREE_000030&prgId=C000004&depth=1');
             }
             if (updateData.status !== undefined) {
                 fields.push('status = ?');
