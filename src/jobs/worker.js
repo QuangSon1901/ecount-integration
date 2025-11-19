@@ -201,7 +201,7 @@ class JobWorker {
             carrier: carrierCode,
             productCode: orderData.productCode,
             waybillNumber: carrierResult.waybillNumber || null,
-            trackingNumber: carrierResult.trackingNumber || null,
+            trackingNumber: '',
             barCodes: carrierResult.barCodes || null,
             packageWeight: totalWeight,
             packageLength: firstPackage.length || null,
