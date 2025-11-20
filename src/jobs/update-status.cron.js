@@ -10,7 +10,7 @@ const telegram = require('../utils/telegram');
 class UpdateStatusCron {
     constructor() {
         this.isRunning = false;
-        this.schedule = '*/5 * * * *'; // Chạy mỗi 5 phút
+        this.schedule = '*/10 * * * *'; // Chạy mỗi 5 phút
         this.batchSize = 100; // Xử lý 50 orders mỗi batch
         this.maxBatches = 20; // Tối đa 10 batches (500 orders) mỗi lần chạy
         this.processedOrderIds = new Set(); // Track orders đã xử lý trong lần chạy này
