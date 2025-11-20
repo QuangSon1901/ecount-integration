@@ -347,7 +347,7 @@ class UpdateStatusCron {
         
         // Priority 4: Abnormal cases
         if (pkgStatus === 'E') {
-            return 'Abnormal';
+            return 'Warning';
         }
         
         // Priority 5: Order returned/claimed
@@ -367,7 +367,7 @@ class UpdateStatusCron {
             } else if (ordStatus === 'D') {
                 return 'Shipped';
             }
-            return 'In Transit'; // Default for T package status
+            return 'Received'; // Default for T package status
         }
         
         // Priority 8: Forecasted/Scheduled
@@ -375,9 +375,9 @@ class UpdateStatusCron {
             if (ordStatus === 'S') {
                 return 'Scheduled';
             } else if (ordStatus === 'T') {
-                return 'Processed';
+                return 'New';
             }
-            return 'Forecasted'; // Default for F package status
+            return 'New'; // Default for F package status
         }
         
         // Priority 9: Order not found
@@ -390,7 +390,7 @@ class UpdateStatusCron {
             return 'New';
         }
         
-        return 'Unknown'; // Hoặc null nếu không muốn push job cho case này
+        return 'New'; // Hoặc null nếu không muốn push job cho case này
     }
 
     /**
