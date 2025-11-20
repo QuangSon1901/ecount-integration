@@ -11,7 +11,7 @@ class UpdateStatusCron {
     constructor() {
         this.isRunning = false;
         this.schedule = '*/5 * * * *'; // Chạy mỗi 5 phút
-        this.batchSize = 50; // Xử lý 50 orders mỗi batch
+        this.batchSize = 100; // Xử lý 50 orders mỗi batch
         this.maxBatches = 20; // Tối đa 10 batches (500 orders) mỗi lần chạy
         this.processedOrderIds = new Set(); // Track orders đã xử lý trong lần chạy này
 
@@ -409,7 +409,8 @@ class UpdateStatusCron {
                     FROM orders
                     WHERE waybill_number IS NOT NULL
                     AND waybill_number != ''
-                    AND status NOT IN ('received', 'returned', 'deleted', 'cancelled', 'failed', 'pending')
+                    AND status NOT IN ('new', 'deleted', 'delivered', 'exception', 'received', 'returned', 'deleted', 'cancelled', 'failed', 'pending')
+                    AND order_status NOT IN ('V', 'C', 'F')
                     AND erp_order_code IS NOT NULL
                     AND ecount_link IS NOT NULL
                     GROUP BY erp_order_code
