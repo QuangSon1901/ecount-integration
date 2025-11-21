@@ -200,7 +200,7 @@ class UpdateStatusCron {
                         }
 
                         // Sleep để tránh rate limit
-                        await this.sleep(1000);
+                        await this.sleep(200);
 
                     } catch (error) {
                         stats.failed++;
@@ -215,7 +215,7 @@ class UpdateStatusCron {
                 }
 
                 // Sleep giữa các batches để tránh overload
-                await this.sleep(2000);
+                await this.sleep(1000);
             }
 
             // Update cron log thành công
