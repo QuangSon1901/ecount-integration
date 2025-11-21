@@ -134,7 +134,7 @@ class UpdateStatusCron {
                                 logger.info(`Added job to update status to ECount for order ${order.id}`);
                             } 
                                 
-                            if (labelStatus === 'Returned' || labelStatus === 'Deleted' || labelStatus === 'Abnormal') {
+                            if (labelStatus === 'Returned' || labelStatus === 'Deleted' || labelStatus === 'Abnormal' || labelStatus === 'Warning') {
                                 await telegram.notifyError(
                                     new Error(`Order status changed to ${labelStatus}`), 
                                     {

@@ -28,7 +28,7 @@ class JobService {
                 carrierCode
             },
             delaySeconds,
-            5
+            3
         );
     }
 
@@ -45,7 +45,7 @@ class JobService {
                 ecountLink
             },
             delaySeconds,
-            5
+            3
         );
     }
 
@@ -63,7 +63,7 @@ class JobService {
                 ecountLink
             },
             delaySeconds,
-            5
+            3
         );
     }
 
