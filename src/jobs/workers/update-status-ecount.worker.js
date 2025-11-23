@@ -2,6 +2,7 @@
 const BaseWorker = require('./base.worker');
 const OrderModel = require('../../models/order.model');
 const ecountService = require('../../services/erp/ecount.service');
+const jobService = require('../../services/queue/job.service');
 const telegram = require('../../utils/telegram');
 const logger = require('../../utils/logger');
 
