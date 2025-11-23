@@ -345,7 +345,7 @@ class UpdateStatusCron {
         
         // Priority 4: Đã nhận (warehouse received)
         if (ordStatus === 'R') {
-            return 'Received';
+            return 'Carrier Received';
         }
         
         // Priority 5: Hết hàng (out of stock - shipped)
