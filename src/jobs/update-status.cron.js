@@ -100,8 +100,11 @@ class UpdateStatusCron {
                         const trackingResult = await carrier.trackOrder(order.waybill_number);
                         const inquiryResult = await carrier.getOrderInfo(order.waybill_number);
 
+                        const hasChangeStatus = inquiryResult.data.status !== order.order_status;
+                        const hasChangePkgStatus = trackingResult.status !== order.status;
+
                         // So sánh status mới với status hiện tại
-                        if (trackingResult.status !== order.status || inquiryResult.data.status !== order.order_status) {
+                        if (hasChangePkgStatus || hasChangeStatus) {
                             logger.info(`Status changed for order ${order.id}: ${order.status} → ${trackingResult.status} + ${order.order_status} → ${inquiryResult.data.status}`);
 
                             // Cập nhật status trong DB
@@ -118,39 +121,41 @@ class UpdateStatusCron {
 
                             await OrderModel.update(order.id, updateData);
 
-                            const labelStatus = this.mapToLabelStatus(trackingResult.packageStatus, inquiryResult.data.status);
+                            if (hasChangeStatus) {
+                                const labelStatus = this.mapToLabelStatus(inquiryResult.data.status);
 
-                            if (order.erp_order_code && order.ecount_link && labelStatus) {
-                                await jobService.addUpdateStatusJob(
-                                    order.id,
-                                    order.erp_order_code,
-                                    order.tracking_number,
-                                    labelStatus,
-                                    order.ecount_link,
-                                    5 // Delay 5 giây
-                                );
-                                stats.updated++;
+                                if (order.erp_order_code && order.ecount_link && labelStatus) {
+                                    await jobService.addUpdateStatusJob(
+                                        order.id,
+                                        order.erp_order_code,
+                                        order.tracking_number,
+                                        labelStatus,
+                                        order.ecount_link,
+                                        5 // Delay 5 giây
+                                    );
+                                    stats.updated++;
 
-                                logger.info(`Added job to update status to ECount for order ${order.id}`);
-                            } 
-                                
-                            if (labelStatus === 'Returned' || labelStatus === 'Deleted' || labelStatus === 'Abnormal' || labelStatus === 'Warning') {
-                                await telegram.notifyError(
-                                    new Error(`Order status changed to ${labelStatus}`), 
-                                    {
-                                        action: 'Track Express Status',
-                                        jobName: 'Track Express Status',
-                                        orderId: order.customer_order_number,
-                                        waybillNumber: order.waybill_number || null,
-                                        trackingNumber: order.tracking_number || null,
-                                        erpOrderCode: order.erp_order_code,
-                                        packageStatus: trackingResult.packageStatus,
-                                        orderStatus: inquiryResult.data.status,
-                                        trackingStatus: trackingResult.status,
-                                        labelStatus: labelStatus
-                                    }, 
-                                    {type: 'error'}
-                                );
+                                    logger.info(`Added job to update status to ECount for order ${order.id}`);
+                                } 
+                                    
+                                if (labelStatus === 'Returned' || labelStatus === 'Deleted' || labelStatus === 'Abnormal' || labelStatus === 'Warning') {
+                                    await telegram.notifyError(
+                                        new Error(`Order status changed to ${labelStatus}`), 
+                                        {
+                                            action: 'Track Express Status',
+                                            jobName: 'Track Express Status',
+                                            orderId: order.customer_order_number,
+                                            waybillNumber: order.waybill_number || null,
+                                            trackingNumber: order.tracking_number || null,
+                                            erpOrderCode: order.erp_order_code,
+                                            packageStatus: trackingResult.packageStatus,
+                                            orderStatus: inquiryResult.data.status,
+                                            trackingStatus: trackingResult.status,
+                                            labelStatus: labelStatus
+                                        }, 
+                                        {type: 'error'}
+                                    );
+                                }
                             }
 
                             stats.success++;
@@ -302,16 +307,7 @@ class UpdateStatusCron {
     }
 
     /**
-     * Map package_status và order_status sang label status cho ECount
-     * 
-     * Package Status:
-     * - N: Order not found
-     * - F: Electronic forecast information reception
-     * - T: In transit
-     * - D: Successful delivery
-     * - E: May be abnormal
-     * - R: Package returned
-     * - C: Order Cancellation
+     * Map order_status sang label status cho ECount
      * 
      * Order Status:
      * - Draft: Nháp
@@ -325,72 +321,50 @@ class UpdateStatusCron {
      * - P: Đã nhận bồi thường
      * - V: Đã ký nhận
      */
-    mapToLabelStatus(packageStatus, orderStatus) {
-        // Normalize to uppercase
-        const pkgStatus = packageStatus?.toUpperCase();
+    mapToLabelStatus(orderStatus) {
         const ordStatus = orderStatus?.toUpperCase();
         
-        // Priority 1: Package delivered
-        if (pkgStatus === 'D') {
-            return 'Have been received';
+        if (!ordStatus) {
+            return null;
         }
         
-        // Priority 2: Package returned
-        if (pkgStatus === 'R') {
-            return 'Returned';
-        }
-        
-        // Priority 3: Order cancelled/deleted
-        if (pkgStatus === 'C' || ordStatus === 'C' || ordStatus === 'Q') {
-            return 'Deleted';
-        }
-        
-        // Priority 4: Abnormal cases
-        if (pkgStatus === 'E') {
-            return 'Warning';
-        }
-        
-        // Priority 5: Order returned/claimed
-        if (ordStatus === 'F' || ordStatus === 'P') {
-            return 'Returned';
-        }
-        
-        // Priority 6: Order signed (delivered by order status)
+        // Priority 1: Đã ký nhận (delivered)
         if (ordStatus === 'V') {
             return 'Have been received';
         }
         
-        // Priority 7: In transit combinations
-        if (pkgStatus === 'T') {
-            if (ordStatus === 'R') {
-                return 'Received';
-            } else if (ordStatus === 'D') {
-                return 'Shipped';
-            }
-            return 'Received'; // Default for T package status
+        // Priority 2: Đã trả lại hoặc đã nhận bồi thường
+        if (ordStatus === 'F' || ordStatus === 'P') {
+            return 'Returned';
         }
         
-        // Priority 8: Forecasted/Scheduled
-        if (pkgStatus === 'F') {
-            if (ordStatus === 'S') {
-                return 'Scheduled';
-            } else if (ordStatus === 'T') {
-                return 'New';
-            }
-            return 'New'; // Default for F package status
+        // Priority 3: Đã xóa hoặc đã hủy bỏ
+        if (ordStatus === 'C' || ordStatus === 'Q') {
+            return 'Deleted';
         }
         
-        // Priority 9: Order not found
-        if (pkgStatus === 'N') {
-            return 'Not Found';
+        // Priority 4: Đã nhận (warehouse received)
+        if (ordStatus === 'R') {
+            return 'Received';
         }
         
-        // Priority 10: Draft/New orders
-        if (ordStatus === 'DRAFT') {
+        // Priority 5: Hết hàng (out of stock - shipped)
+        if (ordStatus === 'D') {
+            return 'Shipped';
+        }
+        
+        // Priority 6: Đã lên lịch
+        if (ordStatus === 'S') {
+            return 'Scheduled';
+        }
+        
+        // Priority 7: Đã xử lý hoặc Draft (new order)
+        if (ordStatus === 'T' || ordStatus === 'DRAFT') {
             return 'New';
         }
         
-        return 'New'; // Hoặc null nếu không muốn push job cho case này
+        // Default: Không push job cho các trường hợp không xác định
+        return null;
     }
 
     /**
