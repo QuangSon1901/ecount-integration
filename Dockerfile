@@ -37,6 +37,8 @@ COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --only=production && npm cache clean --force
 
+RUN npx playwright install chromium --with-deps
+
 # Copy code còn lại
 COPY . .
 
