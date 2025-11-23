@@ -28,6 +28,9 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
 WORKDIR /app
 
 # Copy package.json riêng để cache npm install
@@ -37,7 +40,7 @@ COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --only=production && npm cache clean --force
 
-RUN npx playwright install chromium --with-deps
+RUN npx playwright install --with-deps chromium
 
 # Copy code còn lại
 COPY . .
