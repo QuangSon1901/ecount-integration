@@ -17,7 +17,7 @@ RUN sed -i 's|deb.debian.org|deb.debian.org|g' /etc/apt/sources.list && \
         libasound2 lsb-release --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
-# Cài Chrome sớm để được cache
+# Cài Chrome sớm để được cache (nếu không đổi Chrome thì không cần build lại)
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - && \
     echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" \
       > /etc/apt/sources.list.d/google.list && \
@@ -28,7 +28,6 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 
-# Cấu hình Playwright
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
@@ -41,17 +40,18 @@ COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --only=production && npm cache clean --force
 
+RUN npx playwright install --with-deps chromium
+
 # Copy code còn lại
 COPY . .
 
 # Tạo thư mục logs/screenshots
 RUN mkdir -p logs/screenshots
 
-# Thêm user không root và set permissions
+# Thêm user không root
 RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
     && mkdir -p /home/pptruser/Downloads \
-    && chown -R pptruser:pptruser /home/pptruser /app /ms-playwright
-
+    && chown -R pptruser:pptruser /home/pptruser /app
 USER pptruser
 
 EXPOSE 3000
