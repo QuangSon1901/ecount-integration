@@ -17,8 +17,7 @@ RUN echo "deb http://archive.debian.org/debian bullseye main contrib non-free" >
         libasound2 lsb-release && \
     rm -rf /var/lib/apt/lists/*
 
-
-# Cài Chrome sớm để được cache (nếu không đổi Chrome thì không cần build lại)
+# Cài Chrome cho Puppeteer
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - && \
     echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" \
       > /etc/apt/sources.list.d/google.list && \
@@ -34,9 +33,12 @@ WORKDIR /app
 # Copy package.json riêng để cache npm install
 COPY package*.json ./
 
-# ⚡ Dùng BuildKit cache để tăng tốc npm ci
+# Cài dependencies và Playwright browsers
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --only=production && npm cache clean --force
+    npm ci --only=production && \
+    npx playwright install chromium && \
+    npx playwright install-deps chromium && \
+    npm cache clean --force
 
 # Copy code còn lại
 COPY . .
@@ -45,10 +47,10 @@ COPY . .
 RUN mkdir -p logs/screenshots
 
 # Thêm user không root
-RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
-    && mkdir -p /home/pptruser/Downloads \
-    && chown -R pptruser:pptruser /home/pptruser /app
-USER pptruser
+RUN groupadd -r appuser && useradd -r -g appuser -G audio,video appuser \
+    && mkdir -p /home/appuser/Downloads \
+    && chown -R appuser:appuser /home/appuser /app
+USER appuser
 
 EXPOSE 3000
 CMD ["node", "server.js"]

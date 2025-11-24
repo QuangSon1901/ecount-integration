@@ -52,12 +52,14 @@ module.exports = {
             '--lang=vi-VN',
             '--window-size=1366,768',
             '--disable-blink-features=AutomationControlled',
-            process.env.NODE_ENV == 'production' ? '--single-process' : '', // for Docker
+            process.env.NODE_ENV == 'production' ? '--single-process' : '',
             '--disable-web-security',
             '--disable-features=IsolateOrigins,site-per-process'
         ],
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
     },
+
+    playwright: require('./playwright.config'),
     
     cron: {
         trackingEnabled: process.env.CRON_TRACKING_ENABLED === 'true',
@@ -67,22 +69,12 @@ module.exports = {
 
     redis: {
         url: process.env.REDIS_URL,
-        
-        // Hoặc dùng host/port riêng lẻ (local Redis)
         host: process.env.REDIS_HOST || 'localhost',
         port: parseInt(process.env.REDIS_PORT) || 6379,
-        
-        // Authentication
         username: process.env.REDIS_USERNAME || undefined,
         password: process.env.REDIS_PASSWORD || undefined,
-        
-        // TLS cho Redis Cloud
         tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
-        
-        // Database number
         db: parseInt(process.env.REDIS_DB) || 0,
-        
-        // Connection options
         maxRetriesPerRequest: null,
         enableReadyCheck: false,
         connectTimeout: 10000
