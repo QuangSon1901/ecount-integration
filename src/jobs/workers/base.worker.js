@@ -7,7 +7,6 @@ class BaseWorker {
         this.jobType = jobType;
         this.intervalMs = options.intervalMs || 5000;
         this.concurrency = options.concurrency || 1; // Số jobs chạy đồng thời
-        this.batchSize = options.batchSize || 1;
         this.isRunning = false;
         this.intervalId = null;
         this.activeJobs = new Set(); // Track jobs đang xử lý
@@ -174,7 +173,6 @@ class BaseWorker {
         return {
             jobType: this.jobType,
             concurrency: this.concurrency,
-            batchSize: this.batchSize,
             activeJobs: this.activeJobs.size,
             availableSlots: this.concurrency - this.activeJobs.size
         };
