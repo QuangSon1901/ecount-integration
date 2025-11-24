@@ -1,7 +1,6 @@
 // src/jobs/workers/manager.js
 const CreateOrderWorker = require('./create-order.worker');
-// const UpdateTrackingEcountWorker = require('./update-tracking-ecount.worker');
-const UpdateTrackingEcountWorker = require('./update-tracking-ecount-playwright.worker');
+const UpdateTrackingEcountWorker = require('./update-tracking-ecount.worker');
 const UpdateStatusEcountWorker = require('./update-status-ecount.worker');
 const logger = require('../../utils/logger');
 

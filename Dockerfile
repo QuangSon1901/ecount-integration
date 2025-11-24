@@ -41,10 +41,6 @@ COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --only=production && npm cache clean --force
 
-# ✅ CÀI ĐẶT PLAYWRIGHT BROWSERS TRƯỚC KHI THÊM USER
-# Install Playwright browsers as root (QUAN TRỌNG!)
-RUN npx playwright install --with-deps chromium
-
 # Copy code còn lại
 COPY . .
 
