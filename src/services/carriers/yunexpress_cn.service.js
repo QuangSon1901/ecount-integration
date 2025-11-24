@@ -501,7 +501,7 @@ class YunExpressCNService extends BaseCarrier {
             'Draft': 'Nháp',
             'T': 'Đã xử lý',
             'C': 'Đã xóa',
-            'S': 'Đã dự báo',
+            'S': 'Đã lên lịch',
             'R': 'Đã nhận',
             'D': 'Hết hàng',
             'F': 'Đã trả lại',

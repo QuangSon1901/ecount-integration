@@ -917,16 +917,6 @@ class ECountService {
             throw new Error('Không thể cập nhật tracking number');
         }
 
-        // Verify giá trị đã được set
-        await dataFrame.waitForFunction(
-            (expectedValue) => {
-                const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Shipping label"]');
-                return input && input.value === expectedValue;
-            },
-            { timeout: config.puppeteer.timeout },
-            trackingNumber
-        );
-
         // Press F8 để save
         await page.keyboard.press('F8');
         await new Promise(resolve => setTimeout(resolve, 3000));
