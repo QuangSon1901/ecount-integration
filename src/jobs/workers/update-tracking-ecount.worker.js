@@ -22,10 +22,6 @@ class UpdateTrackingEcountWorker extends BaseWorker {
         });
 
         const order = await OrderModel.findById(orderId);
-        if (order.erp_tracking_number_updated == true) {
-            return {};
-        }
-        
         const waybillNumber = order?.waybill_number || '';
         
         let labelUrl = null;
