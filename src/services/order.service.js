@@ -3,7 +3,7 @@ const ecountService = require('./erp/ecount.service');
 const jobService = require('./queue/job.service');
 const OrderModel = require('../models/order.model');
 const logger = require('../utils/logger');
-const carriersConfig = require('../../config/carriers.config');
+const carriersConfig = require('../config/carriers.config');
 
 class OrderService {
     /**
