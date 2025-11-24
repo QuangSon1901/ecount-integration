@@ -920,7 +920,7 @@ class ECountService {
         // Verify giá trị đã được set
         await dataFrame.waitForFunction(
             (expectedValue) => {
-                const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking last mile"]');
+                const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Shipping label"]');
                 return input && input.value === expectedValue;
             },
             { timeout: config.puppeteer.timeout },
