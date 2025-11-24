@@ -5,17 +5,18 @@ FROM node:18-bullseye-slim AS app
 ENV TZ=Asia/Ho_Chi_Minh
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Cập nhật mirror và cài dependencies cần thiết
-RUN sed -i 's|deb.debian.org|deb.debian.org|g' /etc/apt/sources.list && \
-    sed -i 's|security.debian.org|deb.debian.org|g' /etc/apt/sources.list && \
-    apt-get update && apt-get install -y \
+RUN echo "deb http://archive.debian.org/debian bullseye main contrib non-free" > /etc/apt/sources.list && \
+    echo "deb http://archive.debian.org/debian bullseye-updates main contrib non-free" >> /etc/apt/sources.list && \
+    apt-get -o Acquire::Check-Valid-Until=false update && \
+    apt-get install -y --no-install-recommends \
         wget ca-certificates gnupg curl xdg-utils \
         fonts-liberation fonts-wqy-zenhei fonts-wqy-microhei \
         libatk-bridge2.0-0 libatk1.0-0 libcups2 libdbus-1-3 libexpat1 libfontconfig1 \
         libgbm1 libglib2.0-0 libgtk-3-0 libnss3 libx11-6 libx11-xcb1 libxcomposite1 \
         libxdamage1 libxext6 libxfixes3 libxrandr2 libxrender1 libxss1 libxtst6 \
-        libasound2 lsb-release --no-install-recommends && \
+        libasound2 lsb-release && \
     rm -rf /var/lib/apt/lists/*
+
 
 # Cài Chrome sớm để được cache (nếu không đổi Chrome thì không cần build lại)
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - && \
