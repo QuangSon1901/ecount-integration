@@ -3,6 +3,7 @@ const ecountService = require('./erp/ecount.service');
 const jobService = require('./queue/job.service');
 const OrderModel = require('../models/order.model');
 const logger = require('../utils/logger');
+const carriersConfig = require('../../config/carriers.config');
 
 class OrderService {
     /**
@@ -47,35 +48,139 @@ class OrderService {
     }
 
     /**
-     * Xử lý nhiều đơn hàng cùng lúc - CÓ KIỂM TRA TRÙNG LẶP
+     * Xử lý nhiều đơn hàng cùng lúc - CÓ KIỂM TRA TRÙNG LẶP VÀ VALIDATE CARRIER
      */
     async processOrderMulti(ordersData) {
         try {
             logger.info(`Đang kiểm tra ${ordersData.length} đơn hàng trước khi push jobs...`);
 
-            // Bước 1: Lấy tất cả erpOrderCode cần kiểm tra
-            const erpOrderCodes = ordersData
-                .map(order => order.erpOrderCode)
-                .filter(code => code); // Lọc bỏ undefined/null
+            // Bước 1: Validate carrier và productCode
+            const validationErrors = [];
+            const validOrders = [];
+
+            ordersData.forEach((orderData, index) => {
+                const carrier = orderData.carrier?.toUpperCase();
+                const productCode = orderData.productCode;
+
+                // Kiểm tra carrier có tồn tại không
+                if (!carrier || !carriersConfig[carrier]) {
+                    validationErrors.push({
+                        orderIndex: index,
+                        erpOrderCode: orderData.erpOrderCode,
+                        customerOrderNumber: orderData.customerOrderNumber,
+                        carrier: carrier,
+                        productCode: productCode,
+                        status: 'invalid_carrier',
+                        reason: 'invalid_carrier',
+                        errors: [{
+                            field: 'carrier',
+                            message: `Carrier "${carrier}" không được hỗ trợ. Các carrier khả dụng: ${Object.keys(carriersConfig).filter(k => carriersConfig[k].enabled).join(', ')}`
+                        }]
+                    });
+                    return;
+                }
+
+                // Kiểm tra carrier có được enable không
+                if (!carriersConfig[carrier].enabled) {
+                    validationErrors.push({
+                        orderIndex: index,
+                        erpOrderCode: orderData.erpOrderCode,
+                        customerOrderNumber: orderData.customerOrderNumber,
+                        carrier: carrier,
+                        productCode: productCode,
+                        status: 'carrier_disabled',
+                        reason: 'carrier_disabled',
+                        errors: [{
+                            field: 'carrier',
+                            message: `Carrier "${carrier}" hiện không khả dụng`
+                        }]
+                    });
+                    return;
+                }
+
+                // Kiểm tra productCode có hợp lệ với carrier không
+                const allowedProducts = carriersConfig[carrier].productCodes || [];
+                if (!productCode) {
+                    validationErrors.push({
+                        orderIndex: index,
+                        erpOrderCode: orderData.erpOrderCode,
+                        customerOrderNumber: orderData.customerOrderNumber,
+                        carrier: carrier,
+                        productCode: productCode,
+                        status: 'missing_product_code',
+                        reason: 'missing_product_code',
+                        errors: [{
+                            field: 'productCode',
+                            message: `Product code là bắt buộc. Các product code khả dụng cho ${carrier}: ${allowedProducts.join(', ')}`
+                        }]
+                    });
+                    return;
+                }
+
+                if (!allowedProducts.includes(productCode)) {
+                    validationErrors.push({
+                        orderIndex: index,
+                        erpOrderCode: orderData.erpOrderCode,
+                        customerOrderNumber: orderData.customerOrderNumber,
+                        carrier: carrier,
+                        productCode: productCode,
+                        status: 'invalid_product_code',
+                        reason: 'invalid_product_code',
+                        errors: [{
+                            field: 'productCode',
+                            message: `Product code "${productCode}" không hợp lệ cho carrier ${carrier}. Các product code khả dụng: ${allowedProducts.join(', ')}`
+                        }]
+                    });
+                    return;
+                }
+
+                // Nếu pass validation, thêm vào danh sách hợp lệ
+                validOrders.push({ orderIndex: index, orderData });
+            });
+
+            // Nếu có lỗi validation, trả về ngay
+            if (validationErrors.length > 0) {
+                logger.warn(`Có ${validationErrors.length} đơn hàng không hợp lệ (carrier/product validation)`);
+                
+                return {
+                    success: false,
+                    data: {
+                        summary: {
+                            total: ordersData.length,
+                            blocked: validationErrors.length,
+                            allowed: validOrders.length,
+                            queued: 0
+                        },
+                        validationErrors: validationErrors,
+                        message: 'Có đơn hàng không hợp lệ (carrier hoặc product code không đúng)'
+                    },
+                    message: `Validation failed: ${validationErrors.length}/${ordersData.length} đơn hàng không hợp lệ`
+                };
+            }
+
+            // Bước 2: Lấy tất cả erpOrderCode cần kiểm tra (chỉ từ valid orders)
+            const erpOrderCodes = validOrders
+                .map(item => item.orderData.erpOrderCode)
+                .filter(code => code);
 
             if (erpOrderCodes.length === 0) {
                 throw new Error('Không có erpOrderCode hợp lệ trong danh sách đơn hàng');
             }
 
-            // Bước 2: Check trạng thái tất cả orders trong hệ thống
+            // Bước 3: Check trạng thái tất cả orders trong hệ thống
             const existingStatuses = await this.getStatusBatch(erpOrderCodes);
             
-            // Bước 3: Phân loại orders
+            // Bước 4: Phân loại orders
             const blocked = []; // Đơn đang xử lý, không cho push job
             const allowed = []; // Đơn được phép push job
             
-            ordersData.forEach((orderData, index) => {
+            validOrders.forEach(({ orderIndex, orderData }) => {
                 const erpCode = orderData.erpOrderCode;
                 const statusInfo = existingStatuses.find(s => s.erp_order_code === erpCode);
                 
                 if (!statusInfo) {
                     // Không tìm thấy status info - cho phép
-                    allowed.push({ orderIndex: index, orderData, reason: 'not_checked' });
+                    allowed.push({ orderIndex, orderData, reason: 'not_checked' });
                     return;
                 }
 
@@ -86,12 +191,11 @@ class OrderService {
                     'not_found',      // Chưa tồn tại
                     'failed',         // Đã lỗi - cho phép thử lại
                     'unknown',        // Không xác định
-                    // 'completed'       // Đã hoàn tất - cho phép tạo lại (trường hợp đặc biệt)
                 ];
 
                 if (allowedStatuses.includes(status)) {
                     allowed.push({ 
-                        orderIndex: index, 
+                        orderIndex, 
                         orderData,
                         existingStatus: status,
                         reason: status === 'not_found' ? 'new_order' : 'retry_allowed'
@@ -99,31 +203,32 @@ class OrderService {
                 } else {
                     // CÁC TRẠNG THÁI BỊ CHẶN
                     blocked.push({
-                        orderIndex: index,
+                        orderIndex,
                         erpOrderCode: erpCode,
                         customerOrderNumber: orderData.customerOrderNumber,
+                        carrier: orderData.carrier,
+                        productCode: orderData.productCode,
                         status: status,
                         label: statusInfo.label,
                         trackingNumber: statusInfo.tracking_number,
                         orderNumber: statusInfo.order_number,
                         reason: 'order_in_progress',
-                        errors: [
-                            {
-                                field: erpCode,
-                                message: statusInfo.label,
-                            }
-                        ]
+                        errors: [{
+                            field: erpCode,
+                            message: statusInfo.label,
+                        }]
                     });
                 }
             });
 
             logger.info('Kết quả kiểm tra:', {
                 total: ordersData.length,
+                validationErrors: validationErrors.length,
                 allowed: allowed.length,
                 blocked: blocked.length
             });
 
-            // Bước 4: Nếu có đơn bị chặn, response ngay không push job
+            // Bước 5: Nếu có đơn bị chặn, response ngay không push job
             if (blocked.length > 0) {
                 logger.warn(`Có ${blocked.length} đơn hàng đang được xử lý, không thể push job mới`);
                 
@@ -143,14 +248,14 @@ class OrderService {
                 };
             }
 
-            // Bước 5: Tất cả đơn đều OK, bắt đầu push jobs
+            // Bước 6: Tất cả đơn đều OK, bắt đầu push jobs
             logger.info(`Tất cả ${allowed.length} đơn hàng hợp lệ, bắt đầu push jobs...`);
 
             const results = [];
             const errors = [];
 
             for (let i = 0; i < allowed.length; i++) {
-                const { index, orderData, existingStatus } = allowed[i];
+                const { orderIndex, orderData, existingStatus } = allowed[i];
                 
                 try {
                     // Validate cơ bản
@@ -163,9 +268,11 @@ class OrderService {
                     const jobId = await jobService.addCreateOrderJob(orderData, delaySeconds);
 
                     results.push({
-                        index: index,
+                        index: orderIndex,
                         customerOrderNumber: orderData.customerOrderNumber,
                         erpOrderCode: orderData.erpOrderCode,
+                        carrier: orderData.carrier,
+                        productCode: orderData.productCode,
                         jobId: jobId,
                         status: 'queued',
                         delaySeconds: delaySeconds,
@@ -176,6 +283,8 @@ class OrderService {
                         jobId,
                         erpOrderCode: orderData.erpOrderCode,
                         customerOrderNumber: orderData.customerOrderNumber,
+                        carrier: orderData.carrier,
+                        productCode: orderData.productCode,
                         delaySeconds
                     });
 
@@ -183,9 +292,11 @@ class OrderService {
                     logger.error(`✗ Lỗi push job ${i + 1}/${allowed.length}:`, error.message);
                     
                     errors.push({
-                        index: index,
+                        index: orderIndex,
                         erpOrderCode: orderData.erpOrderCode,
                         customerOrderNumber: orderData.customerOrderNumber,
+                        carrier: orderData.carrier,
+                        productCode: orderData.productCode,
                         error: error.message
                     });
                 }
