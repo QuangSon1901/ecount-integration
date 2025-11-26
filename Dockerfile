@@ -17,40 +17,34 @@ RUN echo "deb http://archive.debian.org/debian bullseye main contrib non-free" >
         libasound2 lsb-release && \
     rm -rf /var/lib/apt/lists/*
 
-# Cài Chrome cho Puppeteer
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - && \
-    echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" \
-      > /etc/apt/sources.list.d/google.list && \
-    apt-get update && apt-get install -y google-chrome-stable --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
-
-# Cấu hình Puppeteer
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
-
 WORKDIR /app
 
-# Copy package.json riêng để cache npm install
-COPY package*.json ./
+# Thêm user không root TRƯỚC KHI cài dependencies
+RUN groupadd -r appuser && useradd -r -g appuser -G audio,video appuser \
+    && mkdir -p /home/appuser/Downloads \
+    && chown -R appuser:appuser /home/appuser /app
+
+# Copy package.json
+COPY --chown=appuser:appuser package*.json ./
+
+# Switch sang appuser TRƯỚC KHI cài Playwright
+USER appuser
+
+# Set Playwright cache cho appuser
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/appuser/.cache/ms-playwright
 
 # Cài dependencies và Playwright browsers
-RUN --mount=type=cache,target=/root/.npm \
+RUN --mount=type=cache,target=/home/appuser/.npm \
     npm ci --only=production && \
     npx playwright install chromium && \
     npx playwright install-deps chromium && \
     npm cache clean --force
 
 # Copy code còn lại
-COPY . .
+COPY --chown=appuser:appuser . .
 
 # Tạo thư mục logs/screenshots
 RUN mkdir -p logs/screenshots
-
-# Thêm user không root
-RUN groupadd -r appuser && useradd -r -g appuser -G audio,video appuser \
-    && mkdir -p /home/appuser/Downloads \
-    && chown -R appuser:appuser /home/appuser /app
-USER appuser
 
 EXPOSE 3000
 CMD ["node", "server.js"]
