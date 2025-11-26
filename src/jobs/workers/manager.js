@@ -1,7 +1,6 @@
 // src/jobs/workers/manager.js
 const CreateOrderWorker = require('./create-order.worker');
-// const UpdateTrackingEcountWorker = require('./update-tracking-ecount.worker');
-const UpdateTrackingBatchWorker = require('./update-tracking-batch.worker');
+const UpdateTrackingEcountWorker = require('./update-tracking-ecount.worker');
 const UpdateStatusEcountWorker = require('./update-status-ecount.worker');
 const logger = require('../../utils/logger');
 
@@ -15,7 +14,7 @@ class WorkerManager {
 
         this.workers = [
             new CreateOrderWorker(),           // 5 concurrent
-            new UpdateTrackingBatchWorker(),  // 2 concurrent
+            new UpdateTrackingEcountWorker(),  // 2 concurrent
             new UpdateStatusEcountWorker()     // 2 concurrent
         ];
 
