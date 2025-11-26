@@ -58,6 +58,8 @@ module.exports = {
         ],
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
     },
+
+    playwright: require('./playwright.config'),
     
     cron: {
         trackingEnabled: process.env.CRON_TRACKING_ENABLED === 'true',

@@ -757,8 +757,6 @@ class ECountService {
 
         await searchFrame.type('#quick_search', orderCode, { delay: 100 });
 
-        await new Promise(resolve => setTimeout(resolve, 5000));
-
         // Press Enter và chờ kết quả
         await Promise.all([
             searchFrame.waitForFunction(
