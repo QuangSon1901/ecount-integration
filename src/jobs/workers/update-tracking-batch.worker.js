@@ -412,7 +412,7 @@ class UpdateTrackingBatchWorker extends BaseWorker {
     }
 
     /**
-     * Login (copy từ PlaywrightECountService)
+     * Login vào ECount
      */
     async login(page) {
         logger.info('Đăng nhập ECount...');
@@ -420,48 +420,77 @@ class UpdateTrackingBatchWorker extends BaseWorker {
         await page.goto(
             `${this.ecountConfig.baseUrl}/?xurl_rd=Y&login_lantype=&lan_type=vi-VN`,
             { 
-                waitUntil: 'domcontentloaded', // ← QUAN TRỌNG: đổi từ networkidle
+                waitUntil: 'domcontentloaded',
                 timeout: this.playwrightConfig.timeout 
             }
         );
 
+        // Kiểm tra xem có form login không
         const hasLoginForm = await page.$('#com_code');
+        
         if (hasLoginForm) {
+            logger.info('Tìm thấy form login, đang điền thông tin...');
+            
             await page.fill('#com_code', this.ecountConfig.companyCode);
             await page.fill('#id', this.ecountConfig.id);
             await page.fill('#passwd', this.ecountConfig.password);
 
-            // Click login và chờ navigate
-            await Promise.all([
-                page.waitForNavigation({ 
-                    waitUntil: 'domcontentloaded', // ← QUAN TRỌNG
-                    timeout: this.playwrightConfig.timeout 
-                }),
-                page.click('button#save')
-            ]);
+            // Click login - KHÔNG chờ navigation
+            await page.click('button#save');
+
+            // Chờ URL thay đổi (thay vì waitForNavigation)
+            await page.waitForFunction(
+                () => {
+                    return window.location.href.includes('ec5/view/erp') ||
+                           window.location.href.includes('w_flag') ||
+                           !window.location.href.includes('login.ecount.com');
+                },
+                null,
+                { timeout: this.playwrightConfig.timeout }
+            );
+
+            logger.info('URL đã thay đổi sau login');
 
             // Chờ page load xong
             await page.waitForLoadState('domcontentloaded');
 
+            // Chờ thêm 1 chút cho chắc
+            await page.waitForTimeout(2000);
+
             // Đóng popup nếu có
-            try {
-                const hasPopup = await page.waitForSelector('#toolbar_sid_toolbar_item_non_regist', { 
-                    state: 'visible',
-                    timeout: 3000 
-                }).catch(() => null);
-                
-                if (hasPopup) {
-                    await page.click('#toolbar_sid_toolbar_item_non_regist');
-                    await page.waitForTimeout(1000);
-                    logger.info('Đã đóng popup');
-                }
-            } catch (e) {
-                logger.debug('Không có popup hoặc đã đóng');
-            }
+            await this.closePopupIfExists(page);
 
             logger.info('Đã đăng nhập thành công');
         } else {
-            logger.info('Đã login trước đó (không có form login)');
+            logger.info('Không có form login, có thể đã đăng nhập trước đó');
+        }
+
+        // Log URL hiện tại
+        logger.info('Current URL after login:', page.url());
+    }
+
+    /**
+     * Đóng popup nếu tồn tại
+     */
+    async closePopupIfExists(page) {
+        try {
+            // Chờ popup xuất hiện (timeout ngắn)
+            const popupButton = await page.waitForSelector(
+                '#toolbar_sid_toolbar_item_non_regist', 
+                { 
+                    state: 'visible',
+                    timeout: 3000 
+                }
+            ).catch(() => null);
+            
+            if (popupButton) {
+                logger.info('Tìm thấy popup, đang đóng...');
+                await page.click('#toolbar_sid_toolbar_item_non_regist');
+                await page.waitForTimeout(1000);
+                logger.info('Đã đóng popup');
+            }
+        } catch (e) {
+            logger.debug('Không có popup hoặc đã đóng:', e.message);
         }
     }
 
