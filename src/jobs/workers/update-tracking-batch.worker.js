@@ -214,6 +214,7 @@ class UpdateTrackingBatchWorker extends BaseWorker {
                 } catch (error) {
                     logger.error(`  ❌ ${workerId}: [${i + 1}/${jobs.length}] Failed: ${error.message}`);
                     await JobModel.markFailed(job.id, error.message, true);
+                    if (page) await this.saveDebugInfo(page, job.payload.erpOrderCode);
                     stats.failed++;
                 }
 
@@ -227,7 +228,6 @@ class UpdateTrackingBatchWorker extends BaseWorker {
 
         } catch (error) {
             logger.error(`❌ ${workerId}: Browser error: ${error.message}`);
-            if (page) await this.saveDebugInfo(page, workerId);
             
             // Mark tất cả jobs còn lại là failed
             const remaining = jobs.length - (stats.success + stats.failed);
