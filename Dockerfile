@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1.4
 FROM node:18-bullseye-slim AS app
 
-# Thiết lập locale & timezone
 ENV TZ=Asia/Ho_Chi_Minh
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
@@ -30,26 +29,29 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 
 WORKDIR /app
 
-# Copy package.json riêng để cache npm install
+# Copy package files
 COPY package*.json ./
 
-# Cài dependencies và Playwright browsers
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --only=production && \
+# Cài dependencies và Playwright browsers (không dùng cache mount)
+RUN npm ci --only=production && \
     npx playwright install chromium && \
     npx playwright install-deps chromium && \
     npm cache clean --force
 
-# Copy code còn lại
+# Copy source
 COPY . .
 
-# Tạo thư mục logs/screenshots
 RUN mkdir -p logs/screenshots
 
-# Thêm user không root
+# Create user VÀ COPY Playwright browsers
 RUN groupadd -r appuser && useradd -r -g appuser -G audio,video appuser \
-    && mkdir -p /home/appuser/Downloads \
+    && mkdir -p /home/appuser/Downloads /home/appuser/.cache \
+    && cp -r /root/.cache/ms-playwright /home/appuser/.cache/ \
     && chown -R appuser:appuser /home/appuser /app
+
+# Set Playwright path cho appuser
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/appuser/.cache/ms-playwright
+
 USER appuser
 
 EXPOSE 3000
