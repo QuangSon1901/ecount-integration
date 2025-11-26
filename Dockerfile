@@ -1,7 +1,5 @@
-# syntax=docker/dockerfile:1.4
 FROM node:18-bullseye-slim AS app
 
-# Thiết lập locale & timezone
 ENV TZ=Asia/Ho_Chi_Minh
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
@@ -18,33 +16,26 @@ RUN echo "deb http://archive.debian.org/debian bullseye main contrib non-free" >
     rm -rf /var/lib/apt/lists/*
 
 
-# Cài Chrome sớm để được cache (nếu không đổi Chrome thì không cần build lại)
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - && \
     echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" \
       > /etc/apt/sources.list.d/google.list && \
     apt-get update && apt-get install -y google-chrome-stable --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
-# Cấu hình Puppeteer
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 
 WORKDIR /app
 
-# Copy package.json riêng để cache npm install
 COPY package*.json ./
 
-# ⚡ Dùng BuildKit cache để tăng tốc npm ci
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --only=production && npm cache clean --force
 
-# Copy code còn lại
 COPY . .
 
-# Tạo thư mục logs/screenshots
 RUN mkdir -p logs/screenshots
 
-# Thêm user không root
 RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
     && mkdir -p /home/pptruser/Downloads \
     && chown -R pptruser:pptruser /home/pptruser /app
