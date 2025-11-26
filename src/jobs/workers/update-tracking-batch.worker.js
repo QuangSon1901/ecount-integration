@@ -421,7 +421,7 @@ class UpdateTrackingBatchWorker extends BaseWorker {
         await page.goto(
             `${this.ecountConfig.baseUrl}/?xurl_rd=Y&login_lantype=&lan_type=vi-VN`,
             { 
-                waitUntil: 'domcontentloaded', // ← QUAN TRỌNG: đổi từ networkidle
+                waitUntil: 'networkidle', // ← QUAN TRỌNG: đổi từ networkidle
                 timeout: this.playwrightConfig.timeout 
             }
         );
@@ -435,14 +435,11 @@ class UpdateTrackingBatchWorker extends BaseWorker {
             // Click login và chờ navigate
             await Promise.all([
                 page.waitForNavigation({ 
-                    waitUntil: 'domcontentloaded', // ← QUAN TRỌNG
+                    waitUntil: 'networkidle', // ← QUAN TRỌNG
                     timeout: this.playwrightConfig.timeout 
                 }),
                 page.click('button#save')
             ]);
-
-            // Chờ page load xong
-            await page.waitForLoadState('domcontentloaded');
 
             // Đóng popup nếu có
             try {
