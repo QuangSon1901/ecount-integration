@@ -421,7 +421,7 @@ class UpdateTrackingBatchWorker extends BaseWorker {
         await page.goto(
             `${this.ecountConfig.baseUrl}/?xurl_rd=Y&login_lantype=&lan_type=vi-VN`,
             { 
-                waitUntil: 'networkidle', // ← QUAN TRỌNG: đổi từ networkidle
+                waitUntil: 'networkidle',
                 timeout: this.playwrightConfig.timeout 
             }
         );

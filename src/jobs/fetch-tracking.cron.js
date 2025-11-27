@@ -221,14 +221,25 @@ class FetchTrackingCron {
                 SELECT o.*
                 FROM orders o
                 INNER JOIN (
-                    SELECT erp_order_code, MAX(created_at) AS latest
-                    FROM orders
-                    WHERE (tracking_number IS NULL OR tracking_number = '' OR erp_tracking_number_updated = FALSE OR label_url = '' OR label_url IS NULL)
-                    AND status IN ('pending', 'created')
-                    AND (waybill_number IS NOT NULL OR customer_order_number IS NOT NULL)
-                    AND erp_order_code IS NOT NULL
-                    AND ecount_link IS NOT NULL
-                    GROUP BY erp_order_code
+                    SELECT t.erp_order_code, t.created_at AS latest
+                    FROM orders t
+                    JOIN (
+                        SELECT erp_order_code, MAX(created_at) AS max_created
+                        FROM orders
+                        WHERE erp_order_code IS NOT NULL
+                        GROUP BY erp_order_code
+                    ) latest
+                    ON t.erp_order_code = latest.erp_order_code
+                    AND t.created_at = latest.max_created
+                    WHERE
+                        (t.tracking_number IS NULL OR t.tracking_number = '' 
+                        OR t.erp_tracking_number_updated = FALSE 
+                        OR t.label_url IS NULL OR t.label_url = '')
+
+                        AND t.status IN ('pending', 'created')
+                        AND t.order_status NOT IN ('V', 'C', 'F')
+                        AND (t.waybill_number IS NOT NULL OR t.customer_order_number IS NOT NULL)
+                        AND t.ecount_link IS NOT NULL
                 ) latest_orders
                 ON o.erp_order_code = latest_orders.erp_order_code
                 AND o.created_at = latest_orders.latest
