@@ -24,7 +24,7 @@ class UpdateTrackingBatchWorker extends BaseWorker {
             fs.mkdirSync(this.screenshotDir, { recursive: true });
         }
 
-        this.maxBatchSize = 20; // Mỗi worker lấy 10 jobs
+        this.maxBatchSize = 10; // Mỗi worker lấy 10 jobs
         this.maxConcurrentBrowsers = 1; // Mỗi worker = 1 browser
         this.maxConcurrentWorkers = 2;
     }
