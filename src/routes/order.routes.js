@@ -4,6 +4,9 @@ const orderController = require('../controllers/order.controller');
 const { validateOrder, validateErpUpdate, validateOrderMulti } = require('../middlewares/validation.middleware');
 const jobService = require('../services/queue/job.service');
 
+const basicAuthMiddleware = require('../middlewares/basic-auth.middleware');
+
+
 /**
  * @route   GET /api/orders/health
  * @desc    Health check
@@ -24,8 +27,8 @@ const jobService = require('../services/queue/job.service');
  * @access  Public
  * @query   carrier - Optional carrier code (YUNEXPRESS, DHL, etc.)
  */
-router.get('/tracking/:trackingNumber', orderController.trackByTrackingNumber.bind(orderController));
-router.get('/inquiry/:orderNumber', orderController.inquiryByOrderNumber.bind(orderController));
+router.get('/tracking/:trackingNumber', basicAuthMiddleware, orderController.trackByTrackingNumber.bind(orderController));
+router.get('/inquiry/:orderNumber', basicAuthMiddleware, orderController.inquiryByOrderNumber.bind(orderController));
 router.get('/label/:orderNumber', orderController.labelByOrderNumber.bind(orderController));
 
 /**
@@ -74,7 +77,7 @@ router.get('/pending', orderController.getPendingOrders.bind(orderController));
  * @access  Private
  */
 router.post('/labels/purchase', validateOrderMulti, orderController.createOrderMulti.bind(orderController));
-router.post('/', validateOrder, orderController.createOrder.bind(orderController));
+// router.post('/', validateOrder, orderController.createOrder.bind(orderController));
 
 /**
  * @route   POST /api/orders/create-only
