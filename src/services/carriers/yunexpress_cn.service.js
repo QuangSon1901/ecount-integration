@@ -452,6 +452,7 @@ class YunExpressCNService extends BaseCarrier {
                 return {
                     success: true,
                     data: {
+                        ...result,
                         waybillNumber: result.waybill_number,
                         customerOrderNumber: result.customer_order_number,
                         trackingNumber: result.tracking_number,
