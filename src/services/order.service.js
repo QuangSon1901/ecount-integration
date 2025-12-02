@@ -525,6 +525,28 @@ class OrderService {
         }
     }
 
+    async feeDetailsByOrderNumber(orderNumber, carrierCode = null) {
+        try {
+            let carrier = carrierFactory.getCarrier(carrierCode);
+            const orderResult = await carrier.getFeeDetails(orderNumber);
+
+            return {
+                success: true,
+                data: {
+                    orderNumber: orderNumber,
+                    carrier: carrierCode,
+                    data: orderResult,
+                    updatedAt: new Date().toISOString()
+                },
+                message: 'Order information retrieved successfully'
+            };
+
+        } catch (error) {
+            logger.error('Lỗi order by tracking number:', error.message);
+            throw error;
+        }
+    }
+
     async labelByOrderNumber(orderNumber, carrierCode = null) {
         try {
             let carrier = carrierFactory.getCarrier(carrierCode);

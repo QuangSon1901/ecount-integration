@@ -492,6 +492,67 @@ class YunExpressService extends BaseCarrier {
         }
     }
 
+    async getFeeDetails(orderNumber) {
+        try {
+            const method = 'GET';
+            const uri = '/v1/order/fee-details/get';
+            const url = `${this.baseUrl}${uri}?waybill_number=${orderNumber}`;
+            const timestamp = Date.now().toString();
+            const token = await this.getToken();
+
+            // Signature cho GET không có body
+            const signatureContent = this.generateSignatureContent(
+                timestamp,
+                method,
+                uri
+            );
+            
+            const signature = this.generateSha256Signature(
+                signatureContent,
+                this.appSecret
+            );
+
+            logger.info('Đang lấy thông tin đơn hàng:', orderNumber);
+
+            const response = await axios.get(url, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Accept-Language': 'en-US',
+                    'token': token,
+                    'date': timestamp,
+                    'sign': signature
+                },
+                timeout: 30000
+            });
+
+            if (response.data && response.data.success) {
+                const result = response.data.result;
+
+                return {
+                    success: true,
+                    data: result,
+                    timestamp: response.data.t
+                };
+            } else {
+                throw new Error('Invalid response from YunExpress order info API');
+            }
+
+        } catch (error) {
+            logger.error('Lỗi khi lấy thông tin đơn hàng:', error.message);
+            
+            if (error.response?.data) {
+                logger.error('API Error Details:', {
+                    code: error.response.data.code,
+                    message: error.response.data.msg
+                });
+                throw new Error(`YunExpress API Error: ${error.response.data.msg || error.response.data.code}`);
+            }
+            
+            throw new Error(`Failed to get YunExpress order info: ${error.message}`);
+        }
+    }
+
     /**
      * Parse order status từ YunExpress
      * @param {string} status - Status code từ YunExpress

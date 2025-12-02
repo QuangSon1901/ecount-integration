@@ -137,6 +137,22 @@ class OrderController {
         }
     }
 
+    async feeDetailsByOrderNumber(req, res, next) {
+        try {
+            const { orderNumber } = req.params;
+            const { carrier } = req.query;
+            
+            const result = await orderService.feeDetailsByOrderNumber(
+                orderNumber,
+                carrier
+            );
+            
+            return successResponse(res, result.data, result.message);
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async labelByOrderNumber(req, res, next) {
         try {
             const { orderNumber } = req.params;

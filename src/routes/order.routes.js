@@ -29,6 +29,7 @@ const basicAuthMiddleware = require('../middlewares/basic-auth.middleware');
  */
 router.get('/tracking/:trackingNumber', basicAuthMiddleware, orderController.trackByTrackingNumber.bind(orderController));
 router.get('/inquiry/:orderNumber', basicAuthMiddleware, orderController.inquiryByOrderNumber.bind(orderController));
+router.get('/fee-details/:orderNumber', basicAuthMiddleware, orderController.feeDetailsByOrderNumber.bind(orderController));
 router.get('/label/:orderNumber', orderController.labelByOrderNumber.bind(orderController));
 
 /**
