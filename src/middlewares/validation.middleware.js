@@ -32,10 +32,10 @@ const receiverSchema = Joi.object({
             'string.max': 'city must not exceed 50 characters'
         }),
     addressLines: Joi.array()
-        .items(Joi.string().min(1).max(200))
+        .items(Joi.string().max(200).allow(''))
         .min(1)
         .max(3)
-        .allow('')
+        .required()
         .messages({
             'array.min': 'addressLines must have at least 1 item',
             'array.max': 'addressLines must not exceed 3 items',
