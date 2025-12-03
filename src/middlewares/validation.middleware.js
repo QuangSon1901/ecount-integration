@@ -31,17 +31,7 @@ const receiverSchema = Joi.object({
             'string.empty': 'city is required',
             'string.max': 'city must not exceed 50 characters'
         }),
-    addressLines: Joi.array()
-        .items(Joi.string().max(200).allow(''))
-        .min(1)
-        .max(3)
-        .required()
-        .messages({
-            'array.min': 'addressLines must have at least 1 item',
-            'array.max': 'addressLines must not exceed 3 items',
-            'string.min': 'Each address line must be at least 1 character',
-            'string.max': 'Each address line must not exceed 200 characters'
-        }),
+    addressLines: Joi.array(),
     postalCode: Joi.string().min(1).max(20).required()
         .messages({
             'string.empty': 'postalCode is required',
