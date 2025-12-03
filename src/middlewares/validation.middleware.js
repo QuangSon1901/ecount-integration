@@ -35,7 +35,7 @@ const receiverSchema = Joi.object({
         .items(Joi.string().min(1).max(200))
         .min(1)
         .max(3)
-        .required()
+        .allow('')
         .messages({
             'array.min': 'addressLines must have at least 1 item',
             'array.max': 'addressLines must not exceed 3 items',
