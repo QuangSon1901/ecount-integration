@@ -612,7 +612,7 @@ class YunExpressCNService extends BaseCarrier {
                 country_code: orderData.receiver.countryCode, // US
                 province: orderData.receiver.province || '', // IL
                 city: orderData.receiver.city, // CHICAGO
-                address_lines: orderData.receiver.addressLines, // ["4734 S PRAIRIE AVE APT 3"]
+                address_lines: orderData.receiver.addressLines.filter(line => line.trim() !== ""), // ["4734 S PRAIRIE AVE APT 3"]
                 postal_code: orderData.receiver.postalCode || '', // 60615-1688
                 phone_number: orderData.receiver.phoneNumber, // +1 314-282-9402
                 email: orderData.receiver.email || '',
