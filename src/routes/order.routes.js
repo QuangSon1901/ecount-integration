@@ -56,6 +56,14 @@ router.get('/label/:orderNumber', orderController.labelByOrderNumber.bind(orderC
 router.post('/status/batch', orderController.getStatusBatch.bind(orderController));
 
 /**
+ * @route   POST /api/orders/import
+ * @desc    Import orders from ERP codes list
+ * @access  Private
+ * @body    { orders: [{ CodeTHG: string, CustomerOrderNumber: string }] }
+ */
+router.post('/import', importController.importOrders.bind(importController));
+
+/**
  * @route   GET /api/orders/pending/summary
  * @desc    Get summary of pending orders
  * @access  Public
