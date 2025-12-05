@@ -165,20 +165,7 @@ class UpdateStatusCron {
                             if (this.shouldWarnOverdue(order)) {
                                 const daysOverdue = this.calculateDaysOverdue(order);
                                 const threshold = this.getWarningThreshold(order.product_code);
-                                
-                                logger.warn(`Order ${order.id} overdue: ${daysOverdue} days (threshold: ${threshold})`);
 
-                                // Push job update status "Warning" lên ERP
-                                await jobService.addUpdateStatusJob(
-                                    order.id,
-                                    order.erp_order_code,
-                                    order.tracking_number,
-                                    'Warning',
-                                    order.ecount_link,
-                                    5
-                                );
-
-                                // Gửi telegram warning
                                 await telegram.notifyError(
                                     new Error(`Order overdue: ${daysOverdue} days without update`),
                                     {

@@ -58,15 +58,17 @@ class UpdateStatusEcountWorker extends BaseWorker {
                 type: 'error'
             });
 
-            // Push lại job với delay 30 phút (1800 giây)
-            await jobService.addUpdateStatusJob(
-                orderId,
-                erpOrderCode,
-                trackingNumber,
-                status,
-                ecountLink,
-                1800 // Delay 30 phút = 1800 giây
-            );
+            if (!['Returned', 'Deleted', 'Abnormal', 'Warning'].includes(status)) {
+                // Push lại job với delay 30 phút (1800 giây)
+                await jobService.addUpdateStatusJob(
+                    orderId,
+                    erpOrderCode,
+                    trackingNumber,
+                    status,
+                    ecountLink,
+                    1800 // Delay 30 phút = 1800 giây
+                );
+            }
 
             logger.warn(`Job ${job.id} failed after max attempts. Rescheduled in 30 minutes`, {
                 orderId,
