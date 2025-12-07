@@ -162,31 +162,31 @@ class UpdateStatusCron {
                         } else {
                             logger.info(`Status unchanged for order ${order.id}: ${order.status}`);
 
-                            if (this.shouldWarnOverdue(order)) {
-                                const daysOverdue = this.calculateDaysOverdue(order);
-                                const threshold = this.getWarningThreshold(order.product_code);
+                            // if (this.shouldWarnOverdue(order)) {
+                            //     const daysOverdue = this.calculateDaysOverdue(order);
+                            //     const threshold = this.getWarningThreshold(order.product_code);
 
-                                await telegram.notifyError(
-                                    new Error(`Order overdue: ${daysOverdue} days without update`),
-                                    {
-                                        action: 'Overdue Order Warning',
-                                        jobName: 'Update Status Job',
-                                        orderId: order.customer_order_number,
-                                        erpOrderCode: order.erp_order_code,
-                                        waybillNumber: order.waybill_number,
-                                        trackingNumber: order.tracking_number,
-                                        productCode: order.product_code,
-                                        status: order.status,
-                                        daysOverdue: daysOverdue,
-                                        warningThreshold: threshold,
-                                        lastTrackedAt: order.last_tracked_at || order.created_at,
-                                        message: `⚠️ Đơn hàng ${daysOverdue} ngày không cập nhật (ngưỡng: ${threshold} ngày)`
-                                    },
-                                    { type: 'error' }
-                                );
+                            //     await telegram.notifyError(
+                            //         new Error(`Order overdue: ${daysOverdue} days without update`),
+                            //         {
+                            //             action: 'Overdue Order Warning',
+                            //             jobName: 'Update Status Job',
+                            //             orderId: order.customer_order_number,
+                            //             erpOrderCode: order.erp_order_code,
+                            //             waybillNumber: order.waybill_number,
+                            //             trackingNumber: order.tracking_number,
+                            //             productCode: order.product_code,
+                            //             status: order.status,
+                            //             daysOverdue: daysOverdue,
+                            //             warningThreshold: threshold,
+                            //             lastTrackedAt: order.last_tracked_at || order.created_at,
+                            //             message: `⚠️ Đơn hàng ${daysOverdue} ngày không cập nhật (ngưỡng: ${threshold} ngày)`
+                            //         },
+                            //         { type: 'error' }
+                            //     );
 
-                                stats.warned++;
-                            }
+                            //     stats.warned++;
+                            // }
 
                             stats.success++; // Vẫn tính là success
                         }
