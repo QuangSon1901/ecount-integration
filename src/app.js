@@ -60,6 +60,11 @@ app.use('/uploads', express.static(path.join(__dirname, '../public/uploads'), {
 }));
 
 
+app.use('/js', express.static(path.join(__dirname, '../public/js'), {
+    maxAge: '1d',
+    etag: true
+}));
+
 // Request logging
 // app.use((req, res, next) => {
 //     logger.info(`${req.method} ${req.path}`, {
