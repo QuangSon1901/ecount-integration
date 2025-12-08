@@ -10,10 +10,9 @@ const telegram = require('../utils/telegram');
 class UpdateStatusCron {
     constructor() {
         this.isRunning = false;
-        this.schedule = '*/10 * * * *'; // Chạy mỗi 5 phút
-        this.batchSize = 100; // Xử lý 50 orders mỗi batch
-        this.maxBatches = 20; // Tối đa 10 batches (500 orders) mỗi lần chạy
-        this.processedOrderIds = new Set(); // Track orders đã xử lý trong lần chạy này
+        this.schedule = '*/10 * * * *'; // Chạy mỗi 10 phút
+        this.batchSize = 50; // Xử lý 100 orders mỗi batch
+        this.statusCheckInterval = 6 * 60 * 60; // 6 giờ (tính bằng giây)
 
         this.warningThresholds = {
             'VN-YTYCPREC': 10, // 5 + 5 ngày
@@ -33,7 +32,7 @@ class UpdateStatusCron {
      * Start cron job
      */
     start() {
-        logger.info(`Schedule: ${this.schedule}`);
+        logger.info(`Update status cron started - Schedule: ${this.schedule}`);
 
         cron.schedule(this.schedule, async () => {
             if (this.isRunning) {
@@ -64,29 +63,32 @@ class UpdateStatusCron {
 
         try {
             this.isRunning = true;
-            this.processedOrderIds.clear(); // Reset tracking
             cronLogId = await CronLogModel.start('update_status_job');
 
             logger.info('Bắt đầu update status job...');
 
-            // Xử lý multiple batches
-            for (let batch = 0; batch < this.maxBatches; batch++) {
+            // Dùng while loop thay vì for với maxBatches
+            let hasMoreOrders = true;
+            const processedOrderIds = new Set(); // Track orders đã xử lý
+
+            while (hasMoreOrders) {
                 const orders = await this.getOrdersNeedStatusUpdate(
                     this.batchSize,
-                    Array.from(this.processedOrderIds) // Exclude orders đã xử lý
+                    Array.from(processedOrderIds)
                 );
                 
                 if (orders.length === 0) {
-                    logger.info(`Không còn orders cần xử lý sau ${batch} batches`);
+                    hasMoreOrders = false;
+                    logger.info(`Không còn orders cần xử lý sau ${stats.batches} batches`);
                     break;
                 }
 
-                logger.info(`Batch ${batch + 1}/${this.maxBatches}: Xử lý ${orders.length} đơn hàng`);
                 stats.batches++;
+                logger.info(`Batch ${stats.batches}: Xử lý ${orders.length} đơn hàng`);
 
                 for (const order of orders) {
                     stats.processed++;
-                    this.processedOrderIds.add(order.id); // Track order đã xử lý
+                    processedOrderIds.add(order.id);
 
                     try {
                         // Track order để lấy status mới nhất
@@ -102,6 +104,9 @@ class UpdateStatusCron {
 
                         const hasChangeStatus = inquiryResult.data.status !== order.order_status;
                         const hasChangePkgStatus = trackingResult.status !== order.status;
+
+                        // Update last_status_check_at dù có thay đổi hay không
+                        await OrderModel.updateLastStatusCheck(order.id);
 
                         // So sánh status mới với status hiện tại
                         if (hasChangePkgStatus || hasChangeStatus) {
@@ -162,10 +167,11 @@ class UpdateStatusCron {
                         } else {
                             logger.info(`Status unchanged for order ${order.id}: ${order.status}`);
 
+                            // Optional: Uncomment để enable warning logic
                             // if (this.shouldWarnOverdue(order)) {
                             //     const daysOverdue = this.calculateDaysOverdue(order);
                             //     const threshold = this.getWarningThreshold(order.product_code);
-
+                            //
                             //     await telegram.notifyError(
                             //         new Error(`Order overdue: ${daysOverdue} days without update`),
                             //         {
@@ -184,7 +190,7 @@ class UpdateStatusCron {
                             //         },
                             //         { type: 'error' }
                             //     );
-
+                            //
                             //     stats.warned++;
                             // }
 
@@ -197,17 +203,24 @@ class UpdateStatusCron {
                     } catch (error) {
                         stats.failed++;
                         logger.error(`Lỗi xử lý order ${order.id}: ${error.message}`);
+                        
+                        // Vẫn update last_status_check_at để không bị stuck
+                        try {
+                            await OrderModel.updateLastStatusCheck(order.id);
+                        } catch (e) {
+                            logger.error(`Failed to update last_status_check_at for order ${order.id}`);
+                        }
                     }
                 }
 
                 // Nếu lấy được ít hơn batchSize, nghĩa là hết orders
                 if (orders.length < this.batchSize) {
+                    hasMoreOrders = false;
                     logger.info('Đã xử lý hết orders');
-                    break;
                 }
 
-                // Sleep giữa các batches để tránh overload
-                await this.sleep(1000);
+                // Sleep ngắn giữa các batch để tránh overload
+                await this.sleep(100);
             }
 
             // Update cron log thành công
@@ -224,11 +237,13 @@ class UpdateStatusCron {
             logger.info('Update status job hoàn thành', {
                 ...stats,
                 executionTime: `${executionTime}ms`,
-                averageTimePerOrder: stats.processed > 0 ? `${(executionTime / stats.processed).toFixed(0)}ms` : 'N/A'
+                averageTimePerOrder: stats.processed > 0 
+                    ? `${(executionTime / stats.processed).toFixed(0)}ms` 
+                    : 'N/A'
             });
 
         } catch (error) {
-            logger.error('Update status job thất bại: ', + error);
+            logger.error('Update status job thất bại: ', error);
 
             // Update cron log thất bại
             if (cronLogId) {
@@ -355,7 +370,10 @@ class UpdateStatusCron {
     }
 
     /**
-     * Lấy orders cần check status (với exclude)
+     * Lấy orders cần check status
+     * Điều kiện:
+     * - last_status_check_at IS NULL (chưa check lần nào)
+     * - HOẶC last_status_check_at < NOW() - INTERVAL 6 HOUR (đã qua 6 giờ)
      */
     async getOrdersNeedStatusUpdate(limit = 50, excludeIds = []) {
         const db = require('../database/connection');
@@ -374,12 +392,20 @@ class UpdateStatusCron {
                     AND order_status NOT IN ('V', 'C', 'F')
                     AND erp_order_code IS NOT NULL
                     AND ecount_link IS NOT NULL
+                    
+                    -- Chỉ check status nếu:
+                    -- 1. Chưa check lần nào HOẶC đã qua 6 giờ kể từ lần check cuối
+                    AND (
+                        last_status_check_at IS NULL 
+                        OR last_status_check_at < DATE_SUB(NOW(), INTERVAL 6 HOUR)
+                    )
+                    
                     GROUP BY erp_order_code
                 ) latest_orders
                 ON o.erp_order_code = latest_orders.erp_order_code
                 AND o.created_at = latest_orders.latest
                 
-                -- Không có job update_status_ecount đang pending/processing cho order này
+                -- Không có job update_status_ecount đang pending/processing
                 LEFT JOIN jobs j_update_status 
                     ON j_update_status.job_type = 'update_status_ecount'
                     AND JSON_EXTRACT(j_update_status.payload, '$.orderId') = o.id
@@ -390,13 +416,20 @@ class UpdateStatusCron {
             
             const params = [];
             
-            // Thêm điều kiện exclude orders đã xử lý trong batch này
+            // Thêm điều kiện exclude orders đã xử lý trong lần chạy này
             if (excludeIds.length > 0) {
                 query += ` AND o.id NOT IN (${excludeIds.map(() => '?').join(',')})`;
                 params.push(...excludeIds);
             }
             
-            query += ` ORDER BY o.created_at ASC LIMIT ?`;
+            // Ưu tiên orders chưa check lần nào, sau đó đến orders cũ nhất
+            query += ` 
+                ORDER BY 
+                    CASE WHEN o.last_status_check_at IS NULL THEN 0 ELSE 1 END,
+                    o.last_status_check_at ASC,
+                    o.created_at ASC
+                LIMIT ?
+            `;
             params.push(limit);
             
             const [rows] = await connection.query(query, params);

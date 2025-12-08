@@ -335,6 +335,24 @@ class OrderModel {
             connection.release();
         }
     }
+
+    /**
+     * Update last status check time
+     */
+    static async updateLastStatusCheck(id) {
+        const connection = await db.getConnection();
+        
+        try {
+            await connection.query(
+                'UPDATE orders SET last_status_check_at = NOW() WHERE id = ?',
+                [id]
+            );
+            
+            return true;
+        } finally {
+            connection.release();
+        }
+    }
 }
 
 module.exports = OrderModel;

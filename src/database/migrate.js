@@ -380,6 +380,17 @@ const migrations = [
                 AFTER last_tracked_at,
             ADD INDEX idx_last_tracking_check_at (last_tracking_check_at);
         `
+    },
+    {
+        version: 11,
+        name: 'add_last_status_check_at_to_orders',
+        up: `
+            ALTER TABLE orders 
+            ADD COLUMN last_status_check_at TIMESTAMP NULL 
+                COMMENT 'Lần check status cuối cùng' 
+                AFTER last_tracking_check_at,
+            ADD INDEX idx_last_status_check_at (last_status_check_at);
+        `
     }
 ];
 
