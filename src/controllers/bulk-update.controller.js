@@ -3,7 +3,6 @@ const jobService = require('../services/queue/job.service');
 const { successResponse, errorResponse } = require('../utils/response');
 const logger = require('../utils/logger');
 const xlsx = require('xlsx');
-const path = require('path');
 
 class BulkUpdateController {
     /**
@@ -59,6 +58,7 @@ class BulkUpdateController {
                     results.push({
                         original_code: originalCode,
                         tracking_number: null,
+                        waybill_number: null,
                         status: 'not_found',
                         note: 'Không thể trích xuất mã tracking'
                     });
@@ -71,6 +71,7 @@ class BulkUpdateController {
                     results.push({
                         original_code: originalCode,
                         tracking_number: trackingNumber,
+                        waybill_number: null,
                         status: 'duplicate',
                         note: 'Mã tracking trùng lặp trong file'
                     });
@@ -86,11 +87,13 @@ class BulkUpdateController {
                 if (order) {
                     results.push({
                         original_code: originalCode,
-                        tracking_number: trackingNumber,
+                        tracking_number: order.tracking_number,
+                        waybill_number: order.waybill_number,
                         order_id: order.id,
                         erp_order_code: order.erp_order_code,
                         carrier: order.carrier,
                         current_status: order.erp_status,
+                        ecount_link: order.ecount_link,
                         status: 'found',
                         note: 'Tìm thấy trong hệ thống'
                     });
@@ -99,6 +102,7 @@ class BulkUpdateController {
                     results.push({
                         original_code: originalCode,
                         tracking_number: trackingNumber,
+                        waybill_number: null,
                         status: 'not_found',
                         note: 'Không tìm thấy trong hệ thống'
                     });
@@ -135,26 +139,104 @@ class BulkUpdateController {
                 return errorResponse(res, 'status is required', 400);
             }
 
-            logger.info(`Creating bulk update jobs for ${erp_order_codes.length} orders`);
-
-            const jobIds = [];
-
-            for (const erpOrderCode of erp_order_codes) {
-                const jobId = await jobService.createUpdateErpJob({
-                    erpOrderCode,
-                    status,
-                    source: 'bulk_update'
-                });
-                
-                jobIds.push(jobId);
+            if (erp_order_codes.length === 0) {
+                return errorResponse(res, 'No orders to update', 400);
             }
 
-            logger.info(`Created ${jobIds.length} bulk update jobs`);
+            logger.info(`Creating bulk update jobs for ${erp_order_codes.length} orders with status: ${status}`);
 
-            return successResponse(res, {
-                jobs_created: jobIds.length,
-                job_ids: jobIds
-            }, `Created ${jobIds.length} jobs successfully`, 201);
+            const results = {
+                total: erp_order_codes.length,
+                success: 0,
+                failed: 0,
+                jobs: [],
+                errors: []
+            };
+
+            // Tìm tất cả orders trong database
+            const db = require('../database/connection');
+            const connection = await db.getConnection();
+
+            try {
+                const placeholders = erp_order_codes.map(() => '?').join(',');
+                const [orders] = await connection.query(
+                    `SELECT id, erp_order_code, tracking_number, waybill_number, ecount_link 
+                     FROM orders 
+                     WHERE erp_order_code IN (${placeholders})`,
+                    erp_order_codes
+                );
+
+                logger.info(`Found ${orders.length}/${erp_order_codes.length} orders in database`);
+
+                // Map orders by erp_order_code
+                const orderMap = new Map();
+                orders.forEach(order => {
+                    orderMap.set(order.erp_order_code, order);
+                });
+
+                // Tạo jobs với delay tăng dần
+                for (let i = 0; i < erp_order_codes.length; i++) {
+                    const erpOrderCode = erp_order_codes[i];
+                    const order = orderMap.get(erpOrderCode);
+
+                    if (!order) {
+                        results.failed++;
+                        results.errors.push({
+                            erp_order_code: erpOrderCode,
+                            error: 'Order not found in database'
+                        });
+                        continue;
+                    }
+
+                    try {
+                        // Tạo job với delay 5 giây * index để tránh overwhelm
+                        const delaySeconds = i * 5;
+                        
+                        const jobId = await jobService.addUpdateStatusJob(
+                            order.id,
+                            order.erp_order_code,
+                            order.tracking_number,
+                            status,
+                            order.ecount_link,
+                            delaySeconds
+                        );
+
+                        results.success++;
+                        results.jobs.push({
+                            job_id: jobId,
+                            order_id: order.id,
+                            erp_order_code: order.erp_order_code,
+                            tracking_number: order.tracking_number,
+                            waybill_number: order.waybill_number,
+                            delay_seconds: delaySeconds
+                        });
+
+                        logger.info(`Created job ${jobId} for order ${order.erp_order_code} with ${delaySeconds}s delay`);
+
+                    } catch (error) {
+                        results.failed++;
+                        results.errors.push({
+                            erp_order_code: erpOrderCode,
+                            error: error.message
+                        });
+                        logger.error(`Failed to create job for order ${erpOrderCode}:`, error);
+                    }
+                }
+
+            } finally {
+                connection.release();
+            }
+
+            const message = `Created ${results.success} jobs successfully` + 
+                          (results.failed > 0 ? `, ${results.failed} failed` : '');
+
+            logger.info('Bulk update jobs summary:', {
+                total: results.total,
+                success: results.success,
+                failed: results.failed
+            });
+
+            return successResponse(res, results, message, 201);
 
         } catch (error) {
             logger.error('Bulk update error:', error);
@@ -187,11 +269,13 @@ class BulkUpdateController {
         
         try {
             const [rows] = await connection.query(
-                `SELECT * FROM orders 
-                WHERE tracking_number LIKE ? 
-                   OR waybill_number LIKE ?
-                   OR customer_order_number LIKE ?
-                LIMIT 1`,
+                `SELECT id, erp_order_code, tracking_number, waybill_number, 
+                        carrier, erp_status, ecount_link
+                 FROM orders 
+                 WHERE tracking_number LIKE ? 
+                    OR waybill_number LIKE ?
+                    OR customer_order_number LIKE ?
+                 LIMIT 1`,
                 [`%${trackingNumber}%`, `%${trackingNumber}%`, `%${trackingNumber}%`]
             );
             

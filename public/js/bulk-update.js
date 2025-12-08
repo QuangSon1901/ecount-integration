@@ -108,6 +108,7 @@ function renderTable() {
             <td>${index + 1}</td>
             <td><code style="font-size: 12px">${escapeHtml(item.original_code)}</code></td>
             <td><strong>${item.tracking_number || '-'}</strong></td>
+            <td><code style="font-size: 12px">${item.waybill_number || '-'}</code></td>
             <td><strong>${item.erp_order_code || '-'}</strong></td>
             <td>${item.carrier || '-'}</td>
             <td>${getStatusBadge(item.status)}</td>
@@ -119,7 +120,7 @@ function renderTable() {
     if (filtered.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" style="text-align: center; padding: 40px; color: #9ca3af">
+                <td colspan="8" style="text-align: center; padding: 40px; color: #9ca3af">
                     Không có dữ liệu
                 </td>
             </tr>
@@ -144,7 +145,9 @@ async function updateAllOrders() {
         return;
     }
 
-    if (!confirm(`Bạn có chắc chắn muốn cập nhật ${foundOrders.length} đơn hàng?`)) {
+    const estimatedTime = Math.ceil(foundOrders.length * 5 / 60); // Tính thời gian ước tính (phút)
+    
+    if (!confirm(`Bạn có chắc chắn muốn cập nhật ${foundOrders.length} đơn hàng?\n\nThời gian ước tính: ~${estimatedTime} phút (${foundOrders.length * 5} giây)`)) {
         return;
     }
 
@@ -171,7 +174,19 @@ async function updateAllOrders() {
             throw new Error(result.message);
         }
 
-        showAlert('success', `Đã tạo ${result.data.jobs_created} jobs để cập nhật đơn hàng. Quá trình sẽ được xử lý tự động.`);
+        let message = `✅ Đã tạo ${result.data.success} jobs thành công`;
+        
+        if (result.data.failed > 0) {
+            message += `\n⚠️ ${result.data.failed} đơn thất bại`;
+        }
+        
+        message += `\n\n⏱️ Các jobs sẽ được xử lý tự động với delay 5 giây/đơn`;
+        message += `\n📊 Thời gian hoàn thành dự kiến: ~${estimatedTime} phút`;
+
+        showAlert('success', message);
+
+        // Log chi tiết
+        console.log('Bulk update result:', result.data);
 
     } catch (error) {
         showAlert('error', 'Lỗi: ' + error.message);
