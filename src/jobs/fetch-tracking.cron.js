@@ -9,17 +9,16 @@ const logger = require('../utils/logger');
 class FetchTrackingCron {
     constructor() {
         this.isRunning = false;
-        this.schedule = '*/1 * * * *'; // Chạy mỗi 5 phút
-        this.batchSize = 10; // Xử lý 50 orders mỗi batch
-        this.maxBatches = 200; // Tối đa 10 batches (500 orders) mỗi lần chạy
-        this.processedOrderIds = new Set(); // Track orders đã xử lý trong lần chạy này
+        this.schedule = '*/1 * * * *'; // Chạy mỗi 1 phút
+        this.batchSize = 10; // Xử lý 10 orders mỗi batch
+        this.trackingInterval = 6 * 60 * 60; // 6 giờ (tính bằng giây)
     }
 
     /**
      * Start cron job
      */
     start() {
-        logger.info(`Schedule: ${this.schedule}`);
+        logger.info(`Fetch tracking cron started - Schedule: ${this.schedule}`);
 
         cron.schedule(this.schedule, async () => {
             if (this.isRunning) {
@@ -49,29 +48,32 @@ class FetchTrackingCron {
 
         try {
             this.isRunning = true;
-            this.processedOrderIds.clear(); // Reset tracking
             cronLogId = await CronLogModel.start('fetch_tracking_job');
 
             logger.info('Bắt đầu fetch tracking job...');
 
-            // Xử lý multiple batches
-            for (let batch = 0; batch < this.maxBatches; batch++) {
+            // Dùng while loop thay vì for với maxBatches
+            let hasMoreOrders = true;
+            const processedOrderIds = new Set(); // Track orders đã xử lý
+
+            while (hasMoreOrders) {
                 const orders = await this.getOrdersNeedTracking(
                     this.batchSize,
-                    Array.from(this.processedOrderIds) // Exclude orders đã xử lý
+                    Array.from(processedOrderIds)
                 );
                 
                 if (orders.length === 0) {
-                    logger.info(`Không còn orders cần xử lý sau ${batch} batches`);
+                    hasMoreOrders = false;
+                    logger.info(`Không còn orders cần xử lý sau ${stats.batches} batches`);
                     break;
                 }
 
-                logger.info(`Batch ${batch + 1}/${this.maxBatches}: Xử lý ${orders.length} đơn hàng`);
                 stats.batches++;
+                logger.info(`Batch ${stats.batches}: Xử lý ${orders.length} đơn hàng`);
 
                 for (const order of orders) {
                     stats.processed++;
-                    this.processedOrderIds.add(order.id); // Track order đã xử lý
+                    processedOrderIds.add(order.id);
 
                     try {
                         // Gọi API để lấy thông tin đơn hàng
@@ -90,19 +92,26 @@ class FetchTrackingCron {
                         let trackingNumber = oldTrackingNumber;
                         if (trackingNumber === '') {
                             const orderInfo = await carrier.getOrderInfo(orderCode);
-                            trackingNumber = orderInfo.success && orderInfo.data.trackingNumber ? orderInfo.data.trackingNumber : trackingNumber;
+                            trackingNumber = orderInfo.success && orderInfo.data.trackingNumber 
+                                ? orderInfo.data.trackingNumber 
+                                : trackingNumber;
                         }
                         
                         let labelUrl = oldLabelUrl;
                         if (labelUrl === '') {
                             const labelResult = await carrier.getLabel(order.waybill_number);
-                            labelUrl = labelResult.success && labelResult.data.url ? labelResult.data.url : labelUrl;
+                            labelUrl = labelResult.success && labelResult.data.url 
+                                ? labelResult.data.url 
+                                : labelUrl;
                         }
                         
                         // Kiểm tra xem có thay đổi không
                         const trackingChanged = trackingNumber !== oldTrackingNumber;
                         const labelChanged = labelUrl !== oldLabelUrl;
                         const hasChanges = trackingChanged || labelChanged;
+
+                        // Update last_tracking_check_at dù có thay đổi hay không
+                        await OrderModel.updateLastTrackingCheck(order.id);
 
                         // Chỉ update khi có thay đổi
                         if (hasChanges) {
@@ -154,14 +163,24 @@ class FetchTrackingCron {
                     } catch (error) {
                         stats.failed++;
                         logger.error(`Lỗi xử lý order ${order.id}: ${error.message}`);
+                        
+                        // Vẫn update last_tracking_check_at để không bị stuck
+                        try {
+                            await OrderModel.updateLastTrackingCheck(order.id);
+                        } catch (e) {
+                            logger.error(`Failed to update last_tracking_check_at for order ${order.id}`);
+                        }
                     }
                 }
 
                 // Nếu lấy được ít hơn batchSize, nghĩa là hết orders
                 if (orders.length < this.batchSize) {
+                    hasMoreOrders = false;
                     logger.info('Đã xử lý hết orders');
-                    break;
                 }
+
+                // Sleep ngắn giữa các batch để tránh quá tải
+                await this.sleep(100);
             }
 
             // Update cron log thành công
@@ -178,7 +197,9 @@ class FetchTrackingCron {
             logger.info('Fetch tracking job hoàn thành', {
                 ...stats,
                 executionTime: `${executionTime}ms`,
-                averageTimePerOrder: stats.processed > 0 ? `${(executionTime / stats.processed).toFixed(0)}ms` : 'N/A'
+                averageTimePerOrder: stats.processed > 0 
+                    ? `${(executionTime / stats.processed).toFixed(0)}ms` 
+                    : 'N/A'
             });
 
         } catch (error) {
@@ -203,7 +224,10 @@ class FetchTrackingCron {
     }
 
     /**
-     * Lấy orders cần fetch tracking (với exclude)
+     * Lấy orders cần fetch tracking
+     * Điều kiện:
+     * - last_tracking_check_at IS NULL (chưa check lần nào)
+     * - HOẶC last_tracking_check_at < NOW() - INTERVAL 6 HOUR (đã qua 6 giờ)
      */
     async getOrdersNeedTracking(limit = 50, excludeIds = []) {
         const db = require('../database/connection');
@@ -225,9 +249,18 @@ class FetchTrackingCron {
                     ON t.erp_order_code = latest.erp_order_code
                     AND t.created_at = latest.max_created
                     WHERE
+                        -- Chỉ check tracking nếu:
+                        -- 1. Chưa có tracking number HOẶC chưa update lên ERP
+                        -- 2. Chưa có label URL
                         (t.tracking_number IS NULL OR t.tracking_number = '' 
                         OR t.erp_tracking_number_updated = FALSE 
                         OR t.label_url IS NULL OR t.label_url = '')
+                        
+                        -- 3. Chưa check lần nào HOẶC đã qua 6 giờ kể từ lần check cuối
+                        AND (
+                            t.last_tracking_check_at IS NULL 
+                            OR t.last_tracking_check_at < DATE_SUB(NOW(), INTERVAL 6 HOUR)
+                        )
 
                         AND t.status IN ('pending', 'created')
                         AND t.order_status NOT IN ('V', 'C', 'F')
@@ -237,25 +270,31 @@ class FetchTrackingCron {
                 ON o.erp_order_code = latest_orders.erp_order_code
                 AND o.created_at = latest_orders.latest
                 
-                -- Không có job update_tracking_ecount đang pending/processing cho order này
+                -- Không có job update_tracking_ecount đang pending/processing
                 LEFT JOIN jobs j_update_tracking 
                     ON j_update_tracking.job_type = 'update_tracking_ecount'
                     AND JSON_EXTRACT(j_update_tracking.payload, '$.orderId') = o.id
                     AND j_update_tracking.status IN ('pending', 'processing')
                 
                 WHERE j_update_tracking.id IS NULL
-                ORDER BY o.id DESC
             `;
             
             const params = [];
             
-            // Thêm điều kiện exclude orders đã xử lý trong batch này
+            // Thêm điều kiện exclude orders đã xử lý trong lần chạy này
             if (excludeIds.length > 0) {
                 query += ` AND o.id NOT IN (${excludeIds.map(() => '?').join(',')})`;
                 params.push(...excludeIds);
             }
             
-            query += ` ORDER BY o.created_at ASC LIMIT ?`;
+            // Ưu tiên orders chưa check lần nào, sau đó đến orders cũ nhất
+            query += ` 
+                ORDER BY 
+                    CASE WHEN o.last_tracking_check_at IS NULL THEN 0 ELSE 1 END,
+                    o.last_tracking_check_at ASC,
+                    o.created_at ASC
+                LIMIT ?
+            `;
             params.push(limit);
             
             const [rows] = await connection.query(query, params);

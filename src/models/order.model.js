@@ -317,6 +317,24 @@ class OrderModel {
             connection.release();
         }
     }
+
+    /**
+     * Update last tracking check time
+     */
+    static async updateLastTrackingCheck(id) {
+        const connection = await db.getConnection();
+        
+        try {
+            await connection.query(
+                'UPDATE orders SET last_tracking_check_at = NOW() WHERE id = ?',
+                [id]
+            );
+            
+            return true;
+        } finally {
+            connection.release();
+        }
+    }
 }
 
 module.exports = OrderModel;
