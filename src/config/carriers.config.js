@@ -4,7 +4,7 @@ module.exports = {
         name: 'YunExpress',
         code: 'YUNEXPRESS',
         enabled: true,
-        productCodes: ['VN-YTYCPREC', 'VNTHZXR', 'VNBKZXR', 'VNMUZXR'] // Các mã sản phẩm có sẵn
+        productCodes: ['VN-YTYCPREC', 'VNTHZXR', 'VNBKZXR', 'VNMUZXR', 'S1002'] // Các mã sản phẩm có sẵn
     },
     YUNEXPRESS_CN: {
         name: 'YunExpress China',
