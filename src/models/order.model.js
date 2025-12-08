@@ -286,6 +286,45 @@ class OrderModel {
         }
     }
 
+    async findOrderByTracking(trackingNumber) {
+        const connection = await db.getConnection();
+        
+        try {
+            const [rows] = await connection.query(
+                `SELECT id, erp_order_code, tracking_number, waybill_number, 
+                        carrier, erp_status, ecount_link
+                 FROM orders 
+                 WHERE tracking_number LIKE ? 
+                    OR waybill_number LIKE ?
+                    OR customer_order_number LIKE ?
+                 LIMIT 1`,
+                [`%${trackingNumber}%`, `%${trackingNumber}%`, `%${trackingNumber}%`]
+            );
+            
+            return rows[0] || null;
+        } finally {
+            connection.release();
+        }
+    }
+
+    async findOrderByMultiERPOrderCode(erp_order_codes) {
+        const connection = await db.getConnection();
+        try {
+
+            const placeholders = erp_order_codes.map(() => '?').join(',');
+            const [orders] = await connection.query(
+                `SELECT id, erp_order_code, tracking_number, waybill_number, ecount_link 
+                    FROM orders 
+                    WHERE erp_order_code IN (${placeholders})`,
+                erp_order_codes
+            );
+            
+            return orders;
+        } finally {
+            connection.release();
+        }
+    }
+
     /**
      * Generate và update label access key (chỉ tạo 1 lần)
      */

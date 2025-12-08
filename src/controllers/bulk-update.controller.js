@@ -82,7 +82,7 @@ class BulkUpdateController {
                 processedTrackings.add(trackingNumber);
 
                 // Tìm trong database
-                const order = await this.findOrderByTracking(trackingNumber);
+                const order = await OrderModel.findOrderByTracking(trackingNumber);
                 
                 if (order) {
                     results.push({
@@ -154,77 +154,63 @@ class BulkUpdateController {
             };
 
             // Tìm tất cả orders trong database
-            const db = require('../database/connection');
-            const connection = await db.getConnection();
+            const orders = await OrderModel.findOrderByMultiERPOrderCode(erp_order_codes);
 
-            try {
-                const placeholders = erp_order_codes.map(() => '?').join(',');
-                const [orders] = await connection.query(
-                    `SELECT id, erp_order_code, tracking_number, waybill_number, ecount_link 
-                     FROM orders 
-                     WHERE erp_order_code IN (${placeholders})`,
-                    erp_order_codes
-                );
+            logger.info(`Found ${orders.length}/${erp_order_codes.length} orders in database`);
 
-                logger.info(`Found ${orders.length}/${erp_order_codes.length} orders in database`);
+            // Map orders by erp_order_code
+            const orderMap = new Map();
+            orders.forEach(order => {
+                orderMap.set(order.erp_order_code, order);
+            });
 
-                // Map orders by erp_order_code
-                const orderMap = new Map();
-                orders.forEach(order => {
-                    orderMap.set(order.erp_order_code, order);
-                });
+            // Tạo jobs với delay tăng dần
+            for (let i = 0; i < erp_order_codes.length; i++) {
+                const erpOrderCode = erp_order_codes[i];
+                const order = orderMap.get(erpOrderCode);
 
-                // Tạo jobs với delay tăng dần
-                for (let i = 0; i < erp_order_codes.length; i++) {
-                    const erpOrderCode = erp_order_codes[i];
-                    const order = orderMap.get(erpOrderCode);
-
-                    if (!order) {
-                        results.failed++;
-                        results.errors.push({
-                            erp_order_code: erpOrderCode,
-                            error: 'Order not found in database'
-                        });
-                        continue;
-                    }
-
-                    try {
-                        // Tạo job với delay 5 giây * index để tránh overwhelm
-                        const delaySeconds = i * 5;
-                        
-                        const jobId = await jobService.addUpdateStatusJob(
-                            order.id,
-                            order.erp_order_code,
-                            order.tracking_number,
-                            status,
-                            order.ecount_link,
-                            delaySeconds
-                        );
-
-                        results.success++;
-                        results.jobs.push({
-                            job_id: jobId,
-                            order_id: order.id,
-                            erp_order_code: order.erp_order_code,
-                            tracking_number: order.tracking_number,
-                            waybill_number: order.waybill_number,
-                            delay_seconds: delaySeconds
-                        });
-
-                        logger.info(`Created job ${jobId} for order ${order.erp_order_code} with ${delaySeconds}s delay`);
-
-                    } catch (error) {
-                        results.failed++;
-                        results.errors.push({
-                            erp_order_code: erpOrderCode,
-                            error: error.message
-                        });
-                        logger.error(`Failed to create job for order ${erpOrderCode}:`, error);
-                    }
+                if (!order) {
+                    results.failed++;
+                    results.errors.push({
+                        erp_order_code: erpOrderCode,
+                        error: 'Order not found in database'
+                    });
+                    continue;
                 }
 
-            } finally {
-                connection.release();
+                try {
+                    // Tạo job với delay 5 giây * index để tránh overwhelm
+                    const delaySeconds = i * 5;
+                    
+                    const jobId = await jobService.addUpdateStatusJob(
+                        order.id,
+                        order.erp_order_code,
+                        order.tracking_number,
+                        status,
+                        order.ecount_link,
+                        delaySeconds
+                    );
+
+                    results.success++;
+                    results.jobs.push({
+                        job_id: jobId,
+                        order_id: order.id,
+                        erp_order_code: order.erp_order_code,
+                        tracking_number: order.tracking_number,
+                        waybill_number: order.waybill_number,
+                        delay_seconds: delaySeconds
+                    });
+
+                    logger.info(`Created job ${jobId} for order ${order.erp_order_code} with ${delaySeconds}s delay`);
+
+                } catch (error) {
+                    results.failed++;
+                    results.errors.push({
+                        erp_order_code: erpOrderCode,
+                        error: error.message
+                    });
+                    logger.error(`Failed to create job for order ${erpOrderCode}:`, error);
+                }
             }
 
             const message = `Created ${results.success} jobs successfully` + 
@@ -258,31 +244,6 @@ class BulkUpdateController {
         
         // 3. Lấy chuỗi dài nhất
         return parts.sort((a, b) => b.length - a.length)[0] || '';
-    }
-
-    /**
-     * Tìm order theo tracking number (LIKE search)
-     */
-    async findOrderByTracking(trackingNumber) {
-        const db = require('../database/connection');
-        const connection = await db.getConnection();
-        
-        try {
-            const [rows] = await connection.query(
-                `SELECT id, erp_order_code, tracking_number, waybill_number, 
-                        carrier, erp_status, ecount_link
-                 FROM orders 
-                 WHERE tracking_number LIKE ? 
-                    OR waybill_number LIKE ?
-                    OR customer_order_number LIKE ?
-                 LIMIT 1`,
-                [`%${trackingNumber}%`, `%${trackingNumber}%`, `%${trackingNumber}%`]
-            );
-            
-            return rows[0] || null;
-        } finally {
-            connection.release();
-        }
     }
 }
 
