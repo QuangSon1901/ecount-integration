@@ -286,7 +286,7 @@ class OrderModel {
         }
     }
 
-    async findOrderByTracking(trackingNumber) {
+    static async findOrderByTracking(trackingNumber) {
         const connection = await db.getConnection();
         
         try {
@@ -307,7 +307,7 @@ class OrderModel {
         }
     }
 
-    async findOrderByMultiERPOrderCode(erp_order_codes) {
+    static async findOrderByMultiERPOrderCode(erp_order_codes) {
         const connection = await db.getConnection();
         try {
 
