@@ -386,7 +386,6 @@ class UpdateStatusCron {
                     AND j_update_status.status IN ('pending', 'processing')
                 
                 WHERE j_update_status.id IS NULL
-                ORDER BY o.id DESC
             `;
             
             const params = [];
