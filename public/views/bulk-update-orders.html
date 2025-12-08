@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cập nhật đơn hàng hàng loạt</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #2c3e50;
+            background: #f5f7fa;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #6b7280;
+            font-size: 15px;
+        }
+
+        .upload-section {
+            background: white;
+            border-radius: 8px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .upload-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 48px 24px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #2563eb;
+            background: #f9fafb;
+        }
+
+        .upload-area.dragover {
+            border-color: #2563eb;
+            background: #eff6ff;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: #9ca3af;
+        }
+
+        .upload-text {
+            font-size: 16px;
+            color: #4b5563;
+            margin-bottom: 8px;
+        }
+
+        .upload-hint {
+            font-size: 14px;
+            color: #9ca3af;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .results-section {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .results-section.show {
+            display: block;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+
+        .stat-card.total { border-left: 4px solid #3b82f6; }
+        .stat-card.found { border-left: 4px solid #10b981; }
+        .stat-card.not-found { border-left: 4px solid #ef4444; }
+        .stat-card.duplicates { border-left: 4px solid #f59e0b; }
+
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 24px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        thead {
+            background: #f9fafb;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #2563eb;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 16px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+
+        .actions-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 6px;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            border-color: #2563eb;
+        }
+
+        .tab.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        @media (max-width: 768px) {
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .actions-bar {
+                flex-direction: column;
+                gap: 16px;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 Cập nhật đơn hàng hàng loạt</h1>
+            <p>Upload file Excel để cập nhật trạng thái đơn hàng sang "THG Received"</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Kéo thả file Excel vào đây hoặc nhấn để chọn</div>
+                <div class="upload-hint">Hỗ trợ file .xlsx, .xls (Sheet đầu tiên)</div>
+            </div>
+            <input type="file" id="fileInput" accept=".xlsx,.xls" />
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Đang xử lý file...</p>
+        </div>
+
+        <div class="alert" id="alert"></div>
+
+        <div class="results-section" id="resultsSection">
+            <h2 style="margin-bottom: 20px;">Kết quả tra cứu</h2>
+
+            <div class="stats">
+                <div class="stat-card total">
+                    <div class="stat-label">Tổng số dòng</div>
+                    <div class="stat-value" id="totalCount">0</div>
+                </div>
+                <div class="stat-card found">
+                    <div class="stat-label">Tìm thấy</div>
+                    <div class="stat-value" id="foundCount">0</div>
+                </div>
+                <div class="stat-card not-found">
+                    <div class="stat-label">Không tìm thấy</div>
+                    <div class="stat-value" id="notFoundCount">0</div>
+                </div>
+                <div class="stat-card duplicates">
+                    <div class="stat-label">Trùng lặp</div>
+                    <div class="stat-value" id="duplicatesCount">0</div>
+                </div>
+            </div>
+
+            <div class="actions-bar">
+                <div class="filter-tabs">
+                    <button class="tab active" data-filter="all">Tất cả</button>
+                    <button class="tab" data-filter="found">Tìm thấy</button>
+                    <button class="tab" data-filter="not-found">Không tìm thấy</button>
+                    <button class="tab" data-filter="duplicates">Trùng lặp</button>
+                </div>
+                <button class="btn btn-success" id="btnUpdateAll" disabled>
+                    <span>✓</span>
+                    Cập nhật tất cả đơn tìm thấy
+                </button>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 50px">#</th>
+                            <th>Mã đơn gốc</th>
+                            <th>Tracking Number</th>
+                            <th>ERP Order Code</th>
+                            <th>Carrier</th>
+                            <th>Trạng thái</th>
+                            <th>Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let processedData = [];
+        let currentFilter = 'all';
+
+        // Upload area handling
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFileUpload(file);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFileUpload(file);
+        });
+
+        // Filter tabs
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                currentFilter = tab.dataset.filter;
+                renderTable();
+            });
+        });
+
+        // Update all button
+        document.getElementById('btnUpdateAll').addEventListener('click', updateAllOrders);
+
+        async function handleFileUpload(file) {
+            if (!file.name.match(/\.(xlsx|xls)$/)) {
+                showAlert('error', 'Vui lòng chọn file Excel (.xlsx hoặc .xls)');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            showLoading(true);
+            hideAlert();
+
+            try {
+                const response = await fetch('/api/orders/bulk-check', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.message);
+                }
+
+                processedData = result.data.results;
+                updateStats(result.data.summary);
+                renderTable();
+                document.getElementById('resultsSection').classList.add('show');
+                
+                // Enable update button if có đơn tìm thấy
+                document.getElementById('btnUpdateAll').disabled = result.data.summary.found === 0;
+
+                showAlert('success', `Đã xử lý ${result.data.summary.total} dòng dữ liệu`);
+
+            } catch (error) {
+                showAlert('error', 'Lỗi: ' + error.message);
+            } finally {
+                showLoading(false);
+                fileInput.value = '';
+            }
+        }
+
+        function updateStats(summary) {
+            document.getElementById('totalCount').textContent = summary.total;
+            document.getElementById('foundCount').textContent = summary.found;
+            document.getElementById('notFoundCount').textContent = summary.not_found;
+            document.getElementById('duplicatesCount').textContent = summary.duplicates;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            const filtered = processedData.filter(item => {
+                if (currentFilter === 'all') return true;
+                if (currentFilter === 'found') return item.status === 'found';
+                if (currentFilter === 'not-found') return item.status === 'not_found';
+                if (currentFilter === 'duplicates') return item.status === 'duplicate';
+                return true;
+            });
+
+            filtered.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td><code style="font-size: 12px">${escapeHtml(item.original_code)}</code></td>
+                    <td><strong>${item.tracking_number || '-'}</strong></td>
+                    <td><strong>${item.erp_order_code || '-'}</strong></td>
+                    <td>${item.carrier || '-'}</td>
+                    <td>${getStatusBadge(item.status)}</td>
+                    <td style="font-size: 13px; color: #6b7280">${item.note || '-'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #9ca3af">
+                            Không có dữ liệu
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function getStatusBadge(status) {
+            const badges = {
+                'found': '<span class="badge badge-success">Tìm thấy</span>',
+                'not_found': '<span class="badge badge-error">Không tìm thấy</span>',
+                'duplicate': '<span class="badge badge-warning">Trùng lặp</span>'
+            };
+            return badges[status] || '<span class="badge">Unknown</span>';
+        }
+
+        async function updateAllOrders() {
+            const foundOrders = processedData.filter(item => item.status === 'found');
+            
+            if (foundOrders.length === 0) {
+                showAlert('warning', 'Không có đơn hàng nào để cập nhật');
+                return;
+            }
+
+            if (!confirm(`Bạn có chắc chắn muốn cập nhật ${foundOrders.length} đơn hàng?`)) {
+                return;
+            }
+
+            const erpOrderCodes = foundOrders.map(item => item.erp_order_code);
+
+            showLoading(true);
+            document.getElementById('btnUpdateAll').disabled = true;
+
+            try {
+                const response = await fetch('/api/orders/bulk-update-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        erp_order_codes: erpOrderCodes,
+                        status: 'THG Received'
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.message);
+                }
+
+                showAlert('success', `Đã tạo ${result.data.jobs_created} jobs để cập nhật đơn hàng. Quá trình sẽ được xử lý tự động.`);
+
+            } catch (error) {
+                showAlert('error', 'Lỗi: ' + error.message);
+                document.getElementById('btnUpdateAll').disabled = false;
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('show', show);
+        }
+
+        function showAlert(type, message) {
+            const alert = document.getElementById('alert');
+            alert.className = `alert alert-${type} show`;
+            alert.textContent = message;
+        }
+
+        function hideAlert() {
+            document.getElementById('alert').classList.remove('show');
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>

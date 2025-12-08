@@ -38,6 +38,17 @@ router.get('/tool-label', (req, res) => {
     res.sendFile(viewPath);
 });
 
+router.get('/bulk-update', basicAuthMiddleware, (req, res) => {
+    const viewPath = path.join(__dirname, '../../public/views/bulk-update-orders.html');
+    
+    if (!fs.existsSync(viewPath)) {
+        logger.error('Bulk update view not found');
+        return errorResponse(res, 'Page not found', 404);
+    }
+    
+    res.sendFile(viewPath);
+});
+
 /**
  * @route   GET /extensions/download/tool1
  * @desc    Tải xuống Extension 1

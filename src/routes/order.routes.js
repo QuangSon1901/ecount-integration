@@ -1,12 +1,33 @@
 const express = require('express');
+const multer = require('multer');
+
 const router = express.Router();
+
+const bulkUpdateController = require('../controllers/bulk-update.controller');
 const orderController = require('../controllers/order.controller');
 const importController = require('../controllers/import.controller');
-const { validateOrder, validateErpUpdate, validateOrderMulti } = require('../middlewares/validation.middleware');
-const jobService = require('../services/queue/job.service');
 
+const { validateOrder, validateErpUpdate, validateOrderMulti } = require('../middlewares/validation.middleware');
 const basicAuthMiddleware = require('../middlewares/basic-auth.middleware');
 
+const jobService = require('../services/queue/job.service');
+
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB
+    },
+    fileFilter: (req, file, cb) => {
+        if (file.originalname.match(/\.(xlsx|xls)$/)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only Excel files are allowed'));
+        }
+    }
+});
+
+router.post('/bulk-check', basicAuthMiddleware, upload.single('file'), bulkUpdateController.bulkCheck.bind(bulkUpdateController));
+router.post('/bulk-update-status', basicAuthMiddleware, bulkUpdateController.bulkUpdateStatus.bind(bulkUpdateController));
 
 /**
  * @route   GET /api/orders/health
