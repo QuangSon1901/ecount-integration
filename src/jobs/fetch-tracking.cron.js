@@ -10,8 +10,8 @@ class FetchTrackingCron {
     constructor() {
         this.isRunning = false;
         this.schedule = '*/1 * * * *'; // Chạy mỗi 5 phút
-        this.batchSize = 50; // Xử lý 50 orders mỗi batch
-        this.maxBatches = 20; // Tối đa 10 batches (500 orders) mỗi lần chạy
+        this.batchSize = 10; // Xử lý 50 orders mỗi batch
+        this.maxBatches = 200; // Tối đa 10 batches (500 orders) mỗi lần chạy
         this.processedOrderIds = new Set(); // Track orders đã xử lý trong lần chạy này
     }
 
@@ -151,10 +151,6 @@ class FetchTrackingCron {
                         } else {
                             logger.info(`No changes for order ${order.id}, skipping update`);
                         }
-
-                        // Sleep để tránh rate limit
-                        await this.sleep(1000);
-
                     } catch (error) {
                         stats.failed++;
                         logger.error(`Lỗi xử lý order ${order.id}: ${error.message}`);
@@ -166,9 +162,6 @@ class FetchTrackingCron {
                     logger.info('Đã xử lý hết orders');
                     break;
                 }
-
-                // Sleep giữa các batches để tránh overload
-                await this.sleep(2000);
             }
 
             // Update cron log thành công
@@ -251,6 +244,7 @@ class FetchTrackingCron {
                     AND j_update_tracking.status IN ('pending', 'processing')
                 
                 WHERE j_update_tracking.id IS NULL
+                ORDER BY o.id DESC
             `;
             
             const params = [];
