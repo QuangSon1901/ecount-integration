@@ -168,12 +168,20 @@ class BulkUpdateController {
             for (let i = 0; i < erp_order_codes.length; i++) {
                 const erpOrderCode = erp_order_codes[i];
                 const order = orderMap.get(erpOrderCode);
-
                 if (!order) {
                     results.failed++;
                     results.errors.push({
                         erp_order_code: erpOrderCode,
                         error: 'Order not found in database'
+                    });
+                    continue;
+                }
+
+                if (!['new', 'scheduled', 'pending', 'in_transit', 'created'].includes(order.status)) {
+                    results.failed++;
+                    results.errors.push({
+                        erp_order_code: erpOrderCode,
+                        error: 'Order status is no longer valid'
                     });
                     continue;
                 }

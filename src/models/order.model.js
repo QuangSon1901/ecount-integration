@@ -313,7 +313,7 @@ class OrderModel {
 
             const placeholders = erp_order_codes.map(() => '?').join(',');
             const [orders] = await connection.query(
-                `SELECT id, erp_order_code, tracking_number, waybill_number, ecount_link 
+                `SELECT id, erp_order_code, tracking_number, waybill_number, ecount_link, status, order_status
                     FROM orders 
                     WHERE erp_order_code IN (${placeholders})`,
                 erp_order_codes
