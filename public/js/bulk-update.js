@@ -147,7 +147,7 @@ async function updateAllOrders() {
 
     const estimatedTime = Math.ceil(foundOrders.length * 5 / 60);
     
-    if (!confirm(`Bạn có chắc chắn muốn cập nhật ${foundOrders.length} đơn hàng?\n\nThời gian ước tính: ~${estimatedTime} phút (${foundOrders.length * 5} giây)`)) {
+    if (!confirm(`Bạn có chắc chắn muốn cập nhật ${foundOrders.length} đơn hàng?\n`)) {
         return;
     }
 
@@ -201,9 +201,6 @@ async function updateAllOrders() {
             }
         }
         
-        alertMessage += `\n📊 Thời gian hoàn thành dự kiến: ~${estimatedTime} phút`;
-
-        // Hiển thị alert popup
         alert(alertMessage);
 
         // Vẫn giữ showAlert cho UI
