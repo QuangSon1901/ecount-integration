@@ -594,13 +594,13 @@ class UpdateTrackingBatchWorker extends BaseWorker {
                     const headers = Array.from(document.querySelectorAll('#app-root .wrapper-frame-body .contents thead th'));
                     
                     const trackingLastMileIndex = headers.findIndex(th => 
-                        th.textContent.trim().includes('Tracking last mile')
+                        th.textContent.trim().normalize('NFC').includes('Tracking last mile')
                     );
                     const masterTrackingIndex = headers.findIndex(th => 
-                        th.textContent.trim().includes('Master tracking')
+                        th.textContent.trim().normalize('NFC').includes('Master tracking')
                     );
                     const shippingLabelIndex = headers.findIndex(th => 
-                        th.textContent.trim().includes('Shipping label')
+                        th.textContent.trim().normalize('NFC').includes('Shipping label')
                     );
 
                     // Lấy row đầu tiên
@@ -616,7 +616,7 @@ class UpdateTrackingBatchWorker extends BaseWorker {
                         if (!trackingCell) {
                             return { success: false, reason: 'Không tìm thấy cell Tracking last mile' };
                         }
-                        const cellValue = trackingCell.textContent.trim();
+                        const cellValue = trackingCell.textContent.normalize('NFC').trim();
                         if (cellValue !== trackingNumber) {
                             return { 
                                 success: false, 
@@ -628,7 +628,7 @@ class UpdateTrackingBatchWorker extends BaseWorker {
                     if (waybillNumber && waybillNumber !== '' && masterTrackingIndex !== -1) {
                         const masterCell = cells[masterTrackingIndex];
                         if (masterCell) {
-                            const cellValue = masterCell.textContent.trim();
+                            const cellValue = masterCell.textContent.normalize('NFC').trim();
                             if (cellValue !== waybillNumber) {
                                 return { 
                                     success: false, 
@@ -641,7 +641,7 @@ class UpdateTrackingBatchWorker extends BaseWorker {
                     if (labelUrl && labelUrl !== '' && shippingLabelIndex !== -1) {
                         const labelCell = cells[shippingLabelIndex];
                         if (labelCell) {
-                            const cellValue = labelCell.textContent.trim();
+                            const cellValue = labelCell.textContent.normalize('NFC').trim();
                             if (cellValue !== labelUrl) {
                                 return { 
                                     success: false, 

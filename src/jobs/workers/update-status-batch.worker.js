@@ -558,10 +558,76 @@ class UpdateStatusBatchWorker extends BaseWorker {
             throw new Error(`Không tìm thấy trạng thái: "${status}"`);
         }
 
-        // Chờ update xong
-        await page.waitForTimeout(2000);
+        await this.verifyStatusUpdate(dataFrame, status);
+    }
 
-        logger.info('Đã cập nhật trạng thái thành công');
+    /**
+     * Verify status update thành công
+     */
+    async verifyStatusUpdate(dataFrame, expectedStatus) {
+        logger.info('Verifying status update...');
+
+        const maxRetries = 10;
+        const retryDelay = 1000;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const result = await dataFrame.evaluate((targetStatus) => {
+                    const firstRow = document.querySelector('#app-root .wrapper-frame-body .contents tbody tr');
+                    if (!firstRow) {
+                        return { success: false, reason: 'Không tìm thấy row đầu tiên' };
+                    }
+
+                    let statusCell = firstRow.querySelector('.control-set:has(a) a');
+
+                    if (!statusCell) {
+                        return { success: false, reason: 'Không tìm thấy status cell' };
+                    }
+
+                    const currentStatus = statusCell.textContent.normalize('NFC').trim();
+                    
+                    if (currentStatus !== targetStatus) {
+                        return { 
+                            success: false, 
+                            reason: `Status không khớp. Expected: "${targetStatus}", Got: "${currentStatus}"`,
+                            currentValue: currentStatus
+                        };
+                    }
+
+                    return { 
+                        success: true, 
+                        reason: 'Status đã được cập nhật đúng',
+                        currentValue: currentStatus
+                    };
+
+                }, expectedStatus);
+
+                if (result.success) {
+                    logger.info(`✓ Verify status thành công sau ${attempt} lần thử: "${result.currentValue}"`);
+                    return;
+                }
+
+                logger.debug(`Attempt ${attempt}/${maxRetries}: ${result.reason}`, 
+                    result.currentValue ? { currentValue: result.currentValue } : {}
+                );
+
+                if (attempt < maxRetries) {
+                    await dataFrame.waitForTimeout(retryDelay);
+                }
+
+            } catch (error) {
+                logger.debug(`Attempt ${attempt}/${maxRetries} failed:`, error.message);
+                
+                if (attempt < maxRetries) {
+                    await dataFrame.waitForTimeout(retryDelay);
+                }
+            }
+        }
+
+        throw new Error(
+            `Verify status update thất bại sau ${maxRetries} lần thử. ` +
+            `Status chưa được cập nhật đúng thành "${expectedStatus}". `
+        );
     }
 
     /**
