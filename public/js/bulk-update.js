@@ -145,7 +145,7 @@ async function updateAllOrders() {
         return;
     }
 
-    const estimatedTime = Math.ceil(foundOrders.length * 5 / 60); // Tính thời gian ước tính (phút)
+    const estimatedTime = Math.ceil(foundOrders.length * 5 / 60);
     
     if (!confirm(`Bạn có chắc chắn muốn cập nhật ${foundOrders.length} đơn hàng?\n\nThời gian ước tính: ~${estimatedTime} phút (${foundOrders.length * 5} giây)`)) {
         return;
@@ -174,19 +174,36 @@ async function updateAllOrders() {
             throw new Error(result.message);
         }
 
-        let message = `✅ Đã tạo ${result.data.success} jobs thành công`;
+        // Tạo thông báo chi tiết
+        let message = `✅ Thành công: ${result.data.success}/${result.data.total} đơn\n`;
         
         if (result.data.failed > 0) {
-            message += `\n⚠️ ${result.data.failed} đơn thất bại`;
+            message += `❌ Thất bại: ${result.data.failed} đơn\n\n`;
+            
+            // Hiển thị danh sách lỗi
+            if (result.data.errors && result.data.errors.length > 0) {
+                message += '📋 Chi tiết lỗi:\n';
+                result.data.errors.forEach((err, idx) => {
+                    message += `${idx + 1}. ${err.erp_order_code}: ${err.error}\n`;
+                });
+                message += '\n';
+            }
         }
         
-        message += `\n\n⏱️ Các jobs sẽ được xử lý tự động với delay 5 giây/đơn`;
-        message += `\n📊 Thời gian hoàn thành dự kiến: ~${estimatedTime} phút`;
+        // Hiển thị danh sách jobs thành công
+        if (result.data.jobs && result.data.jobs.length > 0) {
+            message += `\n⏱️ Jobs đã tạo (delay 5s/đơn):\n`;
+            result.data.jobs.slice(0, 5).forEach((job, idx) => {
+                message += `${idx + 1}. ${job.erp_order_code} - Delay: ${job.delay_seconds}s\n`;
+            });
+            if (result.data.jobs.length > 5) {
+                message += `... và ${result.data.jobs.length - 5} jobs khác\n`;
+            }
+        }
+        
+        message += `\n📊 Thời gian hoàn thành: ~${estimatedTime} phút`;
 
         showAlert('success', message);
-
-        // Log chi tiết
-        console.log('Bulk update result:', result.data);
 
     } catch (error) {
         showAlert('error', 'Lỗi: ' + error.message);
