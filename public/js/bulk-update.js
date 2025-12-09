@@ -174,35 +174,43 @@ async function updateAllOrders() {
             throw new Error(result.message);
         }
 
-        // Tạo thông báo chi tiết
-        let message = `✅ Thành công: ${result.data.success}/${result.data.total} đơn\n`;
+        // Tạo thông báo chi tiết cho alert()
+        let alertMessage = `✅ Thành công: ${result.data.success}/${result.data.total} đơn\n`;
         
         if (result.data.failed > 0) {
-            message += `❌ Thất bại: ${result.data.failed} đơn\n\n`;
+            alertMessage += `❌ Thất bại: ${result.data.failed} đơn\n\n`;
             
-            // Hiển thị danh sách lỗi
+            // Danh sách lỗi
             if (result.data.errors && result.data.errors.length > 0) {
-                message += '📋 Chi tiết lỗi:\n';
+                alertMessage += '📋 Chi tiết lỗi:\n';
                 result.data.errors.forEach((err, idx) => {
-                    message += `${idx + 1}. ${err.erp_order_code}: ${err.error}\n`;
+                    alertMessage += `  ${idx + 1}. ${err.erp_order_code}: ${err.error}\n`;
                 });
-                message += '\n';
+                alertMessage += '\n';
             }
         }
         
-        // Hiển thị danh sách jobs thành công
+        // Danh sách jobs thành công (hiển thị 10 đầu tiên)
         if (result.data.jobs && result.data.jobs.length > 0) {
-            message += `\n⏱️ Jobs đã tạo (delay 5s/đơn):\n`;
-            result.data.jobs.slice(0, 5).forEach((job, idx) => {
-                message += `${idx + 1}. ${job.erp_order_code} - Delay: ${job.delay_seconds}s\n`;
+            alertMessage += `⏱️ Jobs đã tạo:\n`;
+            result.data.jobs.slice(0, 10).forEach((job, idx) => {
+                alertMessage += `  ${idx + 1}. ${job.erp_order_code} (${job.tracking_number}) - Delay: ${job.delay_seconds}s\n`;
             });
-            if (result.data.jobs.length > 5) {
-                message += `... và ${result.data.jobs.length - 5} jobs khác\n`;
+            if (result.data.jobs.length > 10) {
+                alertMessage += `  ... và ${result.data.jobs.length - 10} jobs khác\n`;
             }
         }
         
-        message += `\n📊 Thời gian hoàn thành: ~${estimatedTime} phút`;
+        alertMessage += `\n📊 Thời gian hoàn thành dự kiến: ~${estimatedTime} phút`;
 
+        // Hiển thị alert popup
+        alert(alertMessage);
+
+        // Vẫn giữ showAlert cho UI
+        let message = `✅ Đã tạo ${result.data.success} jobs thành công`;
+        if (result.data.failed > 0) {
+            message += `\n⚠️ ${result.data.failed} đơn thất bại`;
+        }
         showAlert('success', message);
 
     } catch (error) {
