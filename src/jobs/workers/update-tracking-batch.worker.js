@@ -577,7 +577,113 @@ class UpdateTrackingBatchWorker extends BaseWorker {
         }, { trackingNumber, waybillNumber, labelUrl });
 
         await page.keyboard.press('F8');
-        await page.waitForTimeout(2000);
+        await this.verifyTrackingUpdate(dataFrame, trackingNumber, waybillNumber, labelUrl);
+    }
+
+    /**
+     * Verify tracking update thành công
+     */
+    async verifyTrackingUpdate(dataFrame, trackingNumber, waybillNumber = '', labelUrl = null) {
+        const maxRetries = 10;
+        const retryDelay = 1000;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const result = await dataFrame.evaluate(({ trackingNumber, waybillNumber, labelUrl }) => {
+                    // Tìm header để xác định vị trí cột
+                    const headers = Array.from(document.querySelectorAll('#app-root .wrapper-frame-body .contents thead th'));
+                    
+                    const trackingLastMileIndex = headers.findIndex(th => 
+                        th.textContent.trim().includes('Tracking last mile')
+                    );
+                    const masterTrackingIndex = headers.findIndex(th => 
+                        th.textContent.trim().includes('Master tracking')
+                    );
+                    const shippingLabelIndex = headers.findIndex(th => 
+                        th.textContent.trim().includes('Shipping label')
+                    );
+
+                    // Lấy row đầu tiên
+                    const firstRow = document.querySelector('#app-root .wrapper-frame-body .contents tbody tr');
+                    if (!firstRow) {
+                        return { success: false, reason: 'Không tìm thấy row đầu tiên' };
+                    }
+
+                    const cells = firstRow.querySelectorAll('td');
+
+                    if (trackingNumber && trackingNumber !== '' && trackingLastMileIndex !== -1) {
+                        const trackingCell = cells[trackingLastMileIndex];
+                        if (!trackingCell) {
+                            return { success: false, reason: 'Không tìm thấy cell Tracking last mile' };
+                        }
+                        const cellValue = trackingCell.textContent.trim();
+                        if (cellValue !== trackingNumber) {
+                            return { 
+                                success: false, 
+                                reason: `Tracking last mile không khớp. Expected: "${trackingNumber}", Got: "${cellValue}"` 
+                            };
+                        }
+                    }
+
+                    if (waybillNumber && waybillNumber !== '' && masterTrackingIndex !== -1) {
+                        const masterCell = cells[masterTrackingIndex];
+                        if (masterCell) {
+                            const cellValue = masterCell.textContent.trim();
+                            if (cellValue !== waybillNumber) {
+                                return { 
+                                    success: false, 
+                                    reason: `Master tracking không khớp. Expected: "${waybillNumber}", Got: "${cellValue}"` 
+                                };
+                            }
+                        }
+                    }
+
+                    if (labelUrl && labelUrl !== '' && shippingLabelIndex !== -1) {
+                        const labelCell = cells[shippingLabelIndex];
+                        if (labelCell) {
+                            const cellValue = labelCell.textContent.trim();
+                            if (cellValue !== labelUrl) {
+                                return { 
+                                    success: false, 
+                                    reason: `Shipping label không khớp. Expected: "${labelUrl}", Got: "${cellValue}"` 
+                                };
+                            }
+                        }
+                    }
+
+                    return { 
+                        success: true, 
+                        reason: 'Tất cả giá trị đã được cập nhật đúng',
+                        values: {
+                            trackingLastMile: trackingLastMileIndex !== -1 ? cells[trackingLastMileIndex]?.textContent.trim() : null,
+                            masterTracking: masterTrackingIndex !== -1 ? cells[masterTrackingIndex]?.textContent.trim() : null,
+                            shippingLabel: shippingLabelIndex !== -1 ? cells[shippingLabelIndex]?.textContent.trim() : null
+                        }
+                    };
+
+                }, { trackingNumber, waybillNumber, labelUrl });
+
+                if (result.success) {
+                    logger.info(`✓ Verify thành công sau ${attempt} lần thử:`, result.values);
+                    return;
+                }
+
+                logger.debug(`Attempt ${attempt}/${maxRetries}: ${result.reason}`);
+
+                if (attempt < maxRetries) {
+                    await dataFrame.waitForTimeout(retryDelay);
+                }
+
+            } catch (error) {
+                logger.debug(`Attempt ${attempt}/${maxRetries} failed:`, error.message);
+                
+                if (attempt < maxRetries) {
+                    await dataFrame.waitForTimeout(retryDelay);
+                }
+            }
+        }
+
+        throw new Error(`Verify tracking update thất bại sau ${maxRetries} lần thử. Tracking number chưa được cập nhật đúng vào table.`);
     }
 
     /**
