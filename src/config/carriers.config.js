@@ -11,15 +11,5 @@ module.exports = {
         code: 'YUNEXPRESS_CN',
         enabled: true,
         productCodes: ['YTYCPREG', 'YTYCPREC', 'FZZXR', 'BKPHR', 'THPHR', 'THZXR', 'BKZXR', 'MUZXR', 'ZBZXRPH'] // Các mã sản phẩm có sẵn
-    },
-    // DHL: {
-    //     name: 'DHL',
-    //     code: 'DHL',
-    //     enabled: false
-    // },
-    // FEDEX: {
-    //     name: 'FedEx',
-    //     code: 'FEDEX',
-    //     enabled: false
-    // }
+    }
 };

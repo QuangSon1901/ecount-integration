@@ -4,28 +4,34 @@ const OrderModel = require('../models/order.model');
 const CronLogModel = require('../models/cron-log.model');
 const jobService = require('../services/queue/job.service');
 const carrierFactory = require('../services/carriers');
+const carriersConfig = require('../config/carriers.config'); // Thêm import này
 const logger = require('../utils/logger');
 const telegram = require('../utils/telegram');
 
 class UpdateStatusCron {
     constructor() {
         this.isRunning = false;
-        this.schedule = '*/10 * * * *'; // Chạy mỗi 10 phút
-        this.batchSize = 50; // Xử lý 100 orders mỗi batch
-        this.statusCheckInterval = 6 * 60 * 60; // 6 giờ (tính bằng giây)
+        this.schedule = '*/10 * * * *';
+        this.batchSize = 50;
+        this.statusCheckInterval = 6 * 60 * 60;
 
-        this.warningThresholds = {
-            'VN-YTYCPREC': 10, // 5 + 5 ngày
-            'YTYCPREC': 10,
-            'VN-THZXR': 10,    // 5 + 5 ngày
-            'VNTHZXR': 10,
-            'THZXR': 10,
-            'VNBKZXR': 10,     // 5 + 5 ngày
-            'BKZXR': 10,
-            'VNMUZXR': 11,     // 5 + 6 ngày
-            'MUZXR': 11,
-            'default': 10      // Mặc định 10 ngày
-        };
+        // Tạo danh sách tất cả product codes từ carriers config
+        this.validProductCodes = this.getAllValidProductCodes();
+    }
+
+    /**
+     * Lấy tất cả product codes từ carriers config
+     */
+    getAllValidProductCodes() {
+        const productCodes = [];
+        
+        Object.values(carriersConfig).forEach(carrier => {
+            if (carrier.enabled && carrier.productCodes) {
+                productCodes.push(...carrier.productCodes);
+            }
+        });
+        
+        return productCodes;
     }
 
     /**
@@ -56,9 +62,11 @@ class UpdateStatusCron {
             processed: 0,
             success: 0,
             failed: 0,
-            updated: 0, // Số order có status thay đổi và push job
-            warned: 0, // Số đơn warning
-            batches: 0 // Số batches đã xử lý
+            updated: 0,
+            warned: 0,
+            batches: 0,
+            carrierOrders: 0, // Orders có product code trong config
+            otherOrders: 0    // Orders khác
         };
 
         try {
@@ -67,9 +75,8 @@ class UpdateStatusCron {
 
             logger.info('Bắt đầu update status job...');
 
-            // Dùng while loop thay vì for với maxBatches
             let hasMoreOrders = true;
-            const processedOrderIds = new Set(); // Track orders đã xử lý
+            const processedOrderIds = new Set();
 
             while (hasMoreOrders) {
                 const orders = await this.getOrdersNeedStatusUpdate(
@@ -91,110 +98,17 @@ class UpdateStatusCron {
                     processedOrderIds.add(order.id);
 
                     try {
-                        // Track order để lấy status mới nhất
-                        const carrier = carrierFactory.getCarrier(order.carrier);
+                        // Kiểm tra product code có trong carriers config không
+                        const isCarrierOrder = this.validProductCodes.includes(order.product_code);
                         
-                        logger.info(`Tracking status for order ${order.id}`, {
-                            trackingNumber: order.waybill_number,
-                            currentStatus: order.status
-                        });
-
-                        const trackingResult = await carrier.trackOrder(order.waybill_number);
-                        const inquiryResult = await carrier.getOrderInfo(order.waybill_number);
-
-                        const hasChangeStatus = inquiryResult.data.status !== order.order_status;
-                        const hasChangePkgStatus = trackingResult.status !== order.status;
-
-                        // Update last_status_check_at dù có thay đổi hay không
-                        await OrderModel.updateLastStatusCheck(order.id);
-
-                        // So sánh status mới với status hiện tại
-                        if (hasChangePkgStatus || hasChangeStatus) {
-                            logger.info(`Status changed for order ${order.id}: ${order.status} → ${trackingResult.status} + ${order.order_status} → ${inquiryResult.data.status}`);
-
-                            // Cập nhật status trong DB
-                            const updateData = {
-                                status: trackingResult.status,
-                                orderStatus: inquiryResult.data.status,
-                                trackingInfo: trackingResult.trackingInfo,
-                                lastTrackedAt: new Date()
-                            };
-
-                            if (trackingResult.status === 'delivered') {
-                                updateData.deliveredAt = new Date();
-                            }
-
-                            await OrderModel.update(order.id, updateData);
-
-                            if (hasChangeStatus) {
-                                const labelStatus = this.mapToLabelStatus(inquiryResult.data.status);
-
-                                if (order.erp_order_code && order.ecount_link && labelStatus) {
-                                    await jobService.addUpdateStatusJob(
-                                        order.id,
-                                        order.erp_order_code,
-                                        order.tracking_number,
-                                        labelStatus,
-                                        order.ecount_link,
-                                        5 // Delay 5 giây
-                                    );
-                                    stats.updated++;
-
-                                    logger.info(`Added job to update status to ECount for order ${order.id}`);
-                                } 
-                                    
-                                if (labelStatus === 'Returned' || labelStatus === 'Deleted' || labelStatus === 'Abnormal' || labelStatus === 'Warning') {
-                                    await telegram.notifyError(
-                                        new Error(`Order status changed to ${labelStatus}`), 
-                                        {
-                                            action: 'Track Express Status',
-                                            jobName: 'Track Express Status',
-                                            orderId: order.customer_order_number,
-                                            waybillNumber: order.waybill_number || null,
-                                            trackingNumber: order.tracking_number || null,
-                                            erpOrderCode: order.erp_order_code,
-                                            packageStatus: trackingResult.packageStatus,
-                                            orderStatus: inquiryResult.data.status,
-                                            trackingStatus: trackingResult.status,
-                                            labelStatus: labelStatus
-                                        }, 
-                                        {type: 'error'}
-                                    );
-                                }
-                            }
-
-                            stats.success++;
+                        if (isCarrierOrder) {
+                            // Xử lý orders có product code trong carriers config
+                            stats.carrierOrders++;
+                            await this.processCarrierOrder(order, stats);
                         } else {
-                            logger.info(`Status unchanged for order ${order.id}: ${order.status}`);
-
-                            // Optional: Uncomment để enable warning logic
-                            // if (this.shouldWarnOverdue(order)) {
-                            //     const daysOverdue = this.calculateDaysOverdue(order);
-                            //     const threshold = this.getWarningThreshold(order.product_code);
-                            //
-                            //     await telegram.notifyError(
-                            //         new Error(`Order overdue: ${daysOverdue} days without update`),
-                            //         {
-                            //             action: 'Overdue Order Warning',
-                            //             jobName: 'Update Status Job',
-                            //             orderId: order.customer_order_number,
-                            //             erpOrderCode: order.erp_order_code,
-                            //             waybillNumber: order.waybill_number,
-                            //             trackingNumber: order.tracking_number,
-                            //             productCode: order.product_code,
-                            //             status: order.status,
-                            //             daysOverdue: daysOverdue,
-                            //             warningThreshold: threshold,
-                            //             lastTrackedAt: order.last_tracked_at || order.created_at,
-                            //             message: `⚠️ Đơn hàng ${daysOverdue} ngày không cập nhật (ngưỡng: ${threshold} ngày)`
-                            //         },
-                            //         { type: 'error' }
-                            //     );
-                            //
-                            //     stats.warned++;
-                            // }
-
-                            stats.success++; // Vẫn tính là success
+                            // Xử lý orders khác (để trống, bạn sẽ implement sau)
+                            stats.otherOrders++;
+                            await this.processOtherOrder(order, stats);
                         }
 
                         // Sleep để tránh rate limit
@@ -204,7 +118,6 @@ class UpdateStatusCron {
                         stats.failed++;
                         logger.error(`Lỗi xử lý order ${order.id}: ${error.message}`);
                         
-                        // Vẫn update last_status_check_at để không bị stuck
                         try {
                             await OrderModel.updateLastStatusCheck(order.id);
                         } catch (e) {
@@ -213,13 +126,11 @@ class UpdateStatusCron {
                     }
                 }
 
-                // Nếu lấy được ít hơn batchSize, nghĩa là hết orders
                 if (orders.length < this.batchSize) {
                     hasMoreOrders = false;
                     logger.info('Đã xử lý hết orders');
                 }
 
-                // Sleep ngắn giữa các batch để tránh overload
                 await this.sleep(100);
             }
 
@@ -245,7 +156,6 @@ class UpdateStatusCron {
         } catch (error) {
             logger.error('Update status job thất bại: ', error);
 
-            // Update cron log thất bại
             if (cronLogId) {
                 const executionTime = Date.now() - startTime;
                 await CronLogModel.update(cronLogId, {
@@ -264,64 +174,103 @@ class UpdateStatusCron {
     }
 
     /**
-     * Check xem có nên warning không
+     * Xử lý orders có product code trong carriers config
      */
-    shouldWarnOverdue(order) {
-        // Không warning nếu chưa có last_tracked_at
-        const lastUpdate = order.last_tracked_at || order.created_at;
-        if (!lastUpdate) return false;
+    async processCarrierOrder(order, stats) {
+        const carrier = carrierFactory.getCarrier(order.carrier);
+        
+        logger.info(`[CARRIER] Tracking status for order ${order.id}`, {
+            trackingNumber: order.waybill_number,
+            productCode: order.product_code,
+            currentStatus: order.status
+        });
 
-        // Tính số ngày từ lần update cuối
-        const daysOverdue = this.calculateDaysOverdue(order);
-        const threshold = this.getWarningThreshold(order.product_code);
+        const trackingResult = await carrier.trackOrder(order.waybill_number);
+        const inquiryResult = await carrier.getOrderInfo(order.waybill_number);
 
-        // Chỉ warning nếu >= threshold VÀ chưa warning hôm nay
-        if (daysOverdue >= threshold) {
-            // Check xem đã warning chưa
-            if (order.updated_at) {
-                if (order.erp_status == 'Warning') {
-                    return false;
+        const hasChangeStatus = inquiryResult.data.status !== order.order_status;
+        const hasChangePkgStatus = trackingResult.status !== order.status;
+
+        await OrderModel.updateLastStatusCheck(order.id);
+
+        if (hasChangePkgStatus || hasChangeStatus) {
+            logger.info(`Status changed for order ${order.id}: ${order.status} → ${trackingResult.status} + ${order.order_status} → ${inquiryResult.data.status}`);
+
+            const updateData = {
+                status: trackingResult.status,
+                orderStatus: inquiryResult.data.status,
+                trackingInfo: trackingResult.trackingInfo,
+                lastTrackedAt: new Date()
+            };
+
+            if (trackingResult.status === 'delivered') {
+                updateData.deliveredAt = new Date();
+            }
+
+            await OrderModel.update(order.id, updateData);
+
+            if (hasChangeStatus) {
+                const labelStatus = this.mapToLabelStatus(inquiryResult.data.status);
+
+                if (order.erp_order_code && order.ecount_link && labelStatus) {
+                    await jobService.addUpdateStatusJob(
+                        order.id,
+                        order.erp_order_code,
+                        order.tracking_number,
+                        labelStatus,
+                        order.ecount_link,
+                        5
+                    );
+                    stats.updated++;
+
+                    logger.info(`Added job to update status to ECount for order ${order.id}`);
+                } 
+                    
+                if (labelStatus === 'Returned' || labelStatus === 'Deleted' || labelStatus === 'Abnormal' || labelStatus === 'Warning') {
+                    await telegram.notifyError(
+                        new Error(`Order status changed to ${labelStatus}`), 
+                        {
+                            action: 'Track Express Status',
+                            jobName: 'Track Express Status',
+                            orderId: order.customer_order_number,
+                            waybillNumber: order.waybill_number || null,
+                            trackingNumber: order.tracking_number || null,
+                            erpOrderCode: order.erp_order_code,
+                            packageStatus: trackingResult.packageStatus,
+                            orderStatus: inquiryResult.data.status,
+                            trackingStatus: trackingResult.status,
+                            labelStatus: labelStatus
+                        }, 
+                        {type: 'error'}
+                    );
                 }
             }
-            return true;
+
+            stats.success++;
+        } else {
+            logger.info(`Status unchanged for order ${order.id}: ${order.status}`);
+            stats.success++;
         }
-
-        return false;
     }
 
     /**
-     * Tính số ngày kể từ lần update cuối
+     * Xử lý orders khác (không có product code trong carriers config)
+     * TODO: Bạn sẽ implement logic này sau
      */
-    calculateDaysOverdue(order) {
-        const lastUpdate = order.last_tracked_at ? new Date(order.last_tracked_at) : new Date(order.created_at);
-        const now = new Date();
-        const diffTime = Math.abs(now - lastUpdate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays;
-    }
-
-    /**
-     * Lấy ngưỡng warning theo product code
-     */
-    getWarningThreshold(productCode) {
-        const normalized = productCode?.toUpperCase().trim();
-        return this.warningThresholds[normalized] || this.warningThresholds['default'];
+    async processOtherOrder(order, stats) {
+        logger.info(`[OTHER] Order ${order.id} - Product code: ${order.product_code} (not in carriers config)`);
+        
+        // Update last_status_check_at để không bị query lại liên tục
+        await OrderModel.updateLastStatusCheck(order.id);
+        
+        // TODO: Implement logic check status cho orders khác ở đây
+        // Ví dụ: gọi API khác, xử lý theo logic khác, v.v.
+        
+        stats.success++; // Tạm thời count là success
     }
 
     /**
      * Map order_status sang label status cho ECount
-     * 
-     * Order Status:
-     * - Draft: Nháp
-     * - T: Đã xử lý
-     * - C: Đã xóa
-     * - S: Đã lên lịch
-     * - R: Đã nhận
-     * - D: Hết hàng
-     * - F: Đã trả lại
-     * - Q: Đã hủy bỏ
-     * - P: Đã nhận bồi thường
-     * - V: Đã ký nhận
      */
     mapToLabelStatus(orderStatus) {
         const ordStatus = orderStatus?.toUpperCase();
@@ -330,50 +279,39 @@ class UpdateStatusCron {
             return null;
         }
         
-        // Priority 1: Đã ký nhận (delivered)
         if (ordStatus === 'V') {
             return 'Have been received';
         }
         
-        // Priority 2: Đã trả lại hoặc đã nhận bồi thường
         if (ordStatus === 'F' || ordStatus === 'P') {
             return 'Returned';
         }
         
-        // Priority 3: Đã xóa hoặc đã hủy bỏ
         if (ordStatus === 'C' || ordStatus === 'Q') {
             return 'Deleted';
         }
         
-        // Priority 4: Đã nhận (warehouse received)
         if (ordStatus === 'R') {
             return 'Carrier Received';
         }
         
-        // Priority 5: Hết hàng (out of stock - shipped)
         if (ordStatus === 'D') {
             return 'Shipped';
         }
         
-        // Priority 6: Đã lên lịch
         if (ordStatus === 'S') {
             return 'Scheduled';
         }
         
-        // Priority 7: Đã xử lý hoặc Draft (new order)
         if (ordStatus === 'T' || ordStatus === 'DRAFT') {
             return 'New';
         }
         
-        // Default: Không push job cho các trường hợp không xác định
         return null;
     }
 
     /**
      * Lấy orders cần check status
-     * Điều kiện:
-     * - last_status_check_at IS NULL (chưa check lần nào)
-     * - HOẶC last_status_check_at < NOW() - INTERVAL 6 HOUR (đã qua 6 giờ)
      */
     async getOrdersNeedStatusUpdate(limit = 50, excludeIds = []) {
         const db = require('../database/connection');
@@ -393,8 +331,6 @@ class UpdateStatusCron {
                     AND erp_order_code IS NOT NULL
                     AND ecount_link IS NOT NULL
                     
-                    -- Chỉ check status nếu:
-                    -- 1. Chưa check lần nào HOẶC đã qua 6 giờ kể từ lần check cuối
                     AND (
                         last_status_check_at IS NULL 
                         OR last_status_check_at < DATE_SUB(NOW(), INTERVAL 6 HOUR)
@@ -405,7 +341,6 @@ class UpdateStatusCron {
                 ON o.erp_order_code = latest_orders.erp_order_code
                 AND o.created_at = latest_orders.latest
                 
-                -- Không có job update_status_ecount đang pending/processing
                 LEFT JOIN jobs j_update_status 
                     ON j_update_status.job_type = 'update_status_ecount'
                     AND JSON_EXTRACT(j_update_status.payload, '$.orderId') = o.id
@@ -416,13 +351,11 @@ class UpdateStatusCron {
             
             const params = [];
             
-            // Thêm điều kiện exclude orders đã xử lý trong lần chạy này
             if (excludeIds.length > 0) {
                 query += ` AND o.id NOT IN (${excludeIds.map(() => '?').join(',')})`;
                 params.push(...excludeIds);
             }
             
-            // Ưu tiên orders chưa check lần nào, sau đó đến orders cũ nhất
             query += ` 
                 ORDER BY 
                     CASE WHEN o.last_status_check_at IS NULL THEN 0 ELSE 1 END,
