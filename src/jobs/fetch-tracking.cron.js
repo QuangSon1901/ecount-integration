@@ -4,6 +4,7 @@ const OrderModel = require('../models/order.model');
 const CronLogModel = require('../models/cron-log.model');
 const jobService = require('../services/queue/job.service');
 const carrierFactory = require('../services/carriers');
+const carriersConfig = require('../config/carriers.config'); // Thêm import này
 const logger = require('../utils/logger');
 
 class FetchTrackingCron {
@@ -12,6 +13,25 @@ class FetchTrackingCron {
         this.schedule = '*/1 * * * *'; // Chạy mỗi 1 phút
         this.batchSize = 10; // Xử lý 10 orders mỗi batch
         this.trackingInterval = 6 * 60 * 60; // 6 giờ (tính bằng giây)
+
+        // Tạo danh sách tất cả product codes từ carriers config
+        this.validProductCodes = this.getAllValidProductCodes();
+    }
+
+    /**
+     * Lấy tất cả product codes từ carriers config
+     */
+    getAllValidProductCodes() {
+        const productCodes = [];
+        
+        Object.values(carriersConfig).forEach(carrier => {
+            if (carrier.enabled && carrier.productCodes) {
+                productCodes.push(...carrier.productCodes);
+            }
+        });
+        
+        logger.info(`Valid product codes: ${productCodes.join(', ')}`);
+        return productCodes;
     }
 
     /**
@@ -82,7 +102,8 @@ class FetchTrackingCron {
                         
                         logger.info(`Checking tracking for order ${order.id}`, {
                             orderCode,
-                            carrier: order.carrier
+                            carrier: order.carrier,
+                            productCode: order.product_code
                         });
 
                         // Lưu giá trị cũ để so sánh
@@ -159,6 +180,7 @@ class FetchTrackingCron {
                             stats.success++;
                         } else {
                             logger.info(`No changes for order ${order.id}, skipping update`);
+                            stats.success++;
                         }
                     } catch (error) {
                         stats.failed++;
@@ -228,12 +250,16 @@ class FetchTrackingCron {
      * Điều kiện:
      * - last_tracking_check_at IS NULL (chưa check lần nào)
      * - HOẶC last_tracking_check_at < NOW() - INTERVAL 6 HOUR (đã qua 6 giờ)
+     * - product_code phải nằm trong danh sách enabled carriers
      */
     async getOrdersNeedTracking(limit = 50, excludeIds = []) {
         const db = require('../database/connection');
         const connection = await db.getConnection();
         
         try {
+            // Tạo placeholders cho product codes
+            const productCodePlaceholders = this.validProductCodes.map(() => '?').join(',');
+            
             let query = `
                 SELECT o.*
                 FROM orders o
@@ -266,6 +292,9 @@ class FetchTrackingCron {
                         AND t.order_status NOT IN ('V', 'C', 'F')
                         AND (t.waybill_number IS NOT NULL OR t.customer_order_number IS NOT NULL)
                         AND t.ecount_link IS NOT NULL
+                        
+                        -- CHỈ LẤY ORDERS CÓ PRODUCT CODE TRONG CARRIERS CONFIG
+                        AND t.product_code IN (${productCodePlaceholders})
                 ) latest_orders
                 ON o.erp_order_code = latest_orders.erp_order_code
                 AND o.created_at = latest_orders.latest
@@ -279,7 +308,8 @@ class FetchTrackingCron {
                 WHERE j_update_tracking.id IS NULL
             `;
             
-            const params = [];
+            // Params bắt đầu với product codes
+            const params = [...this.validProductCodes];
             
             // Thêm điều kiện exclude orders đã xử lý trong lần chạy này
             if (excludeIds.length > 0) {

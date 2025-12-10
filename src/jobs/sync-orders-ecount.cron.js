@@ -1,6 +1,8 @@
+// src/jobs/sync-orders-ecount.cron.js
 const cron = require('node-cron');
 const { chromium } = require('playwright');
 const CronLogModel = require('../models/cron-log.model');
+const OrderModel = require('../models/order.model');
 const sessionManager = require('../services/erp/ecount-session.manager');
 const logger = require('../utils/logger');
 const config = require('../config');
@@ -48,6 +50,8 @@ class SyncOrdersECountCron {
         let stats = {
             totalOrders: 0,
             totalPages: 0,
+            newOrders: 0,
+            existingOrders: 0,
             errors: 0
         };
 
@@ -61,27 +65,30 @@ class SyncOrdersECountCron {
             stats.totalOrders = orders.length;
             stats.totalPages = orders.totalPages || 0;
 
-            // Lưu vào file log để kiểm tra
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const logFile = path.join(this.logDir, `orders_${timestamp}.json`);
-            fs.writeFileSync(logFile, JSON.stringify(orders, null, 2));
-            
-            logger.info(`Đã lưu ${stats.totalOrders} orders vào file: ${logFile}`);
+            // Process orders - check và insert vào database
+            const processResult = await this.processOrders(orders);
+            stats.newOrders = processResult.newOrders;
+            stats.existingOrders = processResult.existingOrders;
+            stats.errors = processResult.errors;
 
             // Update cron log thành công
             const executionTime = Date.now() - startTime;
             await CronLogModel.update(cronLogId, {
                 status: 'completed',
                 ordersProcessed: stats.totalOrders,
-                ordersSuccess: stats.totalOrders,
+                ordersSuccess: stats.newOrders,
                 ordersFailed: stats.errors,
-                executionTimeMs: executionTime
+                executionTimeMs: executionTime,
+                details: JSON.stringify({
+                    newOrders: stats.newOrders,
+                    existingOrders: stats.existingOrders,
+                    totalPages: stats.totalPages
+                })
             });
 
             logger.info('Sync orders job hoàn thành', {
                 ...stats,
-                executionTime: `${executionTime}ms`,
-                logFile
+                executionTime: `${executionTime}ms`
             });
 
         } catch (error) {
@@ -92,7 +99,7 @@ class SyncOrdersECountCron {
                 await CronLogModel.update(cronLogId, {
                     status: 'failed',
                     ordersProcessed: stats.totalOrders,
-                    ordersSuccess: stats.totalOrders - stats.errors,
+                    ordersSuccess: stats.newOrders,
                     ordersFailed: stats.errors,
                     errorMessage: error.message,
                     executionTimeMs: executionTime
@@ -101,6 +108,94 @@ class SyncOrdersECountCron {
         } finally {
             this.isRunning = false;
         }
+    }
+
+    /**
+     * Process orders - check existing và insert new
+     */
+    async processOrders(orders) {
+        const result = {
+            newOrders: 0,
+            existingOrders: 0,
+            errors: 0
+        };
+
+        logger.info(`Bắt đầu xử lý ${orders.length} orders...`);
+
+        for (const order of orders) {
+            try {
+                // Skip nếu không có codeThg (erp_order_code)
+                if (!order.codeThg) {
+                    logger.warn('Order không có codeThg, bỏ qua:', order);
+                    result.errors++;
+                    continue;
+                }
+
+                // Check order đã tồn tại chưa
+                const existingOrder = await OrderModel.findByErpOrderCode(order.codeThg);
+
+                if (existingOrder) {
+                    logger.debug(`Order ${order.codeThg} đã tồn tại, bỏ qua`);
+                    result.existingOrders++;
+                    continue;
+                }
+
+                // Insert order mới
+                const orderData = this.mapECountOrderToOrderData(order);
+                const orderId = await OrderModel.create(orderData);
+
+                logger.info(`Đã insert order mới: ${order.codeThg} (ID: ${orderId})`);
+                result.newOrders++;
+
+            } catch (error) {
+                logger.error(`Lỗi xử lý order ${order.codeThg}:`, error);
+                result.errors++;
+            }
+        }
+
+        logger.info('Hoàn thành xử lý orders:', result);
+        return result;
+    }
+
+    /**
+     * Map ECount order data sang format OrderModel
+     */
+    mapECountOrderToOrderData(ecountOrder) {
+        // Parse service để lấy carrier
+        const service = (ecountOrder.service || '').toLowerCase();
+        let carrier = 'YUNEXPRESS'; // default
+        
+        if (service.includes('ups')) {
+            carrier = 'UPS';
+        } else if (service.includes('fedex')) {
+            carrier = 'FEDEX';
+        } else if (service.includes('dhl')) {
+            carrier = 'DHL';
+        } else if (service.includes('mason')) {
+            carrier = 'MASON';
+        }
+
+        return {
+            orderNumber: this.generateOrderNumber(),
+            customerOrderNumber: ecountOrder.orderId,
+            erpOrderCode: ecountOrder.codeThg,
+            carrier: carrier,
+            productCode: ecountOrder.service,
+            trackingNumber: ecountOrder.trackingLastMile || null,
+            waybillNumber: ecountOrder.masterTracking || null,
+            status: 'created',
+            erpStatus: ecountOrder.status || 'Đang xử lý',
+            receiverName: ecountOrder.customerName || null,
+            orderData: ecountOrder,
+            carrierResponse: {},
+            ecountLink: this.ecountConfig.hashLink
+        };
+    }
+
+    generateOrderNumber() {
+        const timestamp = Date.now();
+        const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        return `ORD${timestamp}${random}`;
     }
 
     /**
@@ -117,8 +212,8 @@ class SyncOrdersECountCron {
             page = result.page;
 
             logger.info('Đã login ECount, bắt đầu lấy danh sách orders');
-            // await page.pause();
-
+            
+            await this.executeSearch(page);
             // Mở form search
             await this.openSearchForm(page);
 
@@ -290,7 +385,7 @@ class SyncOrdersECountCron {
      */
     async openSearchForm(page) {
         logger.info('Mở form search...');
-
+        await page.waitForTimeout(2000);
         const frame = await this.findFrameWithSelector(page, '#search');
 
         // Chờ button search xuất hiện
@@ -307,6 +402,7 @@ class SyncOrdersECountCron {
             timeout: this.playwrightConfig.timeout
         });
 
+        await page.waitForTimeout(2000);
         const frame2 = await this.findFrameWithSelector(page, 'button[data-id="51"]');
 
         await frame2.waitForSelector('button[data-id="51"]', {
@@ -315,8 +411,8 @@ class SyncOrdersECountCron {
         });
 
         await frame2.click('button[data-id="51"]');
-
         logger.info('Form search đã mở');
+        await page.waitForTimeout(3000);
     }
 
     /**
@@ -387,7 +483,7 @@ class SyncOrdersECountCron {
     async getOrdersFromCurrentPage(frame) {
         return await frame.evaluate(() => {
             const headers = Array.from(document.querySelectorAll('#app-root .wrapper-frame-body .contents thead th'));
-            ['EX-VN-UPS Saver', 'EX-VN-UPS Expedited', 'EX-VN-Fedex']
+            
             // Map vị trí các cột
             const columnMap = {
                 date: headers.findIndex(th => th.textContent.trim().normalize('NFC') === 'Date'),
@@ -416,6 +512,9 @@ class SyncOrdersECountCron {
                 const serviceLower = service.toLowerCase();
                 const matched = KEYWORDS.some(k => serviceLower.includes(k));
                 if (!matched) return;
+
+                const trackingLastMile = columnMap.trackingLastMile !== -1 ? (cells[columnMap.trackingLastMile]?.textContent || '').trim() : '';
+                if (!trackingLastMile) return;
                 
                 const order = {
                     date: columnMap.date !== -1 ? cells[columnMap.date]?.textContent.trim() : null,
@@ -425,7 +524,7 @@ class SyncOrdersECountCron {
                     orderId: columnMap.orderId !== -1 ? cells[columnMap.orderId]?.textContent.trim() : null,
                     status: columnMap.status !== -1 ? cells[columnMap.status]?.textContent.trim() : null,
                     statusThg: columnMap.statusThg !== -1 ? cells[columnMap.statusThg]?.textContent.trim() : null,
-                    trackingLastMile: columnMap.trackingLastMile !== -1 ? cells[columnMap.trackingLastMile]?.textContent.trim() : null,
+                    trackingLastMile,
                     masterTracking: columnMap.masterTracking !== -1 ? cells[columnMap.masterTracking]?.textContent.trim() : null,
                     shippingLabel: columnMap.shippingLabel !== -1 ? cells[columnMap.shippingLabel]?.textContent.trim() : null,
                     service,
