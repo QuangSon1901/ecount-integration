@@ -225,6 +225,7 @@ class YunExpressCNService extends BaseCarrier {
                 customerOrderNumber: trackInfo?.customer_order_number,
                 packageStatus: trackingData.package_status,
                 trackingInfo: {
+                    ...trackInfo,
                     package_status: trackingData.package_status,
                     productCode: trackInfo?.product_code,
                     productName: trackInfo?.product_name,
