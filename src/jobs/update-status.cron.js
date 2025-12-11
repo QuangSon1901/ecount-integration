@@ -300,6 +300,8 @@ class UpdateStatusCron {
                 }
             }
 
+            await OrderModel.updateLastStatusCheck(order.id);
+
             // Push job vào queue
             await jobService.addTrackOtherOrderJob(
                 order.id,
