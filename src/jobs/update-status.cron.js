@@ -392,7 +392,7 @@ class UpdateStatusCron {
                 AND o.created_at = latest_orders.latest
                 
                 LEFT JOIN jobs j_update_status 
-                    ON j_update_status.job_type = 'update_status_ecount'
+                    ON j_update_status.job_type IN ('update_status_ecount','track_other_order')
                     AND JSON_EXTRACT(j_update_status.payload, '$.orderId') = o.id
                     AND j_update_status.status IN ('pending', 'processing')
                 
