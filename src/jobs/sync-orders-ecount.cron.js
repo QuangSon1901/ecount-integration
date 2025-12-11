@@ -515,6 +515,9 @@ class SyncOrdersECountCron {
 
                 const trackingLastMile = columnMap.trackingLastMile !== -1 ? (cells[columnMap.trackingLastMile]?.textContent || '').trim() : '';
                 if (!trackingLastMile) return;
+
+                const status = columnMap.status !== -1 ? (cells[columnMap.status]?.textContent || '').trim() : '';
+                if (!['Have been received', 'Returned', 'Deleted'].includes(status)) return;
                 
                 const order = {
                     date: columnMap.date !== -1 ? cells[columnMap.date]?.textContent.trim() : null,
@@ -522,7 +525,7 @@ class SyncOrdersECountCron {
                     customerName: columnMap.customerName !== -1 ? cells[columnMap.customerName]?.textContent.trim() : null,
                     codeThg: columnMap.codeThg !== -1 ? cells[columnMap.codeThg]?.textContent.trim() : null,
                     orderId: columnMap.orderId !== -1 ? cells[columnMap.orderId]?.textContent.trim() : null,
-                    status: columnMap.status !== -1 ? cells[columnMap.status]?.textContent.trim() : null,
+                    status: status,
                     statusThg: columnMap.statusThg !== -1 ? cells[columnMap.statusThg]?.textContent.trim() : null,
                     trackingLastMile,
                     masterTracking: columnMap.masterTracking !== -1 ? cells[columnMap.masterTracking]?.textContent.trim() : null,
