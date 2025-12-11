@@ -7,6 +7,7 @@ const workerManager = require('./src/jobs/workers/manager');
 const fetchTrackingCron = require('./src/jobs/fetch-tracking.cron');
 const updateStatusCron = require('./src/jobs/update-status.cron');
 const cleanupSessionsCron = require('./src/jobs/cleanup-sessions.cron');
+const syncOrdersCron = require('./src/jobs/sync-orders-ecount.cron');
 
 db.testConnection()
     .then(() => {
@@ -14,6 +15,7 @@ db.testConnection()
         fetchTrackingCron.start();
         updateStatusCron.start();
         cleanupSessionsCron.start();
+        syncOrdersCron.start();
         logger.info('Worker started successfully');
     })
     .catch(err => {

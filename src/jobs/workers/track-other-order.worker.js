@@ -108,14 +108,14 @@ class TrackOtherOrderWorker extends BaseWorker {
 
         // Nếu có thay đổi order_status và có đủ thông tin ERP
         if (hasChangeStatus && order.erp_order_code && order.ecount_link && labelStatus) {
-            // await jobService.addUpdateStatusJob(
-            //     orderId,
-            //     order.erp_order_code,
-            //     order.tracking_number,
-            //     labelStatus,
-            //     order.ecount_link,
-            //     5 // delay 5s
-            // );
+            await jobService.addUpdateStatusJob(
+                orderId,
+                order.erp_order_code,
+                order.tracking_number,
+                labelStatus,
+                order.ecount_link,
+                5 // delay 5s
+            );
 
             logger.info(`[TRACK_OTHER] Added job to update status to ECount for order ${orderId}`);
         }
