@@ -182,7 +182,7 @@ class SyncOrdersECountCron {
             carrier: carrier,
             productCode: ecountOrder.service,
             trackingNumber: ecountOrder.trackingLastMile || null,
-            waybillNumber: ecountOrder.masterTracking || null,
+            waybillNumber: ecountOrder.trackingLastMile || null,
             status: 'created',
             erpStatus: ecountOrder.status || 'Đang xử lý',
             receiverName: ecountOrder.customerName || null,
