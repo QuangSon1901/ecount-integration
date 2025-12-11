@@ -68,6 +68,21 @@ class JobService {
     }
 
     /**
+     * Thêm job track other order (non-carrier orders)
+     */
+    async addTrackOtherOrderJob(orderId, trackingNumber, delaySeconds = 0) {
+        return await JobModel.create(
+            'track_other_order',
+            {
+                orderId,
+                trackingNumber
+            },
+            delaySeconds,
+            3 // max attempts
+        );
+    }
+
+    /**
      * Lấy stats
      */
     async getStats() {
