@@ -59,6 +59,9 @@ class TrackOtherOrderWorker extends BaseWorker {
         const trackingResult = await this.trackOrder(trackingNumber);
 
         if (!trackingResult) {
+            await OrderModel.update(orderId, {
+                status: 'cancelled',
+            });
             throw new Error('Failed to get tracking data from API');
         }
 

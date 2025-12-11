@@ -78,7 +78,7 @@ class JobService {
                 trackingNumber
             },
             delaySeconds,
-            3 // max attempts
+            2 // max attempts
         );
     }
 

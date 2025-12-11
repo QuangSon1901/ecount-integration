@@ -1,0 +1,613 @@
+<!-- public/views/dashboard.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>THG-FULFILL Tools Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.5;
+            color: #1f2937;
+            background: #f9fafb;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            width: 36px;
+            height: 36px;
+            background: #2563eb;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .app-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .header-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .user-avatar {
+            width: 28px;
+            height: 28px;
+            background: #d1d5db;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: white;
+            border-right: 1px solid #e5e7eb;
+            padding-top: 56px;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 16px 12px;
+        }
+
+        .sidebar-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0 8px 8px;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .sidebar-item {
+            margin-bottom: 4px;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            color: #4b5563;
+            text-decoration: none;
+            font-size: 14px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .sidebar-link:hover {
+            background: #f3f4f6;
+            color: #111827;
+        }
+
+        .sidebar-link.active {
+            background: #eff6ff;
+            color: #2563eb;
+            font-weight: 500;
+        }
+
+        .sidebar-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .divider {
+            height: 1px;
+            background: #e5e7eb;
+            margin: 12px 0;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-top: 56px;
+            overflow-y: auto;
+        }
+
+        .content-header {
+            padding: 20px 24px;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .content-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 4px;
+        }
+
+        .content-header p {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .content-body {
+            padding: 24px;
+        }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 6px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        /* Tools Grid */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .badge-internal {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-public {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .tool-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        .tool-card:hover {
+            border-color: #2563eb;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+        }
+
+        .tool-thumbnail {
+            width: 100%;
+            height: 160px;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: #93c5fd;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .tool-content {
+            padding: 16px;
+        }
+
+        .tool-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .tool-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 4px;
+        }
+
+        .tool-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .status-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #10b981;
+        }
+
+        .tool-description {
+            font-size: 13px;
+            color: #6b7280;
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+
+        .tool-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 8px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            text-align: center;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: white;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+            border-color: #1d4ed8;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #374151;
+            border-color: #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #f9fafb;
+            border-color: #9ca3af;
+        }
+
+        .section-divider {
+            margin: 32px 0;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+
+            .tools-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <div class="logo">TF</div>
+                <span class="app-name">THG-FULFILL Tools</span>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <div class="user-avatar">A</div>
+                    <span>Admin</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">Menu</div>
+                <ul class="sidebar-menu">
+                    <li class="sidebar-item">
+                        <a href="#all" class="sidebar-link active">
+                            <span class="sidebar-icon">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M3 4C3 3.44772 3.44772 3 4 3H16C16.5523 3 17 3.44772 17 4V6C17 6.55228 16.5523 7 16 7H4C3.44772 7 3 6.55228 3 6V4Z" fill="currentColor"/>
+                                    <path d="M3 10C3 9.44772 3.44772 9 4 9H16C16.5523 9 17 9.44772 17 10V12C17 12.5523 16.5523 13 16 13H4C3.44772 13 3 12.5523 3 12V10Z" fill="currentColor"/>
+                                    <path d="M4 15C3.44772 15 3 15.4477 3 16C3 16.5523 3.44772 17 4 17H16C16.5523 17 17 16.5523 17 16C17 15.4477 16.5523 15 16 15H4Z" fill="currentColor"/>
+                                </svg>
+                            </span>
+                            Tất cả công cụ
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="#internal" class="sidebar-link">
+                            <span class="sidebar-icon">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path fill-rule="evenodd" clip-rule="evenodd" d="M5 9V7C5 4.23858 7.23858 2 10 2C12.7614 2 15 4.23858 15 7V9C15.5523 9 16 9.44772 16 10V16C16 16.5523 15.5523 17 15 17H5C4.44772 17 4 16.5523 4 16V10C4 9.44772 4.44772 9 5 9ZM13 7V9H7V7C7 5.34315 8.34315 4 10 4C11.6569 4 13 5.34315 13 7Z" fill="currentColor"/>
+                                </svg>
+                            </span>
+                            Nội bộ
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="#public" class="sidebar-link">
+                            <span class="sidebar-icon">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path fill-rule="evenodd" clip-rule="evenodd" d="M10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2C5.58172 2 2 5.58172 2 10C2 14.4183 5.58172 18 10 18ZM11 6C11 5.44772 10.5523 5 10 5C9.44772 5 9 5.44772 9 6V10C9 10.2652 9.10536 10.5196 9.29289 10.7071L12.1213 13.5355C12.5118 13.9261 13.145 13.9261 13.5355 13.5355C13.9261 13.145 13.9261 12.5118 13.5355 12.1213L11 9.58579V6Z" fill="currentColor"/>
+                                </svg>
+                            </span>
+                            Công khai
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- <div class="divider"></div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Thống kê</div>
+                <ul class="sidebar-menu">
+                    <li class="sidebar-item">
+                        <a href="#stats" class="sidebar-link">
+                            <span class="sidebar-icon">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M2 11C2 10.4477 2.44772 10 3 10H5C5.55228 10 6 10.4477 6 11V16C6 16.5523 5.55228 17 5 17H3C2.44772 17 2 16.5523 2 16V11Z" fill="currentColor"/>
+                                    <path d="M8 7C8 6.44772 8.44772 6 9 6H11C11.5523 6 12 6.44772 12 7V16C12 16.5523 11.5523 17 11 17H9C8.44772 17 8 16.5523 8 16V7Z" fill="currentColor"/>
+                                    <path d="M15 3C14.4477 3 14 3.44772 14 4V16C14 16.5523 14.4477 17 15 17H17C17.5523 17 18 16.5523 18 16V4C18 3.44772 17.5523 3 17 3H15Z" fill="currentColor"/>
+                                </svg>
+                            </span>
+                            Báo cáo
+                        </a>
+                    </li>
+                </ul>
+            </div> -->
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div id="all" class="content-header">
+                <h1>Tất cả công cụ</h1>
+                <p>Quản lý và truy cập các công cụ vận hành</p>
+            </div>
+
+            <div class="content-body">
+                <!-- Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Tổng số công cụ</div>
+                        <div class="stat-value">3</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Nội bộ</div>
+                        <div class="stat-value">2</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Công khai</div>
+                        <div class="stat-value">1</div>
+                    </div>
+                </div>
+
+                <!-- Internal Tools -->
+                <div id="internal" class="section-header">
+                    <div class="section-title">
+                        Công cụ nội bộ
+                        <span class="section-badge badge-internal">🔒 Yêu cầu xác thực</span>
+                    </div>
+                </div>
+
+                <div class="tools-grid">
+                    <div class="tool-card">
+                        <div class="tool-thumbnail">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M20 7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M16 21V5C16 4.46957 15.7893 3.96086 15.4142 3.58579C15.0391 3.21071 14.5304 3 14 3H10C9.46957 3 8.96086 3.21071 8.58579 3.58579C8.21071 3.96086 8 4.46957 8 5V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div class="tool-content">
+                            <div class="tool-header">
+                                <div>
+                                    <div class="tool-title">Cập nhật đơn hàng hàng loạt</div>
+                                    <div class="tool-meta">
+                                        <span class="status-indicator"></span>
+                                        <span>Hoạt động</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tool-description">
+                                Upload file Excel để tra cứu và cập nhật trạng thái đơn hàng sang "THG Received" hàng loạt
+                            </div>
+                            <div class="tool-actions">
+                                <a href="/extensions/bulk-update" class="btn btn-primary"><span>→</span>Mở công cụ</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tool-card">
+                        <div class="tool-thumbnail">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M14.7 6.3C14.3 5.9 13.7 5.9 13.3 6.3L8.3 11.3C7.9 11.7 7.9 12.3 8.3 12.7L13.3 17.7C13.7 18.1 14.3 18.1 14.7 17.7C15.1 17.3 15.1 16.7 14.7 16.3L10.4 12L14.7 7.7C15.1 7.3 15.1 6.7 14.7 6.3Z" fill="currentColor"/>
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </div>
+                        <div class="tool-content">
+                            <div class="tool-header">
+                                <div>
+                                    <div class="tool-title">ECount Extension Tool</div>
+                                    <div class="tool-meta">
+                                        <span class="status-indicator"></span>
+                                        <span>Hoạt động</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tool-description">
+                                Extension Chrome tự động mua tem và cập nhật tracking number vào ECount ERP
+                            </div>
+                            <div class="tool-actions">
+                                <a href="/extensions/tool-express" class="btn btn-primary"><span>📖</span>Hướng dẫn</a>
+                                <a href="/extensions/download/tool-express" class="btn btn-secondary"><span>⬇</span>Tải xuống</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Public Tools -->
+                <div class="section-divider"></div>
+
+                <div id="public" class="section-header">
+                    <div class="section-title">
+                        Công cụ khách hàng
+                        <span class="section-badge badge-public">🌐 Truy cập công khai</span>
+                    </div>
+                </div>
+
+                <div class="tools-grid">
+                    <div class="tool-card">
+                        <div class="tool-thumbnail">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M7 7H17M7 12H17M7 17H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </div>
+                        <div class="tool-content">
+                            <div class="tool-header">
+                                <div>
+                                    <div class="tool-title">Down Label Extension Tool</div>
+                                    <div class="tool-meta">
+                                        <span class="status-indicator"></span>
+                                        <span>Hoạt động</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tool-description">
+                                Extension Chrome hỗ trợ khách hàng tải nhanh label từ ECount ERP
+                            </div>
+                            <div class="tool-actions">
+                                <a href="/extensions/tool-label" class="btn btn-primary"><span>📖</span>Hướng dẫn</a>
+                                <a href="/extensions/download/tool-label" class="btn btn-secondary"><span>⬇</span>Tải xuống</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

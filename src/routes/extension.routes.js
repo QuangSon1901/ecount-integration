@@ -6,6 +6,24 @@ const logger = require('../utils/logger');
 const { errorResponse } = require('../utils/response');
 
 const basicAuthMiddleware = require('../middlewares/basic-auth.middleware');
+
+/**
+ * @route   GET /extensions/dashboard
+ * @desc    Dashboard tổng hợp các tools
+ * @access  Private (Basic Auth)
+ */
+router.get('/dashboard', basicAuthMiddleware, (req, res) => {
+    const viewPath = path.join(__dirname, '../../public/views/dashboard.html');
+    
+    if (!fs.existsSync(viewPath)) {
+        logger.error('Dashboard view not found');
+        return errorResponse(res, 'Page not found', 404);
+    }
+    
+    res.sendFile(viewPath);
+});
+
+
 /**
  * @route   GET /extensions/tool1
  * @desc    Trang hướng dẫn cài đặt Extension 1
