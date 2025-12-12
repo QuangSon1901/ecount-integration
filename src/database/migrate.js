@@ -103,6 +103,7 @@ const migrations = [
                 INDEX idx_carrier (carrier),
                 INDEX idx_receiver_country (receiver_country),
                 INDEX idx_created_at (created_at),
+                INDEX idx_status_started (started_at),
                 INDEX idx_status_erp_updated (status, erp_updated),
                 INDEX idx_status_erp_tracking_number_updated (status, erp_tracking_number_updated),
                 FULLTEXT INDEX idx_receiver_name (receiver_name)
