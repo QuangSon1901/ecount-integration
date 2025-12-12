@@ -292,7 +292,7 @@ class UpdateStatusCron {
             let delaySeconds = 0;
             if (lastJob.length > 0) {
                 const lastAvailableAt = new Date(lastJob[0].available_at);
-                const nextAvailableAt = new Date(lastAvailableAt.getTime() + 10 * 60 * 1000); // +5 phút
+                const nextAvailableAt = new Date(lastAvailableAt.getTime() + 5 * 60 * 1000); // +5 phút
                 const now = new Date();
                 
                 if (nextAvailableAt > now) {
