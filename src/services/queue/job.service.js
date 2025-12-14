@@ -49,6 +49,23 @@ class JobService {
         );
     }
 
+     /**
+     * Thêm job update warning lên ECount
+     */
+    async addUpdateWarningJob(orderId, erpOrderCode, warningMessage, ecountLink, delaySeconds = 0) {
+        return await JobModel.create(
+            'update_warning_ecount',
+            {
+                orderId,
+                erpOrderCode,
+                warningMessage,
+                ecountLink
+            },
+            delaySeconds,
+            3
+        );
+    }
+
     /**
      * Thêm job update status lên ECount
      */

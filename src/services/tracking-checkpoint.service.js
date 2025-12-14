@@ -2,6 +2,7 @@
 const db = require('../database/connection');
 const telegram = require('../utils/telegram');
 const logger = require('../utils/logger');
+const jobService = require('./queue/job.service');
 
 class TrackingCheckpointService {
     constructor() {
@@ -99,6 +100,7 @@ class TrackingCheckpointService {
                     o.waybill_number,
                     o.tracking_number,
                     o.carrier,
+                    o.ecount_link,
                     tc.last_warning_stage,
                     tc.last_warning_at
                 FROM orders o
@@ -257,6 +259,14 @@ class TrackingCheckpointService {
             parseMode: 'HTML'
         });
 
+        await jobService.addUpdateWarningJob(
+            order.id,
+            order.erp_order_code,
+            `[WARNING] ${nodeName}`,
+            order.ecount_link,
+            5
+        );
+
         logger.warn(`Sent abnormal warning for order ${order.id}`, {
             nodeCode,
             erpOrderCode: order.erp_order_code
@@ -312,6 +322,14 @@ class TrackingCheckpointService {
             parseMode: 'HTML'
         });
 
+        await jobService.addUpdateWarningJob(
+            order.id,
+            order.erp_order_code,
+            `[WARNING] ${nodeName}`,
+            order.ecount_link,
+            5
+        );
+
         logger.warn(`Sent return warning for order ${order.id}`, {
             nodeCode,
             erpOrderCode: order.erp_order_code
@@ -366,8 +384,6 @@ class TrackingCheckpointService {
 
         return false;
     }
-
-    // ... (giữ nguyên các methods cũ: parseTrackingEvents, checkWarnings, etc.)
 
     /**
      * Parse tracking events và xác định timestamps
@@ -559,7 +575,8 @@ class TrackingCheckpointService {
                         stage: 'Giai đoạn 1: THG → Carrier Received',
                         issue: `Đã ${Math.floor(hoursSinceTHG)} giờ kể từ THG Received nhưng Carrier vẫn chưa scan nhận hàng`,
                         threshold: '48 giờ',
-                        action: 'Cần liên hệ THG kiểm tra tình trạng đơn hàng'
+                        action: 'Cần liên hệ THG kiểm tra tình trạng đơn hàng',
+                        message: `[WARNING] Đã ${Math.floor(hoursSinceTHG)} giờ kể từ THG Received nhưng Carrier vẫn chưa scan nhận hàng`
                     });
                 }
             }
@@ -574,7 +591,8 @@ class TrackingCheckpointService {
                         stage: 'Giai đoạn 2: Carrier Received → Shipped',
                         issue: `Đã ${Math.floor(hoursSinceCarrier)} giờ kể từ Carrier nhận hàng nhưng chưa chuyển sang trạng thái Shipped`,
                         threshold: '24 giờ',
-                        action: 'Cần liên hệ Carrier kiểm tra - nghi ngờ hàng bị mất'
+                        action: 'Cần liên hệ Carrier kiểm tra - nghi ngờ hàng bị mất',
+                        message: `[WARNING] Đã ${Math.floor(hoursSinceCarrier)} giờ kể từ Carrier nhận hàng nhưng chưa chuyển sang trạng thái Shipped`
                     });
                 }
             }
@@ -589,7 +607,8 @@ class TrackingCheckpointService {
                         stage: 'Giai đoạn 3: Hải quan kiểm hóa',
                         issue: `Đã ${Math.floor(hoursSinceCustoms)} giờ trong quá trình kiểm hóa`,
                         threshold: '72 giờ (3 ngày)',
-                        action: 'Kiểm tra tình trạng hải quan, có thể cần bổ sung giấy tờ'
+                        action: 'Kiểm tra tình trạng hải quan, có thể cần bổ sung giấy tờ',
+                        message: `[WARNING] Đã ${Math.floor(hoursSinceCustoms)} giờ trong quá trình kiểm hóa`
                     });
                 }
             }
@@ -604,7 +623,8 @@ class TrackingCheckpointService {
                         stage: 'Giai đoạn 4: Clearance Completed → USPS',
                         issue: `Đã ${Math.floor(hoursSinceClearance)} giờ kể từ hoàn tất kiểm hóa nhưng chưa đến USPS`,
                         threshold: '96 giờ (4 ngày)',
-                        action: 'Kiểm tra với Carrier về vị trí đơn hàng'
+                        action: 'Kiểm tra với Carrier về vị trí đơn hàng',
+                        message: `[WARNING] Đã ${Math.floor(hoursSinceClearance)} giờ kể từ hoàn tất kiểm hóa nhưng chưa đến USPS`
                     });
                 }
             }
@@ -619,7 +639,8 @@ class TrackingCheckpointService {
                         stage: 'Giai đoạn 5: USPS → Out for Delivery',
                         issue: `Đã ${Math.floor(hoursSinceUSPS)} giờ (${Math.floor(hoursSinceUSPS/24)} ngày) tại USPS nhưng chưa chuyển sang trạng thái Out for Delivery`,
                         threshold: '168 giờ (7 ngày)',
-                        action: 'Đơn hàng có vấn đề, cần kiểm tra với USPS'
+                        action: 'Đơn hàng có vấn đề, cần kiểm tra với USPS',
+                        message: `[WARNING] Đã ${Math.floor(hoursSinceUSPS)} giờ (${Math.floor(hoursSinceUSPS/24)} ngày) tại USPS nhưng chưa chuyển sang trạng thái Out for Delivery`
                     });
                 }
             }
@@ -639,6 +660,14 @@ class TrackingCheckpointService {
             chatId: process.env.TELEGRAM_CHAT_ID_ERROR,
             parseMode: 'HTML'
         });
+
+        await jobService.addUpdateWarningJob(
+            order.id,
+            order.erp_order_code,
+            warningData.message,
+            order.ecount_link,
+            5
+        );
 
         // Update warning tracking
         await this.markWarned(checkpoint.order_id, stage);
