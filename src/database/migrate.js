@@ -392,6 +392,39 @@ const migrations = [
                 AFTER last_tracking_check_at,
             ADD INDEX idx_last_status_check_at (last_status_check_at);
         `
+    },
+    {
+        version: 12,
+        name: 'create_tracking_checkpoints_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS tracking_checkpoints (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                order_id INT NOT NULL,
+                tracking_number VARCHAR(100) NOT NULL,
+                
+                thg_received_at TIMESTAMP NULL COMMENT 'THG nhận hàng',
+                carrier_received_at TIMESTAMP NULL COMMENT 'Carrier nhận và scan',
+                customs_start_at TIMESTAMP NULL COMMENT 'Bắt đầu kiểm hóa',
+                customs_completed_at TIMESTAMP NULL COMMENT 'Hoàn tất kiểm hóa',
+                clearance_completed_at TIMESTAMP NULL COMMENT 'Clearance processing completed',
+                usps_received_at TIMESTAMP NULL COMMENT 'USPS nhận hàng',
+                out_for_delivery_at TIMESTAMP NULL COMMENT 'Đang giao hàng',
+                delivered_at TIMESTAMP NULL COMMENT 'Đã giao hàng',
+                
+                last_warning_stage VARCHAR(255) NULL COMMENT 'Warning key cuối cùng (unique per event)',
+                last_warning_at TIMESTAMP NULL COMMENT 'DEPRECATED - Không dùng nữa',
+                warning_count INT DEFAULT 0 COMMENT 'Tổng số lần warning',
+                
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                
+                FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+                INDEX idx_tracking_number (tracking_number),
+                INDEX idx_order_id (order_id),
+                INDEX idx_last_warning_stage (last_warning_stage)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='Bảng tracking checkpoints và warnings';
+        `
     }
 ];
 

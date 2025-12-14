@@ -3,7 +3,10 @@ const cron = require('node-cron');
 const { chromium } = require('playwright');
 const OrderModel = require('../models/order.model');
 const CronLogModel = require('../models/cron-log.model');
+
 const jobService = require('../services/queue/job.service');
+const trackingCheckpointService = require('../services/tracking-checkpoint.service');
+
 const carrierFactory = require('../services/carriers');
 const carriersConfig = require('../config/carriers.config'); // Thêm import này
 const logger = require('../utils/logger');
@@ -189,10 +192,14 @@ class UpdateStatusCron {
         const trackingResult = await carrier.trackOrder(order.waybill_number);
         const inquiryResult = await carrier.getOrderInfo(order.waybill_number);
 
+        
+
         const hasChangeStatus = inquiryResult.data.status !== order.order_status;
         const hasChangePkgStatus = trackingResult.status !== order.status;
 
         await OrderModel.updateLastStatusCheck(order.id);
+
+        const labelStatus = this.mapToLabelStatus(inquiryResult.data.status);
 
         if (hasChangePkgStatus || hasChangeStatus) {
             logger.info(`Status changed for order ${order.id}: ${order.status} → ${trackingResult.status} + ${order.order_status} → ${inquiryResult.data.status}`);
@@ -210,47 +217,32 @@ class UpdateStatusCron {
 
             await OrderModel.update(order.id, updateData);
 
-            if (hasChangeStatus) {
-                const labelStatus = this.mapToLabelStatus(inquiryResult.data.status);
+            if (hasChangeStatus && order.erp_order_code && order.ecount_link && labelStatus) {
+                await jobService.addUpdateStatusJob(
+                    order.id,
+                    order.erp_order_code,
+                    order.tracking_number,
+                    labelStatus,
+                    order.ecount_link,
+                    5
+                );
+                stats.updated++;
 
-                if (order.erp_order_code && order.ecount_link && labelStatus) {
-                    await jobService.addUpdateStatusJob(
-                        order.id,
-                        order.erp_order_code,
-                        order.tracking_number,
-                        labelStatus,
-                        order.ecount_link,
-                        5
-                    );
-                    stats.updated++;
-
-                    logger.info(`Added job to update status to ECount for order ${order.id}`);
-                } 
-                    
-                if (labelStatus === 'Returned' || labelStatus === 'Deleted' || labelStatus === 'Abnormal' || labelStatus === 'Warning') {
-                    await telegram.notifyError(
-                        new Error(`Order status changed to ${labelStatus}`), 
-                        {
-                            action: 'Track Express Status',
-                            jobName: 'Track Express Status',
-                            orderId: order.customer_order_number,
-                            waybillNumber: order.waybill_number || null,
-                            trackingNumber: order.tracking_number || null,
-                            erpOrderCode: order.erp_order_code,
-                            packageStatus: trackingResult.packageStatus,
-                            orderStatus: inquiryResult.data.status,
-                            trackingStatus: trackingResult.status,
-                            labelStatus: labelStatus
-                        }, 
-                        {type: 'error'}
-                    );
-                }
+                logger.info(`Added job to update status to ECount for order ${order.id}`);
             }
 
             stats.success++;
         } else {
             logger.info(`Status unchanged for order ${order.id}: ${order.status}`);
             stats.success++;
+        }
+
+        if (trackingResult.trackingInfo && trackingResult.trackingInfo.track_events && labelStatus !== 'Deleted') {
+            await trackingCheckpointService.updateCheckpoints(
+                order.id,
+                order.tracking_number || order.waybill_number,
+                trackingResult.trackingInfo.track_events
+            );
         }
     }
 

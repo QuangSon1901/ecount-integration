@@ -1,5 +1,7 @@
 const OrderModel = require('../models/order.model');
 const jobService = require('../services/queue/job.service');
+const trackingCheckpointService = require('../services/tracking-checkpoint.service');
+
 const { successResponse, errorResponse } = require('../utils/response');
 const logger = require('../utils/logger');
 const xlsx = require('xlsx');
@@ -198,6 +200,11 @@ class BulkUpdateController {
                         order.ecount_link,
                         delaySeconds
                     );
+
+                    await trackingCheckpointService.updateCheckpointTimestamps(order.id, {
+                        thg_received_at: new Date()
+                    });
+
 
                     results.success++;
                     results.jobs.push({
