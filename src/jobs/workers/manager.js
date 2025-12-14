@@ -2,6 +2,7 @@
 const CreateOrderWorker = require('./create-order.worker');
 const UpdateTrackingEcountWorker = require('./update-tracking-ecount.worker');
 const UpdateTrackingBatchWorker = require('./update-tracking-batch.worker');
+const UpdateWarningBatchWorker = require('./update-warning-batch.worker');
 const UpdateStatusEcountWorker = require('./update-status-ecount.worker');
 const UpdateStatusBatchWorker = require('./update-status-batch.worker');
 const TrackOtherOrderWorker = require('./track-other-order.worker');
@@ -19,7 +20,8 @@ class WorkerManager {
             new CreateOrderWorker(),           // 5 concurrent
             new UpdateTrackingBatchWorker(),  // 2 concurrent
             new UpdateStatusBatchWorker(),     // 2 concurrent
-            new TrackOtherOrderWorker()
+            new TrackOtherOrderWorker(),
+            new UpdateWarningBatchWorker(),
         ];
 
         this.workers.forEach(worker => {
