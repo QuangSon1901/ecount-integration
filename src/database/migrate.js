@@ -430,18 +430,26 @@ const migrations = [
         version: 13,
         name: 'add_performance_indexes',
         up: `
-            -- ===== JOBS TABLE =====
             -- Index cho resetStuckJobs query
             ALTER TABLE jobs 
             ADD INDEX idx_status_started_processing (status, started_at) 
             COMMENT 'For resetStuckJobs query';
-
+        `
+    },
+    {
+        version: 14,
+        name: 'idx_jobtype_status_available',
+        up: `
             -- Index cho getNextJobs query  
             ALTER TABLE jobs 
             ADD INDEX idx_jobtype_status_available (job_type, status, available_at, attempts)
             COMMENT 'For job queue processing';
-
-            -- ===== ORDERS TABLE =====
+        `
+    },
+    {
+        version: 15,
+        name: 'idx_tracking_check',
+        up: `
             -- Index cho fetch-tracking cron
             ALTER TABLE orders 
             ADD INDEX idx_tracking_check (
@@ -450,7 +458,12 @@ const migrations = [
                 order_status, 
                 product_code(50)
             ) COMMENT 'For fetch-tracking cron';
-
+        `
+    },
+    {
+        version: 16,
+        name: 'idx_status_check',
+        up: `
             -- Index cho update-status cron
             ALTER TABLE orders 
             ADD INDEX idx_status_check (
@@ -459,7 +472,12 @@ const migrations = [
                 order_status,
                 waybill_number(50)
             ) COMMENT 'For update-status cron';
-
+        `
+    },
+    {
+        version: 17,
+        name: 'idx_erp_orders',
+        up: `
             -- Index cho ERP orders lookup
             ALTER TABLE orders
             ADD INDEX idx_erp_orders (
@@ -468,12 +486,22 @@ const migrations = [
                 status,
                 order_status
             ) COMMENT 'For finding latest orders by ERP code';
-
+        `
+    },
+    {
+        version: 18,
+        name: 'idx_tracking_lookup',
+        up: `
             -- Index cho tracking/waybill lookup
             ALTER TABLE orders
             ADD INDEX idx_tracking_lookup (tracking_number(50))
             COMMENT 'For tracking number search';
-            
+        `
+    },
+    {
+        version: 19,
+        name: 'idx_waybill_lookup',
+        up: `
             ALTER TABLE orders  
             ADD INDEX idx_waybill_lookup (waybill_number(50))
             COMMENT 'For waybill number search';
