@@ -10,6 +10,8 @@ class BaseWorker {
         this.isRunning = false;
         this.intervalId = null;
         this.activeJobs = new Set(); // Track jobs đang xử lý
+        this.lastResetTime = 0;
+        this.resetIntervalMs = 60000; // Reset mỗi 60s
     }
 
     start() {
@@ -39,7 +41,15 @@ class BaseWorker {
     async processJobs() {
         try {
             // Reset stuck jobs
-            await JobModel.resetStuckJobs(30);
+            const now = Date.now();
+            if (now - this.lastResetTime > this.resetIntervalMs && this.activeJobs.size === 0) {
+                try {
+                    await JobModel.resetStuckJobs(30);
+                    this.lastResetTime = now;
+                } catch (error) {
+                    logger.error(`Reset stuck jobs error (non-fatal):`, error.message);
+                }
+            }
 
             // Lấy số slots còn trống
             const availableSlots = this.concurrency - this.activeJobs.size;
@@ -73,6 +83,8 @@ class BaseWorker {
         const connection = await db.getConnection();
         
         try {
+            // ✅ SỬ DỤNG READ COMMITTED isolation level
+            await connection.query('SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED');
             await connection.beginTransaction();
             
             const [rows] = await connection.query(
@@ -83,7 +95,7 @@ class BaseWorker {
                 AND attempts < max_attempts
                 ORDER BY available_at ASC
                 LIMIT ?
-                FOR UPDATE SKIP LOCKED`,
+                FOR UPDATE SKIP LOCKED`, // ← ĐÃ CÓ SKIP LOCKED - GOOD!
                 [this.jobType, limit]
             );
             
@@ -92,21 +104,22 @@ class BaseWorker {
                 return [];
             }
             
-            // Update tất cả jobs sang processing
-            const jobIds = rows.map(r => r.id);
+            // ✅ UPDATE THEO THỨ TỰ ID để tránh deadlock
+            const jobIds = rows.map(r => r.id).sort((a, b) => a - b); // ← SORT BY ID
+            
             await connection.query(
                 `UPDATE jobs 
                 SET status = 'processing', 
                     started_at = NOW(),
                     attempts = attempts + 1
-                WHERE id IN (?)`,
+                WHERE id IN (?)
+                ORDER BY id ASC`, // ← THÊM ORDER BY
                 [jobIds]
             );
             
             await connection.commit();
             
-            // Parse JSON
-            const jobs = rows.map(job => {
+            return rows.map(job => {
                 if (typeof job.payload === 'string') {
                     try {
                         job.payload = JSON.parse(job.payload);
@@ -116,8 +129,6 @@ class BaseWorker {
                 }
                 return job;
             });
-            
-            return jobs;
             
         } catch (error) {
             await connection.rollback();

@@ -15,7 +15,7 @@ const telegram = require('../utils/telegram');
 class UpdateStatusCron {
     constructor() {
         this.isRunning = false;
-        this.schedule = '*/10 * * * *';
+        this.schedule = '*/5 * * * *';
         this.batchSize = 50;
         this.statusCheckInterval = 6 * 60 * 60;
 

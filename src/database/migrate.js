@@ -425,6 +425,59 @@ const migrations = [
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             COMMENT='Bảng tracking checkpoints và warnings';
         `
+    },
+    {
+        version: 13,
+        name: 'add_performance_indexes',
+        up: `
+            -- ===== JOBS TABLE =====
+            -- Index cho resetStuckJobs query
+            ALTER TABLE jobs 
+            ADD INDEX idx_status_started_processing (status, started_at) 
+            COMMENT 'For resetStuckJobs query';
+
+            -- Index cho getNextJobs query  
+            ALTER TABLE jobs 
+            ADD INDEX idx_jobtype_status_available (job_type, status, available_at)
+            COMMENT 'For job queue processing';
+
+            -- ===== ORDERS TABLE =====
+            -- Index cho fetch-tracking cron
+            ALTER TABLE orders 
+            ADD INDEX idx_tracking_check (
+                last_tracking_check_at, 
+                status, 
+                order_status, 
+                product_code(50)
+            ) COMMENT 'For fetch-tracking cron';
+
+            -- Index cho update-status cron
+            ALTER TABLE orders 
+            ADD INDEX idx_status_check (
+                last_status_check_at,
+                status,
+                order_status,
+                waybill_number(50)
+            ) COMMENT 'For update-status cron';
+
+            -- Index cho ERP orders lookup
+            ALTER TABLE orders
+            ADD INDEX idx_erp_orders (
+                erp_order_code,
+                created_at DESC,
+                status,
+                order_status
+            ) COMMENT 'For finding latest orders by ERP code';
+
+            -- Index cho tracking/waybill lookup
+            ALTER TABLE orders
+            ADD INDEX idx_tracking_lookup (tracking_number(50))
+            COMMENT 'For tracking number search';
+            
+            ALTER TABLE orders  
+            ADD INDEX idx_waybill_lookup (waybill_number(50))
+            COMMENT 'For waybill number search';
+        `
     }
 ];
 

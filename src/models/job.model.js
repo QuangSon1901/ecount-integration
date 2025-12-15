@@ -293,7 +293,8 @@ class JobModel {
                     started_at = NULL,
                     available_at = NOW()
                 WHERE status = 'processing'
-                AND started_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)`,
+                AND started_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)
+                LIMIT 100`,
                 [timeoutMinutes]
             );
             
@@ -302,6 +303,9 @@ class JobModel {
             }
             
             return result.affectedRows;
+        } catch (error) {
+            logger.error('Reset stuck jobs failed:', error.message);
+            return 0;
         } finally {
             connection.release();
         }
