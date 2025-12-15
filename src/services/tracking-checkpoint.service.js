@@ -422,19 +422,11 @@ class TrackingCheckpointService {
                 }
             }
 
-            // Giai đoạn 3: Customs completed
+            // Giai đoạn 4: Customs completed
             if (!currentCheckpoint.customs_completed_at) {
                 if (nodeCode === 'CUSTOMS_COMPLETE' ||
                     content.includes('clearance processing completed')) {
                     updates.customs_completed_at = this.safeDate(processTime);
-                }
-            }
-
-            // Giai đoạn 4: Clearance completed
-            if (!currentCheckpoint.clearance_completed_at) {
-                if (nodeCode === 'CUSTOMS_COMPLETE' ||
-                    content.includes('clearance processing completed')) {
-                    updates.clearance_completed_at = this.safeDate(processTime);
                 }
             }
 
@@ -446,7 +438,7 @@ class TrackingCheckpointService {
                 }
             }
 
-            // Giai đoạn 5: Out for delivery
+            // Giai đoạn 6: Out for delivery
             if (!currentCheckpoint.out_for_delivery_at) {
                 if (nodeCode === 'DELIVERY_ATTEMPT' ||
                     content.includes('out for delivery')) {
@@ -454,7 +446,7 @@ class TrackingCheckpointService {
                 }
             }
 
-            // Giai đoạn 6: Delivered
+            // Giai đoạn 7: Delivered
             if (!currentCheckpoint.delivered_at) {
                 if (nodeCode === 'DELIVERED' ||
                     content.includes('delivered')) {
@@ -552,6 +544,7 @@ class TrackingCheckpointService {
                     o.erp_order_code,
                     o.customer_order_number,
                     o.waybill_number,
+                    o.order_status,
                     o.erp_status,
                     o.ecount_link
                 FROM tracking_checkpoints tc
@@ -583,17 +576,17 @@ class TrackingCheckpointService {
             }
             
             // Giai đoạn 2: Carrier -> Shipped (24h)
-            if (checkpoint.carrier_received_at && !checkpoint.customs_start_at) {
+            if (checkpoint.carrier_received_at && checkpoint.order_status === 'R') {
                 const hoursSinceCarrier = this.getHoursDiff(checkpoint.carrier_received_at, now);
                 
                 if (hoursSinceCarrier > 24 && !await this.hasWarned(orderId, 'stage_2')) {
                     await this.sendWarning(checkpoint, 'stage_2', {
-                        title: 'CẢNH BÁO: ĐƠN HÀNG CHƯA ĐƯỢC CHUYỂN ĐI',
+                        title: '<b>CẢNH BÁO: ĐƠN HÀNG CHƯA ĐƯỢC CHUYỂN ĐI</b>',
                         stage: 'Giai đoạn 2: Carrier Received → Shipped',
-                        issue: `Đã ${Math.floor(hoursSinceCarrier)} giờ kể từ Carrier nhận hàng nhưng chưa chuyển sang trạng thái Shipped`,
+                        issue: `Đã ${Math.floor(hoursSinceCarrier)} giờ kể từ Carrier nhận hàng nhưng order_status vẫn là 'R' (Carrier Received), chưa chuyển sang 'D' (Shipped)`,
                         threshold: '24 giờ',
-                        action: 'Cần liên hệ Carrier kiểm tra - nghi ngờ hàng bị mất',
-                        message: `[WARNING] Đã ${Math.floor(hoursSinceCarrier)} giờ kể từ Carrier nhận hàng nhưng chưa chuyển sang trạng thái Shipped`
+                        action: 'Cần liên hệ Carrier kiểm tra - nghi ngờ hàng bị mất hoặc chưa được chuyển đi',
+                        message: `[WARNING] Đã ${Math.floor(hoursSinceCarrier)} giờ kể từ Carrier nhận hàng nhưng order_status vẫn là 'R' (Carrier Received)`
                     });
                 }
             }

@@ -237,13 +237,13 @@ class UpdateStatusCron {
             stats.success++;
         }
 
-        // if (trackingResult.trackingInfo && trackingResult.trackingInfo.track_events && labelStatus !== 'Deleted') {
-        //     await trackingCheckpointService.updateCheckpoints(
-        //         order.id,
-        //         order.tracking_number || order.waybill_number,
-        //         trackingResult.trackingInfo.track_events
-        //     );
-        // }
+        if (trackingResult.trackingInfo && trackingResult.trackingInfo.track_events && labelStatus !== 'Deleted') {
+            await trackingCheckpointService.updateCheckpoints(
+                order.id,
+                order.tracking_number || order.waybill_number,
+                trackingResult.trackingInfo.track_events
+            );
+        }
     }
 
     /**
