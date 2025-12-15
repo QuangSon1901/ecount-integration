@@ -438,7 +438,7 @@ const migrations = [
 
             -- Index cho getNextJobs query  
             ALTER TABLE jobs 
-            ADD INDEX idx_jobtype_status_available (job_type, status, available_at)
+            ADD INDEX idx_jobtype_status_available (job_type, status, available_at, attempts)
             COMMENT 'For job queue processing';
 
             -- ===== ORDERS TABLE =====
