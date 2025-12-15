@@ -407,49 +407,42 @@ class TrackingCheckpointService {
 
             // Giai đoạn 2: Carrier received
             if (!currentCheckpoint.carrier_received_at) {
-                if (nodeCode === 'FIRST_MILE_ARRIVE' ||
-                    content.includes('arrived at origin facility')) {
+                if (nodeCode === 'FIRST_MILE_ARRIVE') {
                     updates.carrier_received_at = this.safeDate(processTime);
                 }
             }
 
             // Giai đoạn 3: Customs start
             if (!currentCheckpoint.customs_start_at) {
-                if (nodeCode === 'CUSTOMS_PROCESSING' ||
-                    content.includes('clearance processing') ||
-                    content.includes('in clearance')) {
+                if (nodeCode === 'CUSTOMS_PROCESSING') {
                     updates.customs_start_at = this.safeDate(processTime);
                 }
             }
 
             // Giai đoạn 4: Customs completed
             if (!currentCheckpoint.customs_completed_at) {
-                if (nodeCode === 'CUSTOMS_COMPLETE' ||
-                    content.includes('clearance processing completed')) {
+                if (nodeCode === 'CUSTOMS_COMPLETE') {
                     updates.customs_completed_at = this.safeDate(processTime);
                 }
             }
 
             // Giai đoạn 5: USPS received
             if (!currentCheckpoint.usps_received_at) {
-                if (nodeCode === 'TRANSITHUB_ARRIVE' ||
-                    content.includes('delivered to local carrier')) {
+                if (nodeCode === 'TRANSITHUB_ARRIVE') {
                     updates.usps_received_at = this.safeDate(processTime);
                 }
             }
 
             // Giai đoạn 6: Out for delivery
             if (!currentCheckpoint.out_for_delivery_at) {
-                if (nodeCode === 'DELIVERY_ATTEMPT' ||
-                    content.includes('out for delivery')) {
+                if (nodeCode === 'DELIVERY_ATTEMPT') {
                     updates.out_for_delivery_at = this.safeDate(processTime);
                 }
             }
 
             // Giai đoạn 7: Delivered
             if (!currentCheckpoint.delivered_at) {
-                if (nodeCode === 'DELIVERED' ||
-                    content.includes('delivered')) {
+                if (nodeCode === 'DELIVERED') {
                     updates.delivered_at = this.safeDate(processTime);
                 }
             }
