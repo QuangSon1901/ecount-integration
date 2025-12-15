@@ -558,7 +558,7 @@ class TrackingCheckpointService {
                 // ✨ Chỉ check đã warning chưa, không check thời gian
                 if (hoursSinceTHG > 48 && !await this.hasWarned(orderId, 'stage_1')) {
                     await this.sendWarning(checkpoint, 'stage_1', {
-                        title: '<b>CẢNH BÁO: ĐƠN HÀNG CHƯA ĐƯỢC CARRIER TIẾP NHẬN</b>',
+                        title: 'CẢNH BÁO: ĐƠN HÀNG CHƯA ĐƯỢC CARRIER TIẾP NHẬN',
                         stage: 'Giai đoạn 1: THG → Carrier Received',
                         issue: `Đã ${Math.floor(hoursSinceTHG)} giờ kể từ THG Received nhưng Carrier vẫn chưa scan nhận hàng`,
                         threshold: '48 giờ',
@@ -574,7 +574,7 @@ class TrackingCheckpointService {
                 
                 if (hoursSinceCarrier > 24 && !await this.hasWarned(orderId, 'stage_2')) {
                     await this.sendWarning(checkpoint, 'stage_2', {
-                        title: '<b>CẢNH BÁO: ĐƠN HÀNG CHƯA ĐƯỢC CHUYỂN ĐI</b>',
+                        title: 'CẢNH BÁO: ĐƠN HÀNG CHƯA ĐƯỢC CHUYỂN ĐI',
                         stage: 'Giai đoạn 2: Carrier Received → Shipped',
                         issue: `Đã ${Math.floor(hoursSinceCarrier)} giờ kể từ Carrier nhận hàng nhưng order_status vẫn là 'R' (Carrier Received), chưa chuyển sang 'D' (Shipped)`,
                         threshold: '24 giờ',
