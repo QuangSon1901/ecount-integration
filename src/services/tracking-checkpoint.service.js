@@ -11,7 +11,7 @@ class TrackingCheckpointService {
             ABNORMAL: [
                 'CUSTOMS_EXCEPTION', 'CUSTOMS_INSPCTION', 'CUSTOMS_HOLD', 'CUSTOMS_DELAY',
                 'AIRPORT_INSPECTION', 'AIRPORT_HOLD', 'PACKAGE_EXCEPTION', 'PACKAGE_LOST',
-                'DELIVERY_FAILURE', 'IN_TRANSIT_CARRIER' // (khi có delay/exception)
+                'DELIVERY_FAILURE'
             ],
             RETURN: [
                 'RETURNED', 'RETURNED_TO_SENDER', 'RETURNED_BACK'
@@ -215,7 +215,7 @@ class TrackingCheckpointService {
      */
     async sendAbnormalWarning(order, event, nodeLabels) {
         const nodeCode = event.track_node_code || '';
-        const nodeName = this.NODE_CODE_MESSAGES[nodeCode] || 'Có vấn đề bất thường';
+        const nodeName = event.node_labels?.[0]?.label_name_en || event?.process_content || this.NODE_CODE_MESSAGES[nodeCode] || 'Có vấn đề bất thường';
 
         let msg = `<b>CẢNH BÁO: ĐƠN HÀNG BẤT THƯỜNG</b>\n\n`;
         msg += `- <b>ERP Code:</b> <code>${order.erp_order_code}</code>\n`;
@@ -278,7 +278,7 @@ class TrackingCheckpointService {
      */
     async sendReturnWarning(order, event, nodeLabels) {
         const nodeCode = event.track_node_code || '';
-        const nodeName = this.NODE_CODE_MESSAGES[nodeCode] || 'Đơn hàng đang được trả về';
+        const nodeName = event.node_labels?.[0]?.label_name_en || event?.process_content || this.NODE_CODE_MESSAGES[nodeCode] || 'Đơn hàng đang được trả về';
 
         let msg = `<b>THÔNG BÁO: ĐƠN HÀNG BỊ TRẢ LẠI</b>\n\n`;
         msg += `- <b>ERP Code:</b> <code>${order.erp_order_code}</code>\n`;
