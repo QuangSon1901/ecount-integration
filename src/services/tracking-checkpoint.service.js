@@ -552,7 +552,8 @@ class TrackingCheckpointService {
                     o.erp_order_code,
                     o.customer_order_number,
                     o.waybill_number,
-                    o.erp_status
+                    o.erp_status,
+                    o.ecount_link
                 FROM tracking_checkpoints tc
                 JOIN orders o ON o.id = tc.order_id
                 WHERE tc.order_id = ?`,
@@ -662,10 +663,10 @@ class TrackingCheckpointService {
         });
 
         await jobService.addUpdateWarningJob(
-            order.id,
-            order.erp_order_code,
+            checkpoint.order_id,
+            checkpoint.erp_order_code,
             warningData.message,
-            order.ecount_link,
+            checkpoint.ecount_link,
             5
         );
 
