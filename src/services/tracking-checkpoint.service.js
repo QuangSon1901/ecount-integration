@@ -162,13 +162,15 @@ class TrackingCheckpointService {
         
         try {
             const [rows] = await connection.query(
-                `SELECT id FROM tracking_checkpoints 
-                WHERE order_id = ? 
-                AND last_warning_stage = ?`,
-                [orderId, warningKey]
+                `SELECT last_warning_stage FROM tracking_checkpoints 
+                WHERE order_id = ?`,
+                [orderId]
             );
             
-            return rows.length > 0;
+            if (rows.length === 0) return false;
+            
+            const warningStages = rows[0].last_warning_stage || '';
+            return warningStages.split(',').includes(warningKey);
             
         } finally {
             connection.release();
@@ -718,14 +720,34 @@ class TrackingCheckpointService {
         const connection = await db.getConnection();
         
         try {
-            // ✨ Chỉ update last_warning_stage, không cần last_warning_at nữa
+            const [rows] = await connection.query(
+                `SELECT last_warning_stage FROM tracking_checkpoints 
+                WHERE order_id = ?`,
+                [orderId]
+            );
+            
+            let warningStages = '';
+            if (rows.length > 0 && rows[0].last_warning_stage) {
+                warningStages = rows[0].last_warning_stage;
+            }
+            
+            const stages = warningStages ? warningStages.split(',') : [];
+            
+            if (!stages.includes(warningKey)) {
+                stages.push(warningKey);
+                
+                if (stages.length > 50) {
+                    stages.shift();
+                }
+            }
+            
             await connection.query(
                 `UPDATE tracking_checkpoints 
                 SET last_warning_stage = ?,
                     warning_count = warning_count + 1,
                     updated_at = NOW()
                 WHERE order_id = ?`,
-                [warningKey, orderId]
+                [stages.join(','), orderId]
             );
             
             logger.info(`Marked warning for order ${orderId}: ${warningKey}`);
