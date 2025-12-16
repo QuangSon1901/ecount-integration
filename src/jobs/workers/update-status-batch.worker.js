@@ -633,7 +633,7 @@ class UpdateStatusBatchWorker extends BaseWorker {
                         await jobService.addUpdateWarningJob(
                             order.id,
                             order.erp_order_code,
-                            '',
+                            ' ',
                             order.ecount_link,
                             5
                         );
