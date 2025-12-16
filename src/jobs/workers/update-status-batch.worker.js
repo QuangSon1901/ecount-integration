@@ -4,6 +4,8 @@ const BaseWorker = require('./base.worker');
 const OrderModel = require('../../models/order.model');
 const JobModel = require('../../models/job.model');
 const sessionManager = require('../../services/erp/ecount-session.manager');
+const jobService = require('../../services/queue/job.service');
+
 const telegram = require('../../utils/telegram');
 const logger = require('../../utils/logger');
 const config = require('../../config');
@@ -279,7 +281,7 @@ class UpdateStatusBatchWorker extends BaseWorker {
         await this.searchOrder(page, erpOrderCode);
 
         // Update status
-        await this.updateOrderStatus(page, status);
+        await this.updateOrderStatus(page, status, orderId);
 
         // Update DB
         await OrderModel.update(orderId, {
@@ -503,7 +505,7 @@ class UpdateStatusBatchWorker extends BaseWorker {
     /**
      * Update order status
      */
-    async updateOrderStatus(page, status) {
+    async updateOrderStatus(page, status, orderId) {
         logger.info('Cập nhật trạng thái: ' + status);
 
         // Tìm frame chứa grid
@@ -558,17 +560,19 @@ class UpdateStatusBatchWorker extends BaseWorker {
             throw new Error(`Không tìm thấy trạng thái: "${status}"`);
         }
 
-        await this.verifyStatusUpdate(dataFrame, status);
+        await this.verifyStatusUpdate(dataFrame, status, orderId);
     }
 
     /**
      * Verify status update thành công
      */
-    async verifyStatusUpdate(dataFrame, expectedStatus) {
+    async verifyStatusUpdate(dataFrame, expectedStatus, orderId) {
         logger.info('Verifying status update...');
 
         const maxRetries = 10;
         const retryDelay = 1000;
+        
+        const order = await OrderModel.findById(orderId);
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
@@ -594,16 +598,47 @@ class UpdateStatusBatchWorker extends BaseWorker {
                         };
                     }
 
+                    let hasWarning = false;
+
+                    const headers = Array.from(
+                        document.querySelectorAll('#app-root .wrapper-frame-body .contents thead th')
+                    );
+
+                    const warningIndex = headers.findIndex(th =>
+                        th.textContent.trim().normalize('NFC').includes('Status-THG')
+                    );
+
+                    if (warningIndex !== -1) {
+                        const cells = firstRow.querySelectorAll('td');
+                        const warningCell = cells[warningIndex];
+                        if (warningCell) {
+                            const warningValue = warningCell.textContent.normalize('NFC').trim().toLowerCase();
+                            hasWarning = warningValue.includes('warning');
+                        }
+                    }
+
                     return { 
                         success: true, 
                         reason: 'Status đã được cập nhật đúng',
-                        currentValue: currentStatus
+                        currentValue: currentStatus,
+                        hasWarning
                     };
 
                 }, expectedStatus);
 
                 if (result.success) {
                     logger.info(`✓ Verify status thành công sau ${attempt} lần thử: "${result.currentValue}"`);
+
+                    if (result.hasWarning && order) {
+                        await jobService.addUpdateWarningJob(
+                            order.id,
+                            order.erp_order_code,
+                            '',
+                            order.ecount_link,
+                            5
+                        );
+                    }
+
                     return;
                 }
 
