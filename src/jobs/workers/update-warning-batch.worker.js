@@ -555,13 +555,13 @@ class UpdateWarningBatchWorker extends BaseWorker {
 
                     const cells = firstRow.querySelectorAll('td');
 
-                    if (warningMessage && warningMessage !== '' && warningIndex !== -1) {
+                    if (warningIndex !== -1) {
                         const trackingCell = cells[warningIndex];
                         if (!trackingCell) {
                             return { success: false, reason: 'Không tìm thấy cell Warning' };
                         }
                         const cellValue = trackingCell.textContent.normalize('NFC').trim();
-                        if (cellValue !== warningMessage) {
+                        if (cellValue.trim() !== warningMessage.trim()) {
                             return { 
                                 success: false, 
                                 reason: `Warning không khớp. Expected: "${warningMessage}", Got: "${cellValue}"` 
