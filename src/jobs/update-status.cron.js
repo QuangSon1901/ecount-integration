@@ -371,7 +371,11 @@ class UpdateStatusCron {
                     WHERE waybill_number IS NOT NULL
                     AND waybill_number != ''
                     AND status NOT IN ('new', 'deleted', 'delivered', 'received', 'deleted', 'cancelled', 'failed', 'pending')
-                    AND order_status NOT IN ('V', 'C', 'F')
+                    AND NOT (
+                        status = 'returned'
+                        AND order_status = 'F'
+                    )
+                    AND order_status NOT IN ('V', 'C')
                     AND erp_order_code IS NOT NULL
                     AND ecount_link IS NOT NULL
                     
