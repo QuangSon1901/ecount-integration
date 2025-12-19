@@ -179,7 +179,7 @@ class BulkUpdateController {
                     continue;
                 }
 
-                if (!['new', 'scheduled', 'pending', 'in_transit', 'created'].includes(order.status)) {
+                if (!['new', 'scheduled', 'pending', 'created'].includes(order.status)) {
                     results.failed++;
                     results.errors.push({
                         erp_order_code: erpOrderCode,
