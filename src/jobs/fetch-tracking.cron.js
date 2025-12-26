@@ -288,7 +288,7 @@ class FetchTrackingCron {
                             OR t.last_tracking_check_at < DATE_SUB(NOW(), INTERVAL 6 HOUR)
                         )
 
-                        AND t.status IN ('pending', 'created')
+                        AND t.status IN ('pending', 'created', 'in_transit')
                         AND t.order_status NOT IN ('V', 'C', 'F')
                         AND (t.waybill_number IS NOT NULL OR t.customer_order_number IS NOT NULL)
                         AND t.ecount_link IS NOT NULL
