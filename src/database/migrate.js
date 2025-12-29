@@ -506,7 +506,23 @@ const migrations = [
             ADD INDEX idx_waybill_lookup (waybill_number(50))
             COMMENT 'For waybill number search';
         `
+    },
+    {
+        version: 20,
+        name: 'add_partner_info_to_orders',
+        up: `
+            ALTER TABLE orders
+            ADD COLUMN partner_id VARCHAR(100) 
+                COMMENT 'ID Khách hàng / Nhà cung cấp (ERP/ECount)' 
+                AFTER erp_order_code,
+            ADD COLUMN partner_name VARCHAR(255) 
+                COMMENT 'Tên Khách hàng / Nhà cung cấp' 
+                AFTER partner_id,
+            ADD INDEX idx_partner_id (partner_id),
+            ADD INDEX idx_partner_name (partner_name);
+        `
     }
+
 ];
 
 async function runMigrations(fresh = false) {
