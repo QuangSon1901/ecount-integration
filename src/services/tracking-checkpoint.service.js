@@ -281,7 +281,7 @@ class TrackingCheckpointService {
         msg += `\n<b>Phụ trách:</b>\n`;
         msg += `└ <b>ID KH/NCC:</b> <code>${order.partner_id}</code>\n`;
         msg += `└ <b>Tên KH/NCC:</b> <code>${order.partner_name}</code>\n`;
-        msg += `└ <b>Người phụ trách:</b> <code>${this.TAGNAME_TELEGRAM[order.partner_id] || 'Chưa có'}</code>\n`;
+        msg += `└ <b>Người phụ trách:</b> ${this.TAGNAME_TELEGRAM[order.partner_id] || 'Chưa có'}\n`;
 
 
         // Action suggestion
@@ -350,7 +350,7 @@ class TrackingCheckpointService {
         msg += `\n<b>Phụ trách:</b>\n`;
         msg += `└ <b>ID KH/NCC:</b> <code>${order.partner_id}</code>\n`;
         msg += `└ <b>Tên KH/NCC:</b> <code>${order.partner_name}</code>\n`;
-        msg += `└ <b>Người phụ trách:</b> <code>${this.TAGNAME_TELEGRAM[order.partner_id] || 'Chưa có'}</code>\n`;
+        msg += `└ <b>Người phụ trách:</b> ${this.TAGNAME_TELEGRAM[order.partner_id] || 'Chưa có'}\n`;
 
         // Action suggestion
         // msg += `\n<b>Hành động cần thực hiện:</b>\n`;
@@ -741,7 +741,7 @@ class TrackingCheckpointService {
         msg += `\n<b>Phụ trách:</b>\n`;
         msg += `└ <b>ID KH/NCC:</b> <code>${checkpoint.partner_id}</code>\n`;
         msg += `└ <b>Tên KH/NCC:</b> <code>${checkpoint.partner_name}</code>\n`;
-        msg += `└ <b>Người phụ trách:</b> <code>${this.TAGNAME_TELEGRAM[checkpoint.partner_id] || 'Chưa có'}</code>\n`;
+        msg += `└ <b>Người phụ trách:</b> ${this.TAGNAME_TELEGRAM[checkpoint.partner_id] || 'Chưa có'}\n`;
 
         msg += `\n====================================================`;
 
