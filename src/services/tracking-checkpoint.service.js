@@ -51,6 +51,32 @@ class TrackingCheckpointService {
             'RETURNED_TO_SENDER': 'Đơn hàng đang được trả về người gửi',
             'RETURNED_BACK': 'Đơn hàng đang trên đường trả về',
         };
+
+        this.TAGNAME_TELEGRAM = {
+            'CUS0082': '@hynana686',
+            'CUS0401': '@myhanhtrann',
+            'CUS0088': '@vtung_49',
+            'CUS0288': '@hynana686',
+            'CUS0270': '@myhanhtrann',
+            'CUS0132': '@vtung_49',
+            'CUS0325': '@myhanhtrann',
+            'CUS0112': '@myhanhtrann',
+            'CUS0421': '@hynana686',
+            'CUS0313': '@Moonzzz03',
+            'CUS0324': '@hynana686',
+            'CUS0419': '@myhanhtrann',
+            'CUS0306': '@hynana686',
+            'CUS0322': '@myhanhtrann',
+            'Onos': '@ngoc_huyen_le',
+            'CUS0314': '@myhanhtrann',
+            'Vinh_Pati': '@ngoc_huyen_le',
+            'PrintPoss': '@ngoc_huyen_le',
+            'CUS0267': '@Moonzzz03',
+            'CUS0342': '@hynana686',
+            'CUS0257': '@hynana686',
+            'CUS0237': '@myhanhtrann',
+            'CUS0079': '@hynana686',
+        }
     }
 
     /**
@@ -96,6 +122,8 @@ class TrackingCheckpointService {
                 `SELECT 
                     o.id,
                     o.erp_order_code,
+                    o.partner_id,
+                    o.partner_name,
                     o.customer_order_number,
                     o.waybill_number,
                     o.tracking_number,
@@ -250,6 +278,12 @@ class TrackingCheckpointService {
             });
         }
 
+        msg += `\n<b>Phụ trách:</b>\n`;
+        msg += `└ <b>ID KH/NCC:</b> <code>${order.partner_id}</code>\n`;
+        msg += `└ <b>Tên KH/NCC:</b> <code>${order.partner_name}</code>\n`;
+        msg += `└ <b>Người phụ trách:</b> <code>${this.TAGNAME_TELEGRAM[order.partner_id] || 'Chưa có'}</code>\n`;
+
+
         // Action suggestion
         // msg += `\n<b>Hành động cần thực hiện:</b>\n`;
         // msg += this.getAbnormalActionSuggestion(nodeCode);
@@ -312,6 +346,11 @@ class TrackingCheckpointService {
                 }
             });
         }
+
+        msg += `\n<b>Phụ trách:</b>\n`;
+        msg += `└ <b>ID KH/NCC:</b> <code>${order.partner_id}</code>\n`;
+        msg += `└ <b>Tên KH/NCC:</b> <code>${order.partner_name}</code>\n`;
+        msg += `└ <b>Người phụ trách:</b> <code>${this.TAGNAME_TELEGRAM[order.partner_id] || 'Chưa có'}</code>\n`;
 
         // Action suggestion
         // msg += `\n<b>Hành động cần thực hiện:</b>\n`;
@@ -537,6 +576,8 @@ class TrackingCheckpointService {
                 `SELECT 
                     tc.*,
                     o.erp_order_code,
+                    o.partner_id,
+                    o.partner_name,
                     o.customer_order_number,
                     o.waybill_number,
                     o.order_status,
@@ -696,6 +737,11 @@ class TrackingCheckpointService {
         if (checkpoint.usps_received_at) {
             msg += `└ USPS Received: ${this.formatDateTime(checkpoint.usps_received_at)}\n`;
         }
+
+        msg += `\n<b>Phụ trách:</b>\n`;
+        msg += `└ <b>ID KH/NCC:</b> <code>${checkpoint.partner_id}</code>\n`;
+        msg += `└ <b>Tên KH/NCC:</b> <code>${checkpoint.partner_name}</code>\n`;
+        msg += `└ <b>Người phụ trách:</b> <code>${this.TAGNAME_TELEGRAM[checkpoint.partner_id] || 'Chưa có'}</code>\n`;
 
         msg += `\n====================================================`;
 

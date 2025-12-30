@@ -22,8 +22,8 @@ class OrderModel {
                     erp_status, ecount_link,
                     extra_services, sensitive_type, goods_type,
                     vat_number, ioss_code, eori_number,
-                    order_data, carrier_response
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    order_data, carrier_response, partner_id, partner_name
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     orderData.orderNumber,
                     orderData.customerOrderNumber || null,
@@ -62,7 +62,9 @@ class OrderModel {
                     orderData.iossCode || null,
                     orderData.eoriNumber || null,
                     JSON.stringify(orderData.orderData || {}),
-                    JSON.stringify(orderData.carrierResponse || {})
+                    JSON.stringify(orderData.carrierResponse || {}),
+                    orderData.partnerID,
+                    orderData.partnerName,
                 ]
             );
             

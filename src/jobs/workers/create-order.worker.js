@@ -51,6 +51,8 @@ class CreateOrderWorker extends BaseWorker {
             customerOrderNumber: carrierResult.customerOrderNumber || orderData.customerOrderNumber,
             platformOrderNumber: orderData.platformOrderNumber,
             erpOrderCode: orderData.erpOrderCode,
+            partnerID: orderData.partnerID,
+            partnerName: orderData.partnerName,
             carrier: carrierCode,
             productCode: orderData.productCode,
             waybillNumber: carrierResult.waybillNumber || null,

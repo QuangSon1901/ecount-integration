@@ -275,6 +275,20 @@ const orderSchema = Joi.object({
         }),
     trackingNumber: Joi.string().max(50).allow(''),
     referenceNumbers: Joi.array().items(Joi.string()).max(5),
+
+    partnerID: Joi.string().min(1).max(100).required()
+        .messages({
+            'string.empty': 'partner_id is required',
+            'string.min': 'partner_id must be at least 1 character',
+            'string.max': 'partner_id must not exceed 100 characters'
+        }),
+    
+    partnerName: Joi.string().min(1).max(255).required()
+        .messages({
+            'string.empty': 'partner_name is required',
+            'string.min': 'partner_name must be at least 1 character',
+            'string.max': 'partner_name must not exceed 255 characters'
+        }),
     
     weightUnit: Joi.string()
         .valid('KG', 'kg', 'G', 'g', 'LBS', 'lbs')
@@ -417,8 +431,8 @@ const validateOrderMulti = (req, res, next) => {
         return errorResponse(res, 'orders array cannot be empty', 400);
     }
 
-    if (orders.length > 50) {
-        return errorResponse(res, 'Maximum 50 orders per request', 400);
+    if (orders.length > 100) {
+        return errorResponse(res, 'Maximum 100 orders per request', 400);
     }
 
     // Validate từng order
