@@ -588,7 +588,10 @@ class UpdateTrackingBatchWorker extends BaseWorker {
         const retryDelay = 1000;
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            await dataFrame.press('body', 'F8');
+            await dataFrame.evaluate(() => {
+                const submitBtn = document.querySelector('[data-container="popup-body"] .footer #group3slipSave');
+                if (submitBtn) submitBtn.click();;
+            });
 
             try {
                 const result = await dataFrame.evaluate(({ trackingNumber, waybillNumber, labelUrl }) => {
