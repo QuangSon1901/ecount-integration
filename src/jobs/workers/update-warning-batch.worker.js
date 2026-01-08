@@ -531,7 +531,6 @@ class UpdateWarningBatchWorker extends BaseWorker {
 
         }, { warningMessage });
 
-        await page.keyboard.press('F8');
         await this.verifyWarningUpdate(dataFrame, warningMessage);
     }
 
@@ -540,6 +539,8 @@ class UpdateWarningBatchWorker extends BaseWorker {
         const retryDelay = 1000;
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            await dataFrame.press('body', 'F8');
+
             try {
                 const result = await dataFrame.evaluate(({ warningMessage }) => {
                     const headers = Array.from(document.querySelectorAll('#app-root .wrapper-frame-body .contents thead th'));

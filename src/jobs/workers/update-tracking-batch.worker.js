@@ -524,6 +524,7 @@ class UpdateTrackingBatchWorker extends BaseWorker {
             '#app-root .wrapper-frame-body .contents tbody tr'
         );
 
+
         await dataFrame.waitForSelector('#app-root .wrapper-frame-body .contents tbody tr', {
             state: 'visible',
             timeout: this.playwrightConfig.timeout
@@ -576,7 +577,6 @@ class UpdateTrackingBatchWorker extends BaseWorker {
             }
         }, { trackingNumber, waybillNumber, labelUrl });
 
-        await page.keyboard.press('F8');
         await this.verifyTrackingUpdate(dataFrame, trackingNumber, waybillNumber, labelUrl);
     }
 
@@ -588,6 +588,8 @@ class UpdateTrackingBatchWorker extends BaseWorker {
         const retryDelay = 1000;
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            await dataFrame.press('body', 'F8');
+
             try {
                 const result = await dataFrame.evaluate(({ trackingNumber, waybillNumber, labelUrl }) => {
                     // Tìm header để xác định vị trí cột
