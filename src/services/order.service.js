@@ -367,7 +367,7 @@ class OrderService {
                 trackingNumber: result.trackingNumber,
                 status: 'created',
                 erpStatus: orderData.erpStatus || 'Đang xử lý',
-                ecountLink: '#menuType=MENUTREE_000004&menuSeq=MENUTREE_000004&groupSeq=MENUTREE_000030&prgId=C000004&depth=1',
+                ecountLink: '#menuType=MENUTREE_000004&menuSeq=MENUTREE_000186&groupSeq=MENUTREE_000030&prgId=C000073&depth=1',
                 orderData: orderData,
                 carrierResponse: result.carrierResponse
             });

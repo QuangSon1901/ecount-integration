@@ -232,7 +232,7 @@ class TrackOtherOrderWorker extends BaseWorker {
             return {
                 newStatus: 'delivered',
                 newOrderStatus: 'V',
-                labelStatus: 'Have been received'
+                labelStatus: 'Delivered'
             };
         }
 

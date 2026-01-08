@@ -324,7 +324,7 @@ class UpdateStatusCron {
         }
         
         if (ordStatus === 'V') {
-            return 'Have been received';
+            return 'Delivered';
         }
         
         if (ordStatus === 'F' || ordStatus === 'P') {

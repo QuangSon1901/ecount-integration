@@ -629,7 +629,7 @@ class UpdateStatusBatchWorker extends BaseWorker {
                 if (result.success) {
                     logger.info(`✓ Verify status thành công sau ${attempt} lần thử: "${result.currentValue}"`);
 
-                    if (result.hasWarning && order && ['THG Received', 'Carrier Received', 'Shipped', 'Have been received'].includes(expectedStatus)) {
+                    if (result.hasWarning && order && ['THG Received', 'Carrier Received', 'Shipped', 'Have been received', 'Delivered'].includes(expectedStatus)) {
                         await jobService.addUpdateWarningJob(
                             order.id,
                             order.erp_order_code,

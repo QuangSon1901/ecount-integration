@@ -517,7 +517,7 @@ class SyncOrdersECountCron {
                 if (!trackingLastMile) return;
 
                 const status = columnMap.status !== -1 ? (cells[columnMap.status]?.textContent || '').trim() : '';
-                if (['Have been received', 'Returned', 'Deleted'].includes(status)) return;
+                if (['Have been received', 'Delivered', 'Returned', 'Deleted'].includes(status)) return;
                 
                 const order = {
                     date: columnMap.date !== -1 ? cells[columnMap.date]?.textContent.trim() : null,

@@ -99,7 +99,7 @@ class ImportController {
                         erpStatus: 'Đang xử lý',
                         erpUpdated: false,
                         erpTrackingNumberUpdated: false,
-                        ecountLink: '#menuType=MENUTREE_000004&menuSeq=MENUTREE_000004&groupSeq=MENUTREE_000030&prgId=C000004&depth=1',
+                        ecountLink: '#menuType=MENUTREE_000004&menuSeq=MENUTREE_000186&groupSeq=MENUTREE_000030&prgId=C000073&depth=1',
                         orderData: {
                             carrier: carrierRequest,
                             imported: true,

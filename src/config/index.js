@@ -36,7 +36,7 @@ module.exports = {
         id: process.env.ECOUNT_ID,
         password: process.env.ECOUNT_PASSWORD,
         baseUrl: process.env.ECOUNT_BASE_URL,
-        hashLink: process.env.ECOUNT_HASH_LINK || '#menuType=MENUTREE_000004&menuSeq=MENUTREE_000004&groupSeq=MENUTREE_000030&prgId=C000004&depth=1',
+        hashLink: process.env.ECOUNT_HASH_LINK || '#menuType=MENUTREE_000004&menuSeq=MENUTREE_000186&groupSeq=MENUTREE_000030&prgId=C000073&depth=1',
     },
     
     puppeteer: {
