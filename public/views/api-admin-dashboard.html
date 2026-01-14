@@ -1,0 +1,320 @@
+<!-- public/views/api-admin-dashboard.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Customer Management - THG</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .customers-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .customers-table th,
+        .customers-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .customers-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-suspended {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .credentials-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+
+        .credential-item {
+            margin-bottom: 15px;
+        }
+
+        .credential-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .credential-value {
+            font-family: monospace;
+            background: white;
+            padding: 10px;
+            border-radius: 3px;
+            word-break: break-all;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 API Customer Management</h1>
+        <p class="subtitle">Quản lý khách hàng sử dụng THG API Platform</p>
+
+        <!-- Alert Messages -->
+        <div id="alertContainer"></div>
+
+        <!-- Create Customer Section -->
+        <div class="section">
+            <h2 class="section-title">Tạo Khách Hàng Mới</h2>
+            
+            <form id="createCustomerForm">
+                <div class="grid">
+                    <div class="form-group">
+                        <label>Mã Khách Hàng *</label>
+                        <input type="text" id="customerCode" required placeholder="CUS0001">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tên Khách Hàng *</label>
+                        <input type="text" id="customerName" required placeholder="Công ty ABC">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="email" placeholder="contact@example.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Số Điện Thoại</label>
+                        <input type="tel" id="phone" placeholder="+84 xxx xxx xxx">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Môi Trường *</label>
+                        <select id="environment">
+                            <option value="production">Production</option>
+                            <option value="sandbox">Sandbox</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Rate Limit (Hourly)</label>
+                        <input type="number" id="rateLimitHourly" value="6000">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Rate Limit (Daily)</label>
+                        <input type="number" id="rateLimitDaily" value="10000">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Tạo Khách Hàng</button>
+            </form>
+
+            <!-- Credentials Result -->
+            <div id="credentialsResult" class="credentials-box hidden">
+                <h3>✅ Khách hàng đã được tạo thành công!</h3>
+                <p style="color: #dc3545; margin: 10px 0;">⚠️ <strong>Lưu ý:</strong> Client Secret chỉ hiển thị MỘT LẦN duy nhất. Vui lòng sao chép và lưu trữ an toàn!</p>
+                
+                <div class="credential-item">
+                    <div class="credential-label">Customer ID:</div>
+                    <div class="credential-value" id="resultCustomerId"></div>
+                </div>
+
+                <div class="credential-item">
+                    <div class="credential-label">Customer Code:</div>
+                    <div class="credential-value" id="resultCustomerCode"></div>
+                </div>
+
+                <div class="credential-item">
+                    <div class="credential-label">Client ID:</div>
+                    <div class="credential-value" id="resultClientId"></div>
+                </div>
+
+                <div class="credential-item">
+                    <div class="credential-label">Client Secret (⚠️ CHỈ HIỂN THỊ MỘT LẦN):</div>
+                    <div class="credential-value" id="resultClientSecret" style="background: #fff3cd;"></div>
+                </div>
+
+                <div class="credential-item">
+                    <div class="credential-label">Environment:</div>
+                    <div class="credential-value" id="resultEnvironment"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- List Customers Section -->
+        <div class="section">
+            <h2 class="section-title">Danh Sách Khách Hàng</h2>
+
+            <div style="margin-bottom: 20px;">
+                <button onclick="loadCustomers()" class="btn btn-secondary">🔄 Tải Lại</button>
+            </div>
+
+            <div id="loadingCustomers" class="loading hidden">
+                Đang tải...
+            </div>
+
+            <table class="customers-table" id="customersTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Mã KH</th>
+                        <th>Tên Khách Hàng</th>
+                        <th>Email</th>
+                        <th>Môi Trường</th>
+                        <th>Trạng Thái</th>
+                        <th>Rate Limit (H/D)</th>
+                        <th>Ngày Tạo</th>
+                    </tr>
+                </thead>
+                <tbody id="customersTableBody">
+                    <!-- Rows will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script src="/js/api-admin-dashboard.js?123" defer></script>
+</body>
+</html>

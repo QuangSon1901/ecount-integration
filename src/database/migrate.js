@@ -521,6 +521,198 @@ const migrations = [
             ADD INDEX idx_partner_id (partner_id),
             ADD INDEX idx_partner_name (partner_name);
         `
+    },
+    {
+        version: 21,
+        name: 'create_api_customers_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS api_customers (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                customer_code VARCHAR(50) UNIQUE NOT NULL COMMENT 'Mã khách hàng THG (CUS0001)',
+                customer_name VARCHAR(255) NOT NULL,
+                email VARCHAR(255),
+                phone VARCHAR(50),
+                
+                -- Environment separation
+                environment ENUM('production', 'sandbox') DEFAULT 'production',
+                
+                -- Status
+                status ENUM('active', 'suspended', 'inactive') DEFAULT 'active',
+                
+                -- Rate limiting
+                rate_limit_per_hour INT DEFAULT 6000,
+                rate_limit_per_day INT DEFAULT 10000,
+                max_consecutive_errors INT DEFAULT 30,
+                
+                -- Features
+                webhook_enabled BOOLEAN DEFAULT TRUE,
+                bulk_order_enabled BOOLEAN DEFAULT TRUE,
+                max_bulk_orders INT DEFAULT 100,
+                
+                -- Metadata
+                metadata JSON COMMENT 'Additional customer info',
+                
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                
+                INDEX idx_customer_code (customer_code),
+                INDEX idx_status (status),
+                INDEX idx_environment (environment)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='Bảng quản lý khách hàng API';
+        `
+    },
+    {
+        version: 22,
+        name: 'create_api_credentials_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS api_credentials (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                customer_id INT NOT NULL,
+                
+                -- OAuth-style credentials
+                client_id VARCHAR(64) UNIQUE NOT NULL,
+                client_secret_hash VARCHAR(255) NOT NULL COMMENT 'Hashed with bcrypt',
+                
+                -- Environment
+                environment ENUM('production', 'sandbox') NOT NULL,
+                
+                -- Token settings
+                access_token_ttl INT DEFAULT 3600 COMMENT 'Seconds (1 hour)',
+                refresh_token_ttl INT DEFAULT 2592000 COMMENT 'Seconds (30 days)',
+                
+                -- Status
+                status ENUM('active', 'revoked') DEFAULT 'active',
+                
+                -- Metadata
+                last_used_at TIMESTAMP NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                revoked_at TIMESTAMP NULL,
+                revoked_reason TEXT,
+                
+                FOREIGN KEY (customer_id) REFERENCES api_customers(id) ON DELETE CASCADE,
+                INDEX idx_client_id (client_id),
+                INDEX idx_customer_env (customer_id, environment),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            COMMENT='Bảng lưu trữ Client ID và Secret';
+        `
+    },
+    {
+        version: 23,
+        name: 'create_api_access_tokens_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS api_access_tokens (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                credential_id INT NOT NULL,
+                customer_id INT NOT NULL,
+                
+                -- Tokens
+                access_token VARCHAR(512) UNIQUE NOT NULL,
+                refresh_token VARCHAR(512) UNIQUE,
+                
+                -- Expiry
+                expires_at TIMESTAMP NOT NULL,
+                refresh_expires_at TIMESTAMP NULL,
+                
+                -- Status
+                revoked BOOLEAN DEFAULT FALSE,
+                revoked_at TIMESTAMP NULL,
+                
+                -- Metadata
+                ip_address VARCHAR(45),
+                user_agent TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_used_at TIMESTAMP NULL,
+                
+                FOREIGN KEY (credential_id) REFERENCES api_credentials(id) ON DELETE CASCADE,
+                FOREIGN KEY (customer_id) REFERENCES api_customers(id) ON DELETE CASCADE,
+                INDEX idx_access_token (access_token(255)),
+                INDEX idx_refresh_token (refresh_token(255)),
+                INDEX idx_expires_at (expires_at),
+                INDEX idx_customer_active (customer_id, revoked, expires_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            COMMENT='Bảng lưu trữ Access và Refresh Tokens';
+        `
+    },
+    {
+        version: 24,
+        name: 'create_api_rate_limits_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS api_rate_limits (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                customer_id INT NOT NULL,
+                
+                -- Time window
+                window_start TIMESTAMP NOT NULL,
+                window_type ENUM('hourly', 'daily') NOT NULL,
+                
+                -- Counters
+                request_count INT DEFAULT 0,
+                error_count INT DEFAULT 0,
+                success_count INT DEFAULT 0,
+                
+                -- Status
+                limit_exceeded BOOLEAN DEFAULT FALSE,
+                blocked_until TIMESTAMP NULL,
+                
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                
+                FOREIGN KEY (customer_id) REFERENCES api_customers(id) ON DELETE CASCADE,
+                UNIQUE KEY idx_customer_window (customer_id, window_type, window_start),
+                INDEX idx_window_start (window_start),
+                INDEX idx_blocked (blocked_until)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            COMMENT='Bảng tracking rate limits';
+        `
+    },
+    {
+        version: 25,
+        name: 'create_api_audit_logs_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS api_audit_logs (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                customer_id INT,
+                
+                -- Request info
+                request_id VARCHAR(64) UNIQUE NOT NULL,
+                method VARCHAR(10) NOT NULL,
+                endpoint VARCHAR(255) NOT NULL,
+                
+                -- Authentication
+                client_id VARCHAR(64),
+                access_token_suffix VARCHAR(16) COMMENT 'Last 16 chars for tracking',
+                
+                -- Request/Response
+                request_headers JSON,
+                request_body JSON,
+                response_status INT,
+                response_body JSON,
+                
+                -- Performance
+                duration_ms INT,
+                
+                -- Client info
+                ip_address VARCHAR(45),
+                user_agent TEXT,
+                
+                -- Result
+                success BOOLEAN,
+                error_code VARCHAR(50),
+                error_message TEXT,
+                
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                
+                FOREIGN KEY (customer_id) REFERENCES api_customers(id) ON DELETE SET NULL,
+                INDEX idx_customer_id (customer_id),
+                INDEX idx_request_id (request_id),
+                INDEX idx_endpoint (endpoint),
+                INDEX idx_created_at (created_at),
+                INDEX idx_client_success (client_id, success, created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            COMMENT='Bảng audit logs cho API requests';
+        `
     }
 
 ];

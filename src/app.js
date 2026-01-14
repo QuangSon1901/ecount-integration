@@ -10,6 +10,8 @@ const ecountRoutes = require('./routes/ecount.routes');
 const labelRoutes = require('./routes/label.routes');
 const extensionRoutes = require('./routes/extension.routes');
 
+const apiV1Routes = require('./routes/api-v1.routes');
+
 const errorMiddleware = require('./middlewares/error.middleware');
 const logger = require('./utils/logger');
 const db = require('./database/connection');
@@ -110,6 +112,8 @@ app.use((req, res, next) => {
 // });
 
 // Routes
+app.use('/api/v1', apiV1Routes);
+
 app.use('/api/orders', orderRoutes);
 app.use('/api/ecount', ecountRoutes);
 app.use('/api/labels', labelRoutes);

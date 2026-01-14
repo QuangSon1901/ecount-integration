@@ -111,4 +111,20 @@ router.get('/download/tool-label', (req, res) => {
     });
 });
 
+/**
+ * @route   GET /extensions/api-admin
+ * @desc    API Customer Management Dashboard
+ * @access  Private (Basic Auth)
+ */
+router.get('/api-admin', basicAuthMiddleware, (req, res) => {
+    const viewPath = path.join(__dirname, '../../public/views/api-admin-dashboard.html');
+    
+    if (!fs.existsSync(viewPath)) {
+        logger.error('API admin dashboard view not found');
+        return errorResponse(res, 'Page not found', 404);
+    }
+    
+    res.sendFile(viewPath);
+});
+
 module.exports = router;
