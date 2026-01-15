@@ -4,12 +4,11 @@ const path = require('path');
 const fs = require('fs');
 const logger = require('../utils/logger');
 const { errorResponse } = require('../utils/response');
-
 const basicAuthMiddleware = require('../middlewares/basic-auth.middleware');
 
 /**
  * @route   GET /extensions/dashboard
- * @desc    Dashboard tổng hợp các tools
+ * @desc    Main unified dashboard
  * @access  Private (Basic Auth)
  */
 router.get('/dashboard', basicAuthMiddleware, (req, res) => {
@@ -23,39 +22,11 @@ router.get('/dashboard', basicAuthMiddleware, (req, res) => {
     res.sendFile(viewPath);
 });
 
-
 /**
- * @route   GET /extensions/tool1
- * @desc    Trang hướng dẫn cài đặt Extension 1
- * @access  Public
+ * @route   GET /extensions/bulk-update
+ * @desc    Bulk update orders page
+ * @access  Private (Basic Auth)
  */
-router.get('/tool-express', basicAuthMiddleware, (req, res) => {
-    const viewPath = path.join(__dirname, '../../public/views/ecount-extension.html');
-    
-    if (!fs.existsSync(viewPath)) {
-        logger.error('Extension 1 view not found');
-        return errorResponse(res, 'Page not found', 404);
-    }
-    
-    res.sendFile(viewPath);
-});
-
-/**
- * @route   GET /extensions/tool2
- * @desc    Trang hướng dẫn cài đặt Extension 2
- * @access  Public
- */
-router.get('/tool-label', (req, res) => {
-    const viewPath = path.join(__dirname, '../../public/views/down-label-ecount-extension.html');
-    
-    if (!fs.existsSync(viewPath)) {
-        logger.error('Extension 2 view not found');
-        return errorResponse(res, 'Page not found', 404);
-    }
-    
-    res.sendFile(viewPath);
-});
-
 router.get('/bulk-update', basicAuthMiddleware, (req, res) => {
     const viewPath = path.join(__dirname, '../../public/views/bulk-update-orders.html');
     
@@ -68,63 +39,79 @@ router.get('/bulk-update', basicAuthMiddleware, (req, res) => {
 });
 
 /**
- * @route   GET /extensions/download/tool1
- * @desc    Tải xuống Extension 1
+ * @route   GET /extensions/tool-express
+ * @desc    ECount extension guide
+ * @access  Private (Basic Auth)
+ */
+router.get('/tool-express', basicAuthMiddleware, (req, res) => {
+    const viewPath = path.join(__dirname, '../../public/views/ecount-extension.html');
+    
+    if (!fs.existsSync(viewPath)) {
+        logger.error('ECount extension view not found');
+        return errorResponse(res, 'Page not found', 404);
+    }
+    
+    res.sendFile(viewPath);
+});
+
+/**
+ * @route   GET /extensions/tool-label
+ * @desc    Label extension guide (Public)
  * @access  Public
+ */
+router.get('/tool-label', (req, res) => {
+    const viewPath = path.join(__dirname, '../../public/views/down-label-ecount-extension.html');
+    
+    if (!fs.existsSync(viewPath)) {
+        logger.error('Label extension view not found');
+        return errorResponse(res, 'Page not found', 404);
+    }
+    
+    res.sendFile(viewPath);
+});
+
+/**
+ * @route   GET /extensions/download/tool-express
+ * @desc    Download ECount extension
+ * @access  Private (Basic Auth)
  */
 router.get('/download/tool-express', basicAuthMiddleware, (req, res) => {
     const filePath = path.join(__dirname, '../../public/extensions/ecount-extension.zip');
     
     if (!fs.existsSync(filePath)) {
-        logger.error('Extension 1 file not found');
+        logger.error('ECount extension file not found');
         return errorResponse(res, 'File not found', 404);
     }
     
-    logger.info('Downloading Extension 1', { ip: req.ip });
+    logger.info('Downloading ECount Extension', { ip: req.ip });
     
     res.download(filePath, 'ecount-extension-tool.zip', (err) => {
         if (err) {
-            logger.error('Error downloading Extension 1:', err);
+            logger.error('Error downloading ECount Extension:', err);
         }
     });
 });
 
 /**
- * @route   GET /extensions/download/tool2
- * @desc    Tải xuống Extension 2
+ * @route   GET /extensions/download/tool-label
+ * @desc    Download label extension (Public)
  * @access  Public
  */
 router.get('/download/tool-label', (req, res) => {
     const filePath = path.join(__dirname, '../../public/extensions/down-label-ecount-extension.zip');
     
     if (!fs.existsSync(filePath)) {
-        logger.error('Extension 2 file not found');
+        logger.error('Label extension file not found');
         return errorResponse(res, 'File not found', 404);
     }
     
-    logger.info('Downloading Extension 2', { ip: req.ip });
+    logger.info('Downloading Label Extension', { ip: req.ip });
     
     res.download(filePath, 'down-label-ecount-extension-tool.zip', (err) => {
         if (err) {
-            logger.error('Error downloading Extension 2:', err);
+            logger.error('Error downloading Label Extension:', err);
         }
     });
-});
-
-/**
- * @route   GET /extensions/api-admin
- * @desc    API Customer Management Dashboard
- * @access  Private (Basic Auth)
- */
-router.get('/api-admin', basicAuthMiddleware, (req, res) => {
-    const viewPath = path.join(__dirname, '../../public/views/api-admin-dashboard.html');
-    
-    if (!fs.existsSync(viewPath)) {
-        logger.error('API admin dashboard view not found');
-        return errorResponse(res, 'Page not found', 404);
-    }
-    
-    res.sendFile(viewPath);
 });
 
 module.exports = router;

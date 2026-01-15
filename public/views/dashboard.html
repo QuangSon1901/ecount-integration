@@ -1,10 +1,9 @@
-<!-- public/views/dashboard.html -->
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>THG-FULFILL Tools Dashboard</title>
+    <title>THG-FULFILL Admin Dashboard</title>
     <style>
         * {
             margin: 0;
@@ -12,144 +11,190 @@
             box-sizing: border-box;
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.5;
-            color: #1f2937;
-            background: #f9fafb;
-            height: 100vh;
-            overflow: hidden;
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --border: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --sidebar-width: 260px;
+            --header-height: 64px;
         }
 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Layout */
         .app-container {
             display: flex;
-            height: 100vh;
+            min-height: 100vh;
         }
 
         /* Header */
         .header {
             position: fixed;
             top: 0;
-            left: 0;
+            left: var(--sidebar-width);
             right: 0;
-            height: 56px;
-            background: white;
-            border-bottom: 1px solid #e5e7eb;
+            height: var(--header-height);
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
-            padding: 0 20px;
+            justify-content: space-between;
+            padding: 0 32px;
             z-index: 100;
         }
 
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        .header-title h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
         }
 
-        .logo {
-            width: 36px;
-            height: 36px;
-            background: #2563eb;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
+        .header-title p {
             font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 2px;
         }
 
-        .app-name {
-            font-size: 15px;
-            font-weight: 600;
-            color: #111827;
-        }
-
-        .header-right {
-            margin-left: auto;
+        .header-actions {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
         }
 
-        .user-info {
+        .user-badge {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 6px 12px;
-            background: #f3f4f6;
+            gap: 10px;
+            padding: 8px 14px;
+            background: var(--bg-secondary);
             border-radius: 8px;
             font-size: 14px;
-            color: #374151;
         }
 
         .user-avatar {
-            width: 28px;
-            height: 28px;
-            background: #d1d5db;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
+            background: var(--primary);
+            color: white;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
-            color: #6b7280;
+            font-weight: 600;
+            font-size: 13px;
         }
 
         /* Sidebar */
         .sidebar {
-            width: 240px;
-            background: white;
-            border-right: 1px solid #e5e7eb;
-            padding-top: 56px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--bg-primary);
+            border-right: 1px solid var(--border);
             overflow-y: auto;
+            z-index: 101;
         }
 
-        .sidebar-section {
-            padding: 16px 12px;
+        .sidebar-logo {
+            padding: 20px 20px 16px;
+            border-bottom: 1px solid var(--border);
         }
 
-        .sidebar-title {
+        .logo-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--primary);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .logo-text h2 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .logo-text p {
             font-size: 12px;
-            font-weight: 600;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 0 8px 8px;
+            color: var(--text-secondary);
         }
 
-        .sidebar-menu {
+        .sidebar-nav {
+            padding: 16px 0;
+        }
+
+        .nav-section {
+            margin-bottom: 24px;
+        }
+
+        .nav-section-title {
+            padding: 0 20px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-secondary);
+        }
+
+        .nav-menu {
             list-style: none;
         }
 
-        .sidebar-item {
-            margin-bottom: 4px;
+        .nav-item {
+            margin: 2px 12px;
         }
 
-        .sidebar-link {
+        .nav-link {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 8px 12px;
-            color: #4b5563;
+            gap: 12px;
+            padding: 10px 12px;
+            color: var(--text-secondary);
             text-decoration: none;
+            border-radius: 8px;
             font-size: 14px;
-            border-radius: 6px;
-            transition: all 0.2s;
-        }
-
-        .sidebar-link:hover {
-            background: #f3f4f6;
-            color: #111827;
-        }
-
-        .sidebar-link.active {
-            background: #eff6ff;
-            color: #2563eb;
             font-weight: 500;
+            transition: all 0.2s;
+            cursor: pointer;
         }
 
-        .sidebar-icon {
+        .nav-link:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .nav-link.active {
+            background: #eff6ff;
+            color: var(--primary);
+        }
+
+        .nav-icon {
             width: 20px;
             height: 20px;
             display: flex;
@@ -157,457 +202,921 @@
             justify-content: center;
         }
 
-        .divider {
-            height: 1px;
-            background: #e5e7eb;
-            margin: 12px 0;
+        .nav-badge {
+            margin-left: auto;
+            padding: 2px 8px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .nav-link.active .nav-badge {
+            background: var(--primary);
+            color: white;
         }
 
         /* Main Content */
         .main-content {
-            flex: 1;
-            margin-top: 56px;
-            overflow-y: auto;
+            margin-left: var(--sidebar-width);
+            margin-top: var(--header-height);
+            padding: 32px;
+            min-height: calc(100vh - var(--header-height));
+            width: calc(100% - var(--sidebar-width));
         }
 
-        .content-header {
-            padding: 20px 24px;
-            background: white;
-            border-bottom: 1px solid #e5e7eb;
+        /* Content Sections */
+        .content-section {
+            display: none;
         }
 
-        .content-header h1 {
-            font-size: 20px;
-            font-weight: 600;
-            color: #111827;
-            margin-bottom: 4px;
+        .content-section.active {
+            display: block;
         }
 
-        .content-header p {
-            font-size: 14px;
-            color: #6b7280;
-        }
-
-        .content-body {
-            padding: 24px;
-        }
-
-        /* Stats */
+        /* Stats Cards */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
         }
 
         .stat-card {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 16px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+
+        .stat-card.quick-access-card {
+            cursor: pointer;
+        }
+
+        .stat-card.quick-access-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-color: var(--primary);
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
         }
 
         .stat-label {
             font-size: 13px;
-            color: #6b7280;
-            margin-bottom: 6px;
-        }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: 600;
-            color: #111827;
-        }
-
-        /* Tools Grid */
-        .section-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 16px;
-        }
-
-        .section-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #111827;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .section-badge {
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 11px;
+            color: var(--text-secondary);
             font-weight: 500;
         }
 
-        .badge-internal {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .badge-public {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-
-        .tools-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 16px;
-            margin-bottom: 32px;
-        }
-
-        .tool-card {
-            background: white;
-            border: 1px solid #e5e7eb;
+        .stat-icon {
+            width: 36px;
+            height: 36px;
             border-radius: 8px;
-            overflow: hidden;
-            transition: all 0.2s ease;
-        }
-
-        .tool-card:hover {
-            border-color: #2563eb;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
-        }
-
-        .tool-thumbnail {
-            width: 100%;
-            height: 160px;
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 48px;
-            color: #93c5fd;
-            border-bottom: 1px solid #e5e7eb;
+            font-size: 20px;
         }
 
-        .tool-content {
-            padding: 16px;
-        }
-
-        .tool-header {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-
-        .tool-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: #111827;
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
             margin-bottom: 4px;
         }
 
-        .tool-meta {
+        .stat-change {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .stat-change.positive {
+            color: var(--success);
+        }
+
+        .stat-change.negative {
+            color: var(--danger);
+        }
+
+        /* Content Cards */
+        .content-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .card-header {
             display: flex;
             align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            color: #9ca3af;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
         }
 
-        .status-indicator {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: #10b981;
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
         }
 
-        .tool-description {
-            font-size: 13px;
-            color: #6b7280;
-            line-height: 1.5;
-            margin-bottom: 16px;
+        .card-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
         }
 
-        .tool-actions {
+        .card-actions {
             display: flex;
-            gap: 8px;
+            gap: 12px;
         }
 
+        /* Buttons */
         .btn {
-            flex: 1;
-            padding: 8px 14px;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
             text-decoration: none;
-            text-align: center;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            background: white;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .btn:hover {
+            background: var(--bg-secondary);
         }
 
         .btn-primary {
-            background: #2563eb;
+            background: var(--primary);
             color: white;
-            border-color: #2563eb;
+            border-color: var(--primary);
         }
 
         .btn-primary:hover {
-            background: #1d4ed8;
-            border-color: #1d4ed8;
+            background: var(--primary-dark);
+            border-color: var(--primary-dark);
         }
 
-        .btn-secondary {
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        /* Forms */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-label.required::after {
+            content: ' *';
+            color: var(--danger);
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table td {
+            padding: 14px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table tr:hover {
+            background: var(--bg-secondary);
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        /* Alert */
+        .alert {
+            padding: 14px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+        }
+
+        /* Credentials Box */
+        .credentials-box {
+            background: #fef3c7;
+            border: 1px solid #fde047;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .credentials-box h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+
+        .credentials-warning {
+            color: #991b1b;
+            margin: 10px 0;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .credential-item {
+            margin-bottom: 16px;
+        }
+
+        .credential-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .credential-value {
+            font-family: 'Courier New', monospace;
             background: white;
-            color: #374151;
-            border-color: #d1d5db;
+            padding: 10px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            word-break: break-all;
+            font-size: 13px;
         }
 
-        .btn-secondary:hover {
-            background: #f9fafb;
-            border-color: #9ca3af;
+        .credential-value.secret {
+            background: #fef3c7;
+            border-color: #fde047;
+            font-weight: 600;
         }
 
-        .section-divider {
-            margin: 32px 0;
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
         }
 
-        /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
         }
 
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
+        .empty-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
         }
 
-        ::-webkit-scrollbar-thumb {
-            background: #d1d5db;
-            border-radius: 4px;
+        .empty-text {
+            font-size: 14px;
         }
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: #9ca3af;
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        /* Hidden */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Tool Info Box */
+        .tool-info-box {
+            padding: 40px;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .tool-info-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .tool-info-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .tool-info-description {
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            :root {
+                --sidebar-width: 0px;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .header {
+                left: 0;
+            }
+
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         @media (max-width: 768px) {
-            .sidebar {
-                display: none;
+            .header {
+                padding: 0 16px;
             }
 
-            .tools-grid {
-                grid-template-columns: 1fr;
+            .main-content {
+                padding: 16px;
+            }
+
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .card-actions {
+                width: 100%;
+            }
+
+            .card-actions .btn {
+                flex: 1;
             }
         }
     </style>
 </head>
 <body>
     <div class="app-container">
-        <!-- Header -->
-        <div class="header">
-            <div class="header-left">
-                <div class="logo">TF</div>
-                <span class="app-name">THG-FULFILL Tools</span>
-            </div>
-            <div class="header-right">
-                <div class="user-info">
-                    <div class="user-avatar">A</div>
-                    <span>Admin</span>
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-content">
+                    <div class="logo-icon">TF</div>
+                    <div class="logo-text">
+                        <h2>THG-FULFILL</h2>
+                        <p>Admin Dashboard</p>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <div class="sidebar-section">
-                <div class="sidebar-title">Menu</div>
-                <ul class="sidebar-menu">
-                    <li class="sidebar-item">
-                        <a href="#all" class="sidebar-link active">
-                            <span class="sidebar-icon">
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M3 4C3 3.44772 3.44772 3 4 3H16C16.5523 3 17 3.44772 17 4V6C17 6.55228 16.5523 7 16 7H4C3.44772 7 3 6.55228 3 6V4Z" fill="currentColor"/>
-                                    <path d="M3 10C3 9.44772 3.44772 9 4 9H16C16.5523 9 17 9.44772 17 10V12C17 12.5523 16.5523 13 16 13H4C3.44772 13 3 12.5523 3 12V10Z" fill="currentColor"/>
-                                    <path d="M4 15C3.44772 15 3 15.4477 3 16C3 16.5523 3.44772 17 4 17H16C16.5523 17 17 16.5523 17 16C17 15.4477 16.5523 15 16 15H4Z" fill="currentColor"/>
-                                </svg>
-                            </span>
-                            Tất cả công cụ
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a href="#internal" class="sidebar-link">
-                            <span class="sidebar-icon">
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path fill-rule="evenodd" clip-rule="evenodd" d="M5 9V7C5 4.23858 7.23858 2 10 2C12.7614 2 15 4.23858 15 7V9C15.5523 9 16 9.44772 16 10V16C16 16.5523 15.5523 17 15 17H5C4.44772 17 4 16.5523 4 16V10C4 9.44772 4.44772 9 5 9ZM13 7V9H7V7C7 5.34315 8.34315 4 10 4C11.6569 4 13 5.34315 13 7Z" fill="currentColor"/>
-                                </svg>
-                            </span>
-                            Nội bộ
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a href="#public" class="sidebar-link">
-                            <span class="sidebar-icon">
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path fill-rule="evenodd" clip-rule="evenodd" d="M10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2C5.58172 2 2 5.58172 2 10C2 14.4183 5.58172 18 10 18ZM11 6C11 5.44772 10.5523 5 10 5C9.44772 5 9 5.44772 9 6V10C9 10.2652 9.10536 10.5196 9.29289 10.7071L12.1213 13.5355C12.5118 13.9261 13.145 13.9261 13.5355 13.5355C13.9261 13.145 13.9261 12.5118 13.5355 12.1213L11 9.58579V6Z" fill="currentColor"/>
-                                </svg>
-                            </span>
-                            Công khai
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- <div class="divider"></div>
-
-            <div class="sidebar-section">
-                <div class="sidebar-title">Thống kê</div>
-                <ul class="sidebar-menu">
-                    <li class="sidebar-item">
-                        <a href="#stats" class="sidebar-link">
-                            <span class="sidebar-icon">
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M2 11C2 10.4477 2.44772 10 3 10H5C5.55228 10 6 10.4477 6 11V16C6 16.5523 5.55228 17 5 17H3C2.44772 17 2 16.5523 2 16V11Z" fill="currentColor"/>
-                                    <path d="M8 7C8 6.44772 8.44772 6 9 6H11C11.5523 6 12 6.44772 12 7V16C12 16.5523 11.5523 17 11 17H9C8.44772 17 8 16.5523 8 16V7Z" fill="currentColor"/>
-                                    <path d="M15 3C14.4477 3 14 3.44772 14 4V16C14 16.5523 14.4477 17 15 17H17C17.5523 17 18 16.5523 18 16V4C18 3.44772 17.5523 3 17 3H15Z" fill="currentColor"/>
-                                </svg>
-                            </span>
-                            Báo cáo
-                        </a>
-                    </li>
-                </ul>
-            </div> -->
-        </div>
-
-        <!-- Main Content -->
-        <div class="main-content">
-            <div id="all" class="content-header">
-                <h1>Tất cả công cụ</h1>
-                <p>Quản lý và truy cập các công cụ vận hành</p>
-            </div>
-
-            <div class="content-body">
-                <!-- Stats -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">Tổng số công cụ</div>
-                        <div class="stat-value">3</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Nội bộ</div>
-                        <div class="stat-value">2</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Công khai</div>
-                        <div class="stat-value">1</div>
-                    </div>
+            <nav class="sidebar-nav">
+                <!-- Overview -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Tổng quan</div>
+                    <ul class="nav-menu">
+                        <li class="nav-item">
+                            <div class="nav-link active" data-section="overview">
+                                <span class="nav-icon">📊</span>
+                                Dashboard
+                            </div>
+                        </li>
+                    </ul>
                 </div>
 
                 <!-- Internal Tools -->
-                <div id="internal" class="section-header">
-                    <div class="section-title">
-                        Công cụ nội bộ
-                        <span class="section-badge badge-internal">🔒 Yêu cầu xác thực</span>
-                    </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">🔒 Công cụ nội bộ</div>
+                    <ul class="nav-menu">
+                        <li class="nav-item">
+                            <div class="nav-link" data-section="bulk-update">
+                                <span class="nav-icon">📦</span>
+                                Bulk Update
+                            </div>
+                        </li>
+                        <li class="nav-item">
+                            <div class="nav-link" data-section="ecount-extension">
+                                <span class="nav-icon">🔧</span>
+                                ECount Extension
+                            </div>
+                        </li>
+                    </ul>
                 </div>
 
-                <div class="tools-grid">
-                    <div class="tool-card">
-                        <div class="tool-thumbnail">
-                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M20 7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                <path d="M16 21V5C16 4.46957 15.7893 3.96086 15.4142 3.58579C15.0391 3.21071 14.5304 3 14 3H10C9.46957 3 8.96086 3.21071 8.58579 3.58579C8.21071 3.96086 8 4.46957 8 5V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </div>
-                        <div class="tool-content">
-                            <div class="tool-header">
-                                <div>
-                                    <div class="tool-title">Cập nhật đơn hàng hàng loạt</div>
-                                    <div class="tool-meta">
-                                        <span class="status-indicator"></span>
-                                        <span>Hoạt động</span>
-                                    </div>
-                                </div>
+                <!-- API Management -->
+                <div class="nav-section">
+                    <div class="nav-section-title">🔐 API Management</div>
+                    <ul class="nav-menu">
+                        <li class="nav-item">
+                            <div class="nav-link" data-section="api-customers">
+                                <span class="nav-icon">👥</span>
+                                Customers
+                                <span class="nav-badge" id="customerCount">0</span>
                             </div>
-                            <div class="tool-description">
-                                Upload file Excel để tra cứu và cập nhật trạng thái đơn hàng sang "THG Received" hàng loạt
+                        </li>
+                        <li class="nav-item">
+                            <div class="nav-link" data-section="api-create">
+                                <span class="nav-icon">➕</span>
+                                Create Customer
                             </div>
-                            <div class="tool-actions">
-                                <a href="/extensions/bulk-update" class="btn btn-primary"><span>→</span>Mở công cụ</a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="tool-card">
-                        <div class="tool-thumbnail">
-                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M14.7 6.3C14.3 5.9 13.7 5.9 13.3 6.3L8.3 11.3C7.9 11.7 7.9 12.3 8.3 12.7L13.3 17.7C13.7 18.1 14.3 18.1 14.7 17.7C15.1 17.3 15.1 16.7 14.7 16.3L10.4 12L14.7 7.7C15.1 7.3 15.1 6.7 14.7 6.3Z" fill="currentColor"/>
-                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                            </svg>
-                        </div>
-                        <div class="tool-content">
-                            <div class="tool-header">
-                                <div>
-                                    <div class="tool-title">ECount Extension Tool</div>
-                                    <div class="tool-meta">
-                                        <span class="status-indicator"></span>
-                                        <span>Hoạt động</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="tool-description">
-                                Extension Chrome tự động mua tem và cập nhật tracking number vào ECount ERP
-                            </div>
-                            <div class="tool-actions">
-                                <a href="/extensions/tool-express" class="btn btn-primary"><span>📖</span>Hướng dẫn</a>
-                                <a href="/extensions/download/tool-express" class="btn btn-secondary"><span>⬇</span>Tải xuống</a>
-                            </div>
-                        </div>
-                    </div>
+                        </li>
+                    </ul>
                 </div>
 
                 <!-- Public Tools -->
-                <div class="section-divider"></div>
+                <div class="nav-section">
+                    <div class="nav-section-title">🌐 Công cụ công khai</div>
+                    <ul class="nav-menu">
+                        <li class="nav-item">
+                            <div class="nav-link" data-section="label-extension">
+                                <span class="nav-icon">🏷️</span>
+                                Label Extension
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        </aside>
 
-                <div id="public" class="section-header">
-                    <div class="section-title">
-                        Công cụ khách hàng
-                        <span class="section-badge badge-public">🌐 Truy cập công khai</span>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-title">
+                    <h1 id="pageTitle">Dashboard Overview</h1>
+                    <p id="pageSubtitle">Quản lý và theo dõi hệ thống</p>
+                </div>
+                <div class="header-actions">
+                    <div class="user-badge">
+                        <div class="user-avatar">A</div>
+                        <span>Admin</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Alert Container -->
+            <div id="alertContainer"></div>
+
+            <!-- Overview Section -->
+            <section id="overview" class="content-section active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">Total Tools</span>
+                            <div class="stat-icon" style="background: #eff6ff; color: #2563eb;">
+                                🔧
+                            </div>
+                        </div>
+                        <div class="stat-value">4</div>
+                        <div class="stat-change positive">3 Active</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">API Customers</span>
+                            <div class="stat-icon" style="background: #f0fdf4; color: #10b981;">
+                                👥
+                            </div>
+                        </div>
+                        <div class="stat-value" id="statsCustomerCount">0</div>
+                        <div class="stat-change positive" id="statsActiveCount">0 Active</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">System Status</span>
+                            <div class="stat-icon" style="background: #f0fdf4; color: #10b981;">
+                                ✓
+                            </div>
+                        </div>
+                        <div class="stat-value" style="font-size: 20px;">Healthy</div>
+                        <div class="stat-change positive">All services running</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">Last Update</span>
+                            <div class="stat-icon" style="background: #eff6ff; color: #2563eb;">
+                                🕐
+                            </div>
+                        </div>
+                        <div class="stat-value" style="font-size: 16px;" id="lastUpdate">Just now</div>
+                        <div class="stat-change">Auto refresh</div>
                     </div>
                 </div>
 
-                <div class="tools-grid">
-                    <div class="tool-card">
-                        <div class="tool-thumbnail">
-                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M7 7H17M7 12H17M7 17H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
-                            </svg>
+                <!-- Quick Access -->
+                <div class="content-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Quick Access</h2>
+                            <p class="card-subtitle">Các công cụ thường dùng</p>
                         </div>
-                        <div class="tool-content">
-                            <div class="tool-header">
-                                <div>
-                                    <div class="tool-title">Down Label Extension Tool</div>
-                                    <div class="tool-meta">
-                                        <span class="status-indicator"></span>
-                                        <span>Hoạt động</span>
-                                    </div>
-                                </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card quick-access-card" data-navigate="bulk-update">
+                            <div class="stat-icon" style="background: #eff6ff; color: #2563eb; margin-bottom: 12px;">
+                                📦
                             </div>
-                            <div class="tool-description">
-                                Extension Chrome hỗ trợ khách hàng tải nhanh label từ ECount ERP
+                            <div class="stat-label" style="font-size: 15px; font-weight: 600; color: var(--text-primary);">
+                                Bulk Update Orders
                             </div>
-                            <div class="tool-actions">
-                                <a href="/extensions/tool-label" class="btn btn-primary"><span>📖</span>Hướng dẫn</a>
-                                <a href="/extensions/download/tool-label" class="btn btn-secondary"><span>⬇</span>Tải xuống</a>
-                            </div>
+                            <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
+                                Upload Excel để cập nhật đơn hàng hàng loạt
+                            </p>
                         </div>
+
+                        <div class="stat-card quick-access-card" data-navigate="api-create">
+                            <div class="stat-icon" style="background: #f0fdf4; color: #10b981; margin-bottom: 12px;">
+                                ➕
+                            </div>
+                            <div class="stat-label" style="font-size: 15px; font-weight: 600; color: var(--text-primary);">
+                                Create API Customer
+                            </div>
+                            <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
+                                Tạo khách hàng mới và generate credentials
+                            </p>
+                        </div>
+
+                        <div class="stat-card quick-access-card" data-navigate="api-customers">
+                            <div class="stat-icon" style="background: #fef3c7; color: #f59e0b; margin-bottom: 12px;">
+                                👥
+                            </div>
+                            <div class="stat-label" style="font-size: 15px; font-weight: 600; color: var(--text-primary);">
+                                Manage Customers
+                            </div>
+                            <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
+                                Xem và quản lý danh sách khách hàng API
+                            </p>
+                        </div>
+
+                        <div class="stat-card quick-access-card" data-url="/api/orders/pending/summary">
+                            <div class="stat-icon" style="background: #f0fdf4; color: #10b981; margin-bottom: 12px;">
+                                📊
+                            </div>
+                            <div class="stat-label" style="font-size: 15px; font-weight: 600; color: var(--text-primary);">
+                                Pending Orders
+                            </div>
+                            <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
+                                Xem đơn hàng đang chờ xử lý
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Bulk Update Section -->
+            <section id="bulk-update" class="content-section">
+                <div class="content-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Bulk Update Orders</h2>
+                            <p class="card-subtitle">Upload file Excel để tra cứu và cập nhật trạng thái đơn hàng</p>
+                        </div>
+                        <a href="/extensions/bulk-update" class="btn btn-primary">
+                            <span>→</span> Mở công cụ
+                        </a>
+                    </div>
+
+                    <div class="tool-info-box">
+                        <div class="tool-info-icon">📦</div>
+                        <h3 class="tool-info-title">Bulk Update Tool</h3>
+                        <p class="tool-info-description">
+                            Click nút "Mở công cụ" để truy cập trang bulk update đầy đủ
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ECount Extension Section -->
+            <section id="ecount-extension" class="content-section">
+                <div class="content-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">ECount Extension Tool</h2>
+                            <p class="card-subtitle">Extension Chrome tự động mua tem và cập nhật tracking number</p>
+                        </div>
+                        <div class="card-actions">
+                            <a href="/extensions/tool-express" class="btn">
+                                <span>📖</span> Hướng dẫn
+                            </a>
+                            <a href="/extensions/download/tool-express" class="btn btn-primary">
+                                <span>⬇</span> Tải xuống
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="tool-info-box">
+                        <div class="tool-info-icon">🔧</div>
+                        <h3 class="tool-info-title">ECount Extension</h3>
+                        <p class="tool-info-description">
+                            Extension Chrome để tự động hóa quy trình mua tem và cập nhật ERP
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Label Extension Section -->
+            <section id="label-extension" class="content-section">
+                <div class="content-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Down Label Extension Tool</h2>
+                            <p class="card-subtitle">Extension Chrome hỗ trợ khách hàng tải nhanh label từ ECount ERP</p>
+                        </div>
+                        <div class="card-actions">
+                            <a href="/extensions/tool-label" class="btn">
+                                <span>📖</span> Hướng dẫn
+                            </a>
+                            <a href="/extensions/download/tool-label" class="btn btn-primary">
+                                <span>⬇</span> Tải xuống
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="tool-info-box">
+                        <div class="tool-info-icon">🏷️</div>
+                        <h3 class="tool-info-title">Label Download Extension</h3>
+                        <p class="tool-info-description">
+                            Extension Chrome công khai cho khách hàng tải label nhanh chóng
+                        </p>
+                        </div>
+            </div>
+        </section>
+
+        <!-- API Create Customer Section -->
+        <section id="api-create" class="content-section">
+            <div class="content-card">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Tạo API Customer</h2>
+                        <p class="card-subtitle">Tạo khách hàng mới và generate Client ID/Secret</p>
+                    </div>
+                </div>
+
+                <form id="createCustomerForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label required">Mã Khách Hàng</label>
+                            <input type="text" class="form-input" id="customerCode" required placeholder="CUS0001">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label required">Tên Khách Hàng</label>
+                            <input type="text" class="form-input" id="customerName" required placeholder="Công ty ABC">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-input" id="email" placeholder="contact@example.com">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Số Điện Thoại</label>
+                            <input type="tel" class="form-input" id="phone" placeholder="+84 xxx xxx xxx">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label required">Môi Trường</label>
+                            <select class="form-select" id="environment">
+                                <option value="production">Production</option>
+                                <option value="sandbox">Sandbox</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Rate Limit (Hourly)</label>
+                            <input type="number" class="form-input" id="rateLimitHourly" value="6000">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Rate Limit (Daily)</label>
+                            <input type="number" class="form-input" id="rateLimitDaily" value="10000">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <span>➕</span> Tạo Khách Hàng
+                    </button>
+                </form>
+
+                <!-- Credentials Result -->
+                <div id="credentialsResult" class="credentials-box hidden">
+                    <h3>✅ Khách hàng đã được tạo thành công!</h3>
+                    <p class="credentials-warning">
+                        ⚠️ <strong>Lưu ý:</strong> Client Secret chỉ hiển thị MỘT LẦN duy nhất. Vui lòng sao chép và lưu trữ an toàn!
+                    </p>
+                    
+                    <div class="credential-item">
+                        <div class="credential-label">Customer ID:</div>
+                        <div class="credential-value" id="resultCustomerId"></div>
+                    </div>
+
+                    <div class="credential-item">
+                        <div class="credential-label">Customer Code:</div>
+                        <div class="credential-value" id="resultCustomerCode"></div>
+                    </div>
+
+                    <div class="credential-item">
+                        <div class="credential-label">Client ID:</div>
+                        <div class="credential-value" id="resultClientId"></div>
+                    </div>
+
+                    <div class="credential-item">
+                        <div class="credential-label">Client Secret (⚠️ CHỈ HIỂN THỊ MỘT LẦN):</div>
+                        <div class="credential-value secret" id="resultClientSecret"></div>
+                    </div>
+
+                    <div class="credential-item">
+                        <div class="credential-label">Environment:</div>
+                        <div class="credential-value" id="resultEnvironment"></div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
+
+        <!-- API Customers Section -->
+        <section id="api-customers" class="content-section">
+            <div class="content-card">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">API Customers</h2>
+                        <p class="card-subtitle">Danh sách khách hàng sử dụng API</p>
+                    </div>
+                    <button class="btn" id="reloadCustomersBtn">
+                        <span>🔄</span> Tải lại
+                    </button>
+                </div>
+
+                <div id="loadingCustomers" class="loading">
+                    <p>Đang tải...</p>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Mã KH</th>
+                                <th>Tên Khách Hàng</th>
+                                <th>Email</th>
+                                <th>Môi Trường</th>
+                                <th>Trạng Thái</th>
+                                <th>Rate Limit (H/D)</th>
+                                <th>Ngày Tạo</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customersTableBody">
+                            <!-- Rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script src="/js/dashboard.js?1233"></script>
+
 </body>
 </html>
