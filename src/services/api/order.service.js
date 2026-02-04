@@ -37,7 +37,7 @@ class ApiOrderService {
 
             // Extract declaration info
             const decl = orderData.declarationInfo && orderData.declarationInfo[0] ? orderData.declarationInfo[0] : {};
-            const productDescription = decl.nameEn || orderData.customFields?.productDescription || orderData.productName || '';
+            const productDescription = decl.nameEn || orderData.customFields?.productDescription || '';
             const declaredValue = decl.unitPrice || orderData.customFields?.declaredValue || orderData.price || 0;
 
             // Prepare data for ECount
@@ -66,8 +66,6 @@ class ApiOrderService {
                 // Additional service field
                 additionalService: orderData.additionalService || '',
 
-                productCode: orderData.productCode,
-                productName: orderData.productName,
                 productSize: orderData.productSize || '',
                 quantity: orderData.quantity || 1,
                 price: orderData.price || declaredValue || 0,
@@ -103,7 +101,6 @@ class ApiOrderService {
                 ecountOrderId: ecountResult.ecountOrderId,
 
                 carrier: orderData.serviceType || null,
-                productCode: orderData.productCode,
 
                 receiverName: receiverName,
                 receiverCountry: receiverCountry,
@@ -139,7 +136,6 @@ class ApiOrderService {
                     customer_order_number: orderData.orderNumber,
                     ecount_order_id: ecountResult.ecountOrderId,
                     status: 'new',
-                    is_label_purchased: false,
                     ecount_data: ecountResult.ecountData,
                     order: this.formatOrderResponse(order)
                 },
@@ -190,7 +186,7 @@ class ApiOrderService {
 
                 // Extract declaration info
                 const decl = orderData.declarationInfo && orderData.declarationInfo[0] ? orderData.declarationInfo[0] : {};
-                const productDescription = decl.nameEn || orderData.customFields?.productDescription || orderData.productName || '';
+                const productDescription = decl.nameEn || orderData.customFields?.productDescription || '';
                 const declaredValue = decl.unitPrice || orderData.customFields?.declaredValue || orderData.price || 0;
 
                 ordersToCreate.push({
@@ -220,8 +216,6 @@ class ApiOrderService {
 
                         additionalService: orderData.additionalService || '',
 
-                        productCode: orderData.productCode,
-                        productName: orderData.productName,
                         productSize: orderData.productSize || '',
                         quantity: orderData.quantity || 1,
                         price: orderData.price || declaredValue || 0,
@@ -289,7 +283,6 @@ class ApiOrderService {
                         ecountOrderId: slipNo,
 
                         carrier: orderToCreate.orderData.serviceType || null,
-                        productCode: orderToCreate.orderData.productCode,
 
                         receiverName: orderToCreate.receiverInfo.receiverName,
                         receiverCountry: orderToCreate.receiverInfo.receiverCountry,
@@ -318,7 +311,6 @@ class ApiOrderService {
                         customer_order_number: orderToCreate.orderData.orderNumber,
                         doc_no: docNo,
                         status: 'new',
-                        is_label_purchased: false,
                         order: this.formatOrderResponse(order)
                     });
 
@@ -373,7 +365,6 @@ class ApiOrderService {
             status: order.status,
             order_status: order.order_status,
             erp_status: order.erp_status,
-            is_label_purchased: order.is_label_purchased,
 
             carrier: order.carrier,
             product_code: order.product_code,

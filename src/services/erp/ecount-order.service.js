@@ -441,8 +441,6 @@ class ECountOrderService {
             additionalService = '',
 
             // Product info
-            productCode,
-            productName,
             productSize = '',
             quantity = 1,
             price = 0,
@@ -463,7 +461,7 @@ class ECountOrderService {
         const height = customFields.height || '';
         const weight = customFields.weight || '';
         const declaredValue = customFields.declaredValue || price || '';
-        const productDescription = customFields.productDescription || productName || '';
+        const productDescription = customFields.productDescription || '';
 
         // Build bulk data - mapped to ECount fields based on error messages
         const bulkData = {
@@ -526,8 +524,8 @@ class ECountOrderService {
             ADD_LTXT_03_T: '',
 
             // Product info (first item)
-            PROD_CD: productCode, // Service-THG - must be registered in ECount
-            PROD_DES: productName,
+            PROD_CD: process.env.API_PRODUCT_CODE, // Service-THG - must be registered in ECount
+            PROD_DES: process.env.API_PRODUCT_NAME,
             SIZE_DES: productSize,
             UQTY: '',
             QTY: quantity.toString(),

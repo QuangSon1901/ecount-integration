@@ -118,10 +118,6 @@ const apiOrderSchema = Joi.object({
         }),
 
     // Product info - required
-    productCode: Joi.string().max(50).required()
-        .messages({ 'any.required': 'Product/Service code is required (must be registered in ECount)' }),
-    productName: Joi.string().max(255).required()
-        .messages({ 'any.required': 'Product name is required' }),
     productSize: Joi.string().max(100).allow('').optional(),
     quantity: Joi.number().integer().min(1).default(1),
     price: Joi.number().min(0).required()
@@ -306,15 +302,6 @@ function validateBusinessRules(order, index = null) {
             field: `${prefix}serviceType`,
             message: 'Service type is required',
             ecountField: 'ADD_LTXT_02_T'
-        });
-    }
-
-    // Validate product code (must be registered in ECount)
-    if (!order.productCode || order.productCode.trim() === '') {
-        errors.push({
-            field: `${prefix}productCode`,
-            message: 'Product code is required (must be registered in ECount)',
-            ecountField: 'PROD_CD'
         });
     }
 
