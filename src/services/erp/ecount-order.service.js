@@ -148,7 +148,6 @@ class ECountOrderService {
             // Check response status
             if (response.data?.Status === 200 || response.data?.Status === "200") {
                 const data = response.data.Data;
-                console.log(data);
                 
                 
                 // Check if there are any failures
@@ -216,11 +215,121 @@ class ECountOrderService {
     }
 
     /**
-     * Transform order data to ECount format
+     * Create multiple sale orders on ECount in one API call
      */
-    transformToECountFormat(orderData) {
+    async createBulkSaleOrders(ordersData) {
+        try {
+            // Get session
+            const sessionId = await this.login();
+
+            const url = `${this.baseUrl}/OAPI/V2/Sale/SaveSale?SESSION_ID=${sessionId}`;
+            
+            // Transform tất cả orders sang ECount format
+            const saleList = ordersData.map((orderData, _) => {
+                return this.transformToECountFormatSingle({...orderData, index: _});
+            });
+
+            const ecountPayload = {
+                SaleList: saleList
+            };
+
+            logger.info('Creating bulk orders on ECount', {
+                orderCount: ordersData.length,
+                customerCodes: [...new Set(ordersData.map(o => o.customerCode))]
+            });
+
+            const response = await axios.post(url, ecountPayload, {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 120000 // 2 minutes for bulk
+            });
+            
+
+            // Check for Error object first
+            if (response.data?.Error) {
+                const errorCode = response.data.Error.Code;
+                const errorMessage = response.data.Error.Message || 'Unknown error';
+                throw new Error(`ECount API Error [Code ${errorCode}]: ${errorMessage}`);
+            }
+
+            // Check response status
+            if (response.data?.Status === 200 || response.data?.Status === "200") {
+                const data = response.data.Data;
+                
+                // Check if there are any failures
+                if (data.FailCnt > 0) {
+                    // Extract error details
+                    const errorDetails = data.ResultDetails
+                        .map((detail, index) => ({
+                            index: index,
+                            isSuccess: detail.IsSuccess,
+                            error: detail.TotalError,
+                            fields: detail.Errors?.map(e => `${e.ColCd}: ${e.Message}`).join(', ')
+                        }));
+
+                    logger.warn('ECount bulk order validation - some failures', {
+                        successCount: data.SuccessCnt,
+                        failCount: data.FailCnt,
+                        errors: errorDetails.filter(e => !e.isSuccess)
+                    });
+
+                    // Nếu tất cả đều fail thì throw error
+                    if (data.SuccessCnt === 0) {
+                        throw new Error(
+                            `ECount validation failed - all orders failed: ${errorDetails[0]?.error || 'Unknown validation error'}`
+                        );
+                    }
+                }
+
+                // Success case - có ít nhất 1 order thành công
+                if (data.SuccessCnt > 0 && data.SlipNos?.length > 0) {
+                    logger.info('ECount bulk orders created', {
+                        totalOrders: ordersData.length,
+                        successCount: data.SuccessCnt,
+                        failCount: data.FailCnt,
+                        slipNos: data.SlipNos,
+                        traceId: data.TRACE_ID
+                    });
+
+                    return {
+                        success: true,
+                        slipNos: data.SlipNos, // Array of slip numbers
+                        successCount: data.SuccessCnt,
+                        failCount: data.FailCnt,
+                        traceId: data.TRACE_ID,
+                        resultDetails: data.ResultDetails,
+                        rawResponse: response.data
+                    };
+                } else {
+                    throw new Error('ECount orders created but no SlipNos returned');
+                }
+            } else {
+                throw new Error(
+                    `ECount API returned unexpected status: ${response.data?.Status}`
+                );
+            }
+
+        } catch (error) {
+            const errorMsg = getErrorMessage(error);
+            logger.error('Failed to create ECount bulk orders:', errorMsg);
+            
+            // Re-throw with more context
+            if (error.response?.data) {
+                throw new Error(
+                    `ECount bulk order creation failed: ${errorMsg} | Response: ${JSON.stringify(error.response.data)}`
+                );
+            }
+            
+            throw new Error(`ECount bulk order creation failed: ${errorMsg}`);
+        }
+    }
+
+    /**
+     * Transform order data to ECount format (single item in SaleList array)
+     */
+    transformToECountFormatSingle(orderData) {
         const {
             // Basic info
+            index,
             ioDate,
             customerCode,
             customerName,
@@ -275,7 +384,7 @@ class ECountOrderService {
         const bulkData = {
             // Header fields
             IO_DATE: '',
-            UPLOAD_SER_NO: '',
+            UPLOAD_SER_NO: index,
             CUST: customerCode,
             CUST_DES: customerName,
             EMP_CD: employeeCode,
@@ -285,7 +394,6 @@ class ECountOrderService {
             EXCHANGE_RATE: '',
             SITE: '',
             PJT_CD: '',
-            DOC_NO: '',
             TTL_CTT: '',
 
             // Order memo fields
@@ -397,9 +505,16 @@ class ECountOrderService {
         }
 
         return {
-            SaleList: [{
-                BulkDatas: bulkData
-            }]
+            BulkDatas: bulkData
+        };
+    }
+
+    /**
+     * Transform order data to ECount format
+     */
+    transformToECountFormat(orderData) {
+        return {
+            SaleList: [this.transformToECountFormatSingle(orderData)]
         };
     }
 
