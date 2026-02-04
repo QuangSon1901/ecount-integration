@@ -66,13 +66,22 @@ class ApiTokenModel {
         
         try {
             const [rows] = await connection.query(
-                `SELECT t.*, cu.customer_code, cu.status as customer_status,
-                        cu.rate_limit_per_hour, cu.rate_limit_per_day,
-                        c.client_id, c.environment
-                 FROM api_access_tokens t
-                 JOIN api_customers cu ON cu.id = t.customer_id
-                 JOIN api_credentials c ON c.id = t.credential_id
-                 WHERE t.access_token = ?`,
+                `SELECT 
+                    t.*,
+                    cu.customer_code,
+                    cu.customer_name,
+                    cu.status as customer_status,
+                    cu.rate_limit_per_hour,
+                    cu.rate_limit_per_day,
+                    cu.webhook_enabled,
+                    cu.bulk_order_enabled,
+                    cu.max_bulk_orders,
+                    c.client_id,
+                    c.environment
+                FROM api_access_tokens t
+                JOIN api_customers cu ON cu.id = t.customer_id
+                JOIN api_credentials c ON c.id = t.credential_id
+                WHERE t.access_token = ?`,
                 [accessToken]
             );
 
@@ -135,12 +144,20 @@ class ApiTokenModel {
                 valid: true,
                 customer_id: token.customer_id,
                 customer_code: token.customer_code,
+                customer_name: token.customer_name,
                 client_id: token.client_id,
                 environment: token.environment,
                 rate_limits: {
                     hourly: token.rate_limit_per_hour,
                     daily: token.rate_limit_per_day
-                }
+                },
+                features: {
+                    webhook_enabled: token.webhook_enabled,
+                    bulk_order_enabled: token.bulk_order_enabled,
+                    max_bulk_orders: token.max_bulk_orders
+                },
+                bulk_order_enabled: token.bulk_order_enabled,
+                max_bulk_orders: token.max_bulk_orders
             };
 
         } catch (error) {

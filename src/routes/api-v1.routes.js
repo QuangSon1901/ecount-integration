@@ -10,6 +10,7 @@ const apiAuditMiddleware = require('../middlewares/api-audit.middleware');
 // Routes
 const apiAuthRoutes = require('./api-auth.routes');
 const apiCustomerRoutes = require('./api-customer.routes');
+const apiOrderRoutes = require('./api-order.routes');
 
 /**
  * Apply audit middleware to all API routes
@@ -38,19 +39,6 @@ router.get('/health', (req, res) => {
     });
 });
 
-/**
- * Protected routes placeholder
- * Will be implemented in Module 5.2
- */
-router.use('/orders', 
-    apiAuthMiddleware,
-    apiRateLimitMiddleware,
-    (req, res) => {
-        res.json({
-            success: false,
-            message: 'Orders endpoints will be implemented in Module 5.2'
-        });
-    }
-);
+router.use('/orders', apiOrderRoutes);
 
 module.exports = router;

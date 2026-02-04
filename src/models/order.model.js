@@ -394,6 +394,104 @@ class OrderModel {
             connection.release();
         }
     }
+
+    static async createFromAPI(orderData) {
+        const connection = await db.getConnection();
+        
+        try {
+            const [result] = await connection.query(
+                `INSERT INTO orders (
+                    order_number, customer_order_number, platform_order_number, 
+                    erp_order_code, ecount_order_id,
+                    carrier, product_code,
+                    receiver_name, receiver_country, receiver_state, receiver_city,
+                    receiver_postal_code, receiver_phone, receiver_email,
+                    status, order_status, erp_status,
+                    api_customer_id, partner_id, partner_name,
+                    order_data, carrier_response, ecount_link
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                // Đúng 23 placeholders cho 23 fields
+                [
+                    orderData.orderNumber,
+                    orderData.customerOrderNumber || null,
+                    orderData.platformOrderNumber || null,
+                    orderData.erpOrderCode || null,
+                    orderData.ecountOrderId || null,
+                    orderData.carrier || null,
+                    orderData.productCode || null,
+                    orderData.receiverName || null,
+                    orderData.receiverCountry || null,
+                    orderData.receiverState || null,
+                    orderData.receiverCity || null,
+                    orderData.receiverPostalCode || null,
+                    orderData.receiverPhone || null,
+                    orderData.receiverEmail || null,
+                    'new', // status
+                    'T', // order_status
+                    orderData.erpStatus || 'Đang xử lý',
+                    orderData.apiCustomerId || null,      // api_customer_id
+                    orderData.partnerID || null,          // partner_id
+                    orderData.partnerName || null,        // partner_name
+                    JSON.stringify(orderData.orderData || {}),
+                    JSON.stringify(orderData.ecountResponse || {}),
+                    orderData.ecountLink || null
+                ]
+            );
+            
+            return result.insertId;
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
+     * Lấy orders từ API customer
+     */
+    static async findByApiCustomer(apiCustomerId, filters = {}) {
+        const connection = await db.getConnection();
+        
+        try {
+            let query = `
+                SELECT * FROM orders 
+                WHERE api_customer_id = ? 
+                AND order_source = 'api'
+            `;
+            const params = [apiCustomerId];
+
+            if (filters.status) {
+                query += ' AND status = ?';
+                params.push(filters.status);
+            }
+
+            if (filters.startDate) {
+                query += ' AND created_at >= ?';
+                params.push(filters.startDate);
+            }
+
+            if (filters.endDate) {
+                query += ' AND created_at <= ?';
+                params.push(filters.endDate);
+            }
+
+            query += ' ORDER BY created_at DESC';
+
+            if (filters.limit) {
+                query += ' LIMIT ?';
+                params.push(parseInt(filters.limit));
+                
+                if (filters.offset) {
+                    query += ' OFFSET ?';
+                    params.push(parseInt(filters.offset));
+                }
+            }
+
+            const [rows] = await connection.query(query, params);
+            return rows;
+
+        } finally {
+            connection.release();
+        }
+    }
 }
 
 module.exports = OrderModel;

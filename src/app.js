@@ -18,12 +18,17 @@ const db = require('./database/connection');
 
 
 const app = express();
-app.set('trust proxy', true);
+if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', true);
+} else {
+    app.set('trust proxy', 'loopback');
+}
 
 // Security middleware
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+
 app.use(cors({
   origin: "https://loginia.ecount.com",
   credentials: true
