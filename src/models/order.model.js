@@ -402,21 +402,19 @@ class OrderModel {
             const [result] = await connection.query(
                 `INSERT INTO orders (
                     order_number, customer_order_number, platform_order_number, 
-                    erp_order_code, ecount_order_id,
+                    erp_order_code,
                     carrier, product_code,
                     receiver_name, receiver_country, receiver_state, receiver_city,
                     receiver_postal_code, receiver_phone, receiver_email,
                     status, order_status, erp_status,
-                    api_customer_id, partner_id, partner_name,
+                    partner_id, partner_name,
                     order_data, carrier_response, ecount_link
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                // Đúng 23 placeholders cho 23 fields
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     orderData.orderNumber,
                     orderData.customerOrderNumber || null,
                     orderData.platformOrderNumber || null,
                     orderData.erpOrderCode || null,
-                    orderData.ecountOrderId || null,
                     orderData.carrier || null,
                     orderData.productCode || null,
                     orderData.receiverName || null,
@@ -429,7 +427,6 @@ class OrderModel {
                     'new', // status
                     'T', // order_status
                     orderData.erpStatus || 'Đang xử lý',
-                    orderData.apiCustomerId || null,      // api_customer_id
                     orderData.partnerID || null,          // partner_id
                     orderData.partnerName || null,        // partner_name
                     JSON.stringify(orderData.orderData || {}),

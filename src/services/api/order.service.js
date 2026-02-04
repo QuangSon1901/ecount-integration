@@ -252,7 +252,7 @@ class ApiOrderService {
             }
 
             // Gọi ECount API 1 lần với tất cả orders
-            const ecountResult = await ecountOrderService.createBulkSaleOrders(
+            const ecountResult = await ecountOrderService.createBulkSaleOrdersWithDocNo(
                 ordersToCreate.map(o => o.ecountData)
             );
 
@@ -266,13 +266,15 @@ class ApiOrderService {
 
             for (let i = 0; i < ordersToCreate.length; i++) {
                 const orderToCreate = ordersToCreate[i];
-                const ecountOrderId = ecountResult.slipNos[i];
+                const resultDetail = ecountResult.resultDetails[i];
+                const slipNo = resultDetail?.slipNo;
+                const docNo = resultDetail?.docNo;
                 
-                if (!ecountOrderId) {
+                if (!slipNo) {
                     errors.push({
                         index: i,
                         success: false,
-                        error: 'No ECount order ID returned',
+                        error: 'No SlipNo returned',
                         order: orderToCreate.orderData
                     });
                     continue;
@@ -283,8 +285,8 @@ class ApiOrderService {
                         orderNumber: orderToCreate.orderNumber,
                         customerOrderNumber: orderToCreate.orderData.orderNumber,
                         platformOrderNumber: orderToCreate.orderData.platformOrderNumber || null,
-                        erpOrderCode: orderToCreate.orderData.orderNumber,
-                        ecountOrderId: ecountOrderId,
+                        erpOrderCode: docNo || slipNo,
+                        ecountOrderId: slipNo,
 
                         carrier: orderToCreate.orderData.serviceType || null,
                         productCode: orderToCreate.orderData.productCode,
@@ -314,7 +316,7 @@ class ApiOrderService {
                         order_id: orderId,
                         order_number: orderToCreate.orderNumber,
                         customer_order_number: orderToCreate.orderData.orderNumber,
-                        ecount_order_id: ecountOrderId,
+                        doc_no: docNo,
                         status: 'new',
                         is_label_purchased: false,
                         order: this.formatOrderResponse(order)
@@ -326,7 +328,7 @@ class ApiOrderService {
                         success: false,
                         error: error.message,
                         order: orderToCreate.orderData,
-                        ecount_order_id: ecountOrderId
+                        doc_no: docNo,
                     });
                 }
             }
@@ -345,7 +347,7 @@ class ApiOrderService {
                     successful: results.length,
                     failed: errors.length,
                     results,
-                    errors
+                    errors,
                 },
                 message: `Processed ${orders.length} orders: ${results.length} successful, ${errors.length} failed`
             };

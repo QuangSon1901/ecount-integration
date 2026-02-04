@@ -1,6 +1,8 @@
 const axios = require('axios');
 const logger = require('../../utils/logger');
 
+const docNoLookupService = require('./ecount-docno-lookup.service');
+
 /**
  * Extract error message safely from axios error (avoid circular structure)
  */
@@ -324,6 +326,89 @@ class ECountOrderService {
     }
 
     /**
+     * Create sale order và lookup DOC_NO
+     */
+    async createSaleOrderWithDocNo(orderData) {
+        try {
+            // Create order trên ECount
+            const result = await this.createSaleOrder(orderData);
+            
+            if (!result.success || !result.ecountOrderId) {
+                return result;
+            }
+
+            // Lookup DOC_NO từ SlipNo
+            try {
+                const mapping = await docNoLookupService.lookupDocNos([result.ecountOrderId]);
+                const docNo = mapping[result.ecountOrderId];
+                
+                if (docNo) {
+                    result.docNo = docNo;
+                    result.erpOrderCode = docNo;
+                    logger.info('DOC_NO found', { 
+                        slipNo: result.ecountOrderId, 
+                        docNo 
+                    });
+                } else {
+                    logger.warn('DOC_NO not found for SlipNo', { 
+                        slipNo: result.ecountOrderId 
+                    });
+                }
+            } catch (lookupError) {
+                logger.error('Failed to lookup DOC_NO:', lookupError);
+                // Không throw error, vẫn trả về kết quả với SlipNo
+                result.docNoLookupError = lookupError.message;
+            }
+
+            return result;
+
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    /**
+     * Create bulk sale orders và lookup DOC_NO
+     */
+    async createBulkSaleOrdersWithDocNo(ordersData) {
+        try {
+            const result = await this.createBulkSaleOrders(ordersData);
+            
+            if (!result.success || !result.slipNos || result.slipNos.length === 0) {
+                return result;
+            }
+
+            try {
+                const mapping = await docNoLookupService.lookupDocNos(result.slipNos);
+                
+                result.docNoMapping = mapping;
+                result.resultDetails = result.resultDetails.map((detail, index) => {
+                    const slipNo = result.slipNos[index];
+                    return {
+                        ...detail,
+                        slipNo,
+                        docNo: mapping[slipNo] || null
+                    };
+                });
+
+                logger.info('DOC_NO lookup completed', { 
+                    total: result.slipNos.length,
+                    found: Object.keys(mapping).length,
+                    mapping 
+                });
+            } catch (lookupError) {
+                logger.error('Failed to lookup DOC_NO:', lookupError);
+                result.docNoLookupError = lookupError.message;
+            }
+
+            return result;
+
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    /**
      * Transform order data to ECount format (single item in SaleList array)
      */
     transformToECountFormatSingle(orderData) {
@@ -516,37 +601,6 @@ class ECountOrderService {
         return {
             SaleList: [this.transformToECountFormatSingle(orderData)]
         };
-    }
-
-    /**
-     * Get order from ECount
-     */
-    async getOrder(docNo) {
-        try {
-            const sessionId = await this.login();
-            const url = `${this.baseUrl}/OAPI/V2/Sale/GetSale?SESSION_ID=${sessionId}`;
-            
-            const response = await axios.post(url, {
-                DOC_NO: docNo
-            }, {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 30000
-            });
-
-            if (response.data?.Status === 0) {
-                return {
-                    success: true,
-                    data: response.data.Results?.[0]
-                };
-            } else {
-                throw new Error(`ECount API Error: ${response.data?.StatusText}`);
-            }
-
-        } catch (error) {
-            const errorMsg = getErrorMessage(error);
-            logger.error('Failed to get ECount order:', errorMsg);
-            throw new Error(`Failed to get ECount order: ${errorMsg}`);
-        }
     }
 
     /**
