@@ -378,39 +378,20 @@ class ECountOrderService {
                 return result;
             }
 
-            try {
-                const mapping = await docNoLookupService.lookupDocNos(result.slipNos);
-                
-                result.docNoMapping = mapping;
-                result.resultDetails = result.resultDetails.map((detail, index) => {
-                    const slipNo = result.slipNos[index];
-                    return {
-                        ...detail,
-                        slipNo,
-                        docNo: mapping[slipNo] || null
-                    };
-                });
-
-                logger.info('DOC_NO lookup completed', { 
-                    total: result.slipNos.length,
-                    found: Object.keys(mapping).length,
-                    mapping 
-                });
-            } catch (lookupError) {
-                logger.error('Failed to lookup DOC_NO:', lookupError);
-                result.docNoLookupError = lookupError.message;
-            }
+            result.resultDetails = result.resultDetails.map((detail, index) => {
+                const slipNo = result.slipNos[index];
+                return {
+                    ...detail,
+                    slipNo,
+                };
+            });
 
             return result;
-
         } catch (error) {
             throw error;
         }
     }
 
-    /**
-     * Transform order data to ECount format (single item in SaleList array)
-     */
     transformToECountFormatSingle(orderData) {
         const {
             // Basic info
@@ -418,7 +399,7 @@ class ECountOrderService {
             ioDate,
             customerCode,
             customerName,
-            warehouseCode = 'HCM',
+            warehouseCode = '',
             employeeCode = '',
 
             // Order info
@@ -432,38 +413,47 @@ class ECountOrderService {
             // Receiver info
             receiverName = '',
             receiverCountry = '',
-            receiverAddress = '',
+            receiverAddress1 = '',
+            receiverAddress2 = '',
             receiverCity = '',
             receiverState = '',
-            receiverPostalCode = '',
+            receiverZipCode = '',
+            receiverPhone = '',
+            receiverEmail = '',
 
-            // Additional service
+            // Customs info
+            customsEORINumber = '',
+            customsIOSSCode = '',
+            customsVAT = '',
+
+            // Service info
             additionalService = '',
+            serviceType = '',
+            trackingNumber = '',
 
             // Product info
             productSize = '',
             quantity = 1,
-            price = 0,
-
-            // Service info
-            serviceType = '',
-            trackingNumber = '',
 
             // Custom fields
-            customFields = {},
-            items = []
+            customFields = {}
 
         } = orderData;
 
-        // Extract dimensions from customFields
+        // Extract dimensions and prices from customFields
         const length = customFields.length || '';
         const width = customFields.width || '';
         const height = customFields.height || '';
         const weight = customFields.weight || '';
-        const declaredValue = customFields.declaredValue || price || '';
-        const productDescription = customFields.productDescription || '';
+        const declaredValue = customFields.declaredValue || '';
+        const sellingPrice = customFields.sellingPrice || '';
+        const productENName = customFields.productENName || '';
+        const productCNName = customFields.productCNName || '';
 
-        // Build bulk data - mapped to ECount fields based on error messages
+        // Calculate total weight
+        const totalWeight = weight && quantity ? (parseFloat(weight) * quantity).toString() : '';
+
+        // Build bulk data
         const bulkData = {
             // Header fields
             IO_DATE: '',
@@ -479,27 +469,27 @@ class ECountOrderService {
             PJT_CD: '',
             TTL_CTT: '',
 
-            // Order memo fields
-            U_MEMO1: orderMemo1 || orderNumber,
-            U_MEMO2: orderMemo2 || receiverName, // Name* - required
+            // Order memo fields - MAPPING ĐÚNG
+            U_MEMO1: orderMemo1, // Zip code
+            U_MEMO2: orderMemo2, // Receiver name
             U_MEMO3: orderMemo3,
-            U_MEMO4: orderMemo4,
-            U_MEMO5: orderMemo5,
+            U_MEMO4: orderMemo4, // Email
+            U_MEMO5: orderMemo5, // Address line 2
 
-            // Additional text fields (Header - Receiver info)
+            // Additional text fields (Header - Receiver info) - MAPPING ĐÚNG
             ADD_TXT_01_T: '',
             ADD_TXT_02_T: '',
-            ADD_TXT_03_T: '',
+            ADD_TXT_03_T: receiverPhone, // Phone
             ADD_TXT_04_T: '',
-            ADD_TXT_05_T: receiverCountry, // Country code* - required
-            ADD_TXT_06_T: receiverAddress, // Street line 1* - required
-            ADD_TXT_07_T: additionalService, // Add.service - required
-            ADD_TXT_08_T: receiverCity, // City* - required
-            ADD_TXT_09_T: receiverState, // State* - required
-            ADD_TXT_10_T: receiverPostalCode,
+            ADD_TXT_05_T: receiverCountry, // Country code*
+            ADD_TXT_06_T: receiverAddress1, // Street line 1*
+            ADD_TXT_07_T: additionalService, // Additional service*
+            ADD_TXT_08_T: receiverCity, // City*
+            ADD_TXT_09_T: receiverState, // State/Province*
+            ADD_TXT_10_T: customsEORINumber, // EORI number
 
             // Additional number fields (Header)
-            ADD_NUM_01_T: '',
+            ADD_NUM_01_T: customsVAT, // VAT
             ADD_NUM_02_T: '',
             ADD_NUM_03_T: '',
             ADD_NUM_04_T: '',
@@ -519,17 +509,17 @@ class ECountOrderService {
             U_TXT1: orderNumber, // Internal order number
 
             // Additional long text fields (Header)
-            ADD_LTXT_01_T: trackingNumber,
-            ADD_LTXT_02_T: serviceType, // Service - required
-            ADD_LTXT_03_T: '',
+            ADD_LTXT_01_T: trackingNumber, // Tracking number
+            ADD_LTXT_02_T: serviceType, // Service type*
+            ADD_LTXT_03_T: customsIOSSCode, // IOSS code
 
             // Product info (first item)
-            PROD_CD: process.env.API_PRODUCT_CODE, // Service-THG - must be registered in ECount
+            PROD_CD: process.env.API_PRODUCT_CODE, // Must be registered in ECount
             PROD_DES: process.env.API_PRODUCT_NAME,
             SIZE_DES: productSize,
             UQTY: '',
             QTY: quantity.toString(),
-            PRICE: price.toString(),
+            PRICE: '', // Shipping fee
             USER_PRICE_VAT: '',
             SUPPLY_AMT: '',
             SUPPLY_AMT_F: '',
@@ -542,13 +532,13 @@ class ECountOrderService {
             P_REMARKS2: '',
             P_REMARKS3: '',
 
-            // Product additional text fields - Dimensions
+            // Product additional text fields - Dimensions - MAPPING ĐÚNG
             ADD_TXT_01: '',
-            ADD_TXT_02: length.toString(), // Length (cm)* - required
-            ADD_TXT_03: width.toString(), // Width (cm)* - required
-            ADD_TXT_04: height.toString(), // Height (cm)* - required
-            ADD_TXT_05: '',
-            ADD_TXT_06: productDescription, // Name of product* - EN - required
+            ADD_TXT_02: length.toString(), // Length (cm)*
+            ADD_TXT_03: width.toString(), // Width (cm)*
+            ADD_TXT_04: height.toString(), // Height (cm)*
+            ADD_TXT_05: productCNName, // Product name CN
+            ADD_TXT_06: productENName, // Product name EN*
 
             // Relation fields
             REL_DATE: '',
@@ -558,12 +548,12 @@ class ECountOrderService {
             P_AMT1: '',
             P_AMT2: '',
 
-            // Product additional numbers
-            ADD_NUM_01: '',
-            ADD_NUM_02: declaredValue.toString(), // Selling price* - required
-            ADD_NUM_03: weight.toString() || '1',
-            ADD_NUM_04: '1',
-            ADD_NUM_05: '1',
+            // Product additional numbers - MAPPING ĐÚNG
+            ADD_NUM_01: '', // Extra fee
+            ADD_NUM_02: sellingPrice.toString(), // Selling price*
+            ADD_NUM_03: weight.toString(), // Unit weight*
+            ADD_NUM_04: totalWeight, // Total weight (unit weight * qty)
+            ADD_NUM_05: declaredValue.toString(), // Unit price/Declared value*
 
             // Product additional codes
             ADD_CD_01: '',

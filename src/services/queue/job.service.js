@@ -100,6 +100,24 @@ class JobService {
     }
 
     /**
+     * Thêm job lookup DOC_NO
+     * @param {string[]} slipNos - Array of SlipNos
+     * @param {number[]} orderIds - Array of Order IDs tương ứng
+     * @param {number} delaySeconds - Delay trước khi xử lý
+     */
+    async addLookupDocNoJob(slipNos, orderIds, delaySeconds = 30) {
+        return await JobModel.create(
+            'lookup_docno',
+            {
+                slipNos,
+                orderIds
+            },
+            delaySeconds,
+            3 // max 3 attempts
+        );
+    }
+
+    /**
      * Lấy stats
      */
     async getStats() {

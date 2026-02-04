@@ -14,37 +14,35 @@ const customMessages = {
     'object.unknown': 'Unknown field: {#label}'
 };
 
-/**
- * Package/Dimension schema
- */
-const packageSchema = Joi.object({
+const declarationItemSchema = Joi.object({
+    skuCode: Joi.string().max(100).optional(),
+    nameEn: Joi.string().max(255).required()
+        .messages({ 'any.required': 'Product name (English) is required' }),
+    nameCN: Joi.string().max(255).optional().allow(''),
+    quantity: Joi.number().integer().min(1).default(1),
+    
+    // Dimensions trong declaration
     length: Joi.number().positive().required()
         .messages({ 'any.required': 'Length (cm) is required' }),
     width: Joi.number().positive().required()
         .messages({ 'any.required': 'Width (cm) is required' }),
     height: Joi.number().positive().required()
         .messages({ 'any.required': 'Height (cm) is required' }),
-    weight: Joi.number().positive().optional()
-});
-
-/**
- * Declaration item schema
- */
-const declarationItemSchema = Joi.object({
-    skuCode: Joi.string().max(100).optional(),
-    nameEn: Joi.string().max(255).required()
-        .messages({ 'any.required': 'Product name (English) is required' }),
-    nameLocal: Joi.string().max(255).optional(),
-    quantity: Joi.number().integer().min(1).default(1),
+    unitWeight: Joi.number().min(0).required()
+        .messages({ 'any.required': 'Unit weight is required' }),
+    
+    // Prices
     unitPrice: Joi.number().min(0).required()
         .messages({ 'any.required': 'Unit price is required' }),
-    unitWeight: Joi.number().min(0).optional(),
+    sellingPrice: Joi.number().min(0).required()
+        .messages({ 'any.required': 'Selling price is required' }),
+    
     hsCode: Joi.string().max(20).optional().allow(''),
     currency: Joi.string().length(3).default('USD')
 });
 
 /**
- * Receiver schema - all required fields for ECount
+ * Receiver schema - SỬA zipCode thay vì postalCode
  */
 const receiverSchema = Joi.object({
     name: Joi.string().max(255).required()
@@ -60,13 +58,22 @@ const receiverSchema = Joi.object({
     addressLine1: Joi.string().max(500).required()
         .messages({ 'any.required': 'Street address is required (Street line 1*)' }),
     addressLine2: Joi.string().max(500).optional().allow(''),
-    postalCode: Joi.string().max(20).optional().allow(''),
+    zipCode: Joi.string().max(20).optional().allow(''), // ĐỔI TỪ postalCode
     phone: Joi.string().max(50).optional().allow(''),
     email: Joi.string().email().max(100).optional().allow('')
 });
 
 /**
- * Schema for single order - matching ECount required fields
+ * Customs number schema - THÊM MỚI
+ */
+const customsNumberSchema = Joi.object({
+    IOSSCode: Joi.string().max(50).optional().allow(''),
+    VATCode: Joi.string().max(50).optional().allow(''),
+    EORINumber: Joi.string().max(50).optional().allow('')
+});
+
+/**
+ * Schema for single order - CẬP NHẬT
  */
 const apiOrderSchema = Joi.object({
     // Basic info
@@ -74,7 +81,7 @@ const apiOrderSchema = Joi.object({
         .messages({ 'string.pattern.base': 'ioDate must be in YYYYMMDD format' }),
     customerCode: Joi.string().max(50).optional(),
     customerName: Joi.string().max(255).optional(),
-    warehouseCode: Joi.string().max(20).optional().default('HCM'),
+    warehouseCode: Joi.string().max(50).optional().allow(''),
     employeeCode: Joi.string().max(50).allow('').optional(),
 
     // Order info - required
@@ -93,35 +100,18 @@ const apiOrderSchema = Joi.object({
     receiver: receiverSchema.required()
         .messages({ 'any.required': 'Receiver information is required' }),
 
-    // Legacy receiver fields (for backward compatibility, will be merged into receiver)
-    receiverName: Joi.string().max(255).optional(),
-    receiverCountry: Joi.string().max(50).optional(),
-    receiverAddress: Joi.string().max(500).optional(),
-    receiverCity: Joi.string().max(100).optional(),
-    receiverState: Joi.string().max(100).optional(),
-    receiverPostalCode: Joi.string().max(20).optional(),
-    receiverPhone: Joi.string().max(50).optional(),
-    receiverEmail: Joi.string().email().max(100).optional(),
-
-    // Package dimensions - required
-    packages: Joi.array().items(packageSchema).min(1).required()
-        .messages({
-            'any.required': 'Package dimensions are required',
-            'array.min': 'At least one package with dimensions is required'
-        }),
-
-    // Declaration info - required
+    // Declaration info - required (chứa cả dimensions)
     declarationInfo: Joi.array().items(declarationItemSchema).min(1).required()
         .messages({
             'any.required': 'Declaration info is required',
             'array.min': 'At least one declaration item is required'
         }),
 
-    // Product info - required
+    // Customs number - THÊM MỚI
+    customsNumber: customsNumberSchema.optional(),
+
+    // Product info - BỎ quantity và price ở root level
     productSize: Joi.string().max(100).allow('').optional(),
-    quantity: Joi.number().integer().min(1).default(1),
-    price: Joi.number().min(0).required()
-        .messages({ 'any.required': 'Price/Selling price is required' }),
 
     // Service info - required
     serviceType: Joi.string().max(100).required()
@@ -135,15 +125,7 @@ const apiOrderSchema = Joi.object({
     ecountLink: Joi.string().max(500).allow('').optional(),
 
     // Custom fields for ECount
-    customFields: Joi.object({
-        length: Joi.number().positive().optional(),
-        width: Joi.number().positive().optional(),
-        height: Joi.number().positive().optional(),
-        weight: Joi.number().min(0).optional(),
-        declaredValue: Joi.number().min(0).optional(),
-        productDescription: Joi.string().max(500).optional(),
-        ecountFields: Joi.object().optional()
-    }).optional()
+    customFields: Joi.object().optional()
 }).messages(customMessages);
 
 /**
@@ -152,42 +134,35 @@ const apiOrderSchema = Joi.object({
 function normalizeOrderData(order) {
     const normalized = { ...order };
 
-    // Merge legacy receiver fields into receiver object if receiver object is incomplete
-    if (!normalized.receiver || Object.keys(normalized.receiver).length === 0) {
-        normalized.receiver = {
-            name: order.receiverName || order.orderMemo2 || '',
-            countryCode: order.receiverCountry || '',
-            province: order.receiverState || '',
-            city: order.receiverCity || '',
-            addressLine1: order.receiverAddress || '',
-            postalCode: order.receiverPostalCode || '',
-            phone: order.receiverPhone || '',
-            email: order.receiverEmail || ''
-        };
-    }
+    // Không cần merge legacy receiver fields nữa vì API mới đã chuẩn
 
-    // Extract dimensions from packages if customFields not provided
-    if (normalized.packages && normalized.packages.length > 0 && !normalized.customFields) {
-        const pkg = normalized.packages[0];
-        normalized.customFields = {
-            length: pkg.length,
-            width: pkg.width,
-            height: pkg.height,
-            weight: pkg.weight
-        };
-    }
-
-    // Extract product description from declaration if not provided
+    // Extract dimensions và prices từ declarationInfo (không còn packages array)
     if (normalized.declarationInfo && normalized.declarationInfo.length > 0) {
+        const decl = normalized.declarationInfo[0];
+        
         if (!normalized.customFields) {
             normalized.customFields = {};
         }
-        if (!normalized.customFields.productDescription) {
-            normalized.customFields.productDescription = normalized.declarationInfo[0].nameEn;
+        
+        // Lưu dimensions từ declaration
+        normalized.customFields.length = decl.length;
+        normalized.customFields.width = decl.width;
+        normalized.customFields.height = decl.height;
+        normalized.customFields.weight = decl.unitWeight;
+        normalized.customFields.declaredValue = decl.unitPrice;
+        normalized.customFields.sellingPrice = decl.sellingPrice;
+        normalized.customFields.productENName = decl.nameEn;
+        normalized.customFields.productCNName = decl.nameCN || '';
+    }
+
+    // Extract customs info
+    if (normalized.customsNumber) {
+        if (!normalized.customFields) {
+            normalized.customFields = {};
         }
-        if (!normalized.customFields.declaredValue) {
-            normalized.customFields.declaredValue = normalized.declarationInfo[0].unitPrice;
-        }
+        normalized.customFields.IOSSCode = normalized.customsNumber.IOSSCode || '';
+        normalized.customFields.VATCode = normalized.customsNumber.VATCode || '';
+        normalized.customFields.EORINumber = normalized.customsNumber.EORINumber || '';
     }
 
     return normalized;
@@ -239,47 +214,16 @@ function validateBusinessRules(order, index = null) {
         }
     }
 
-    // Validate packages have dimensions
-    if (!order.packages || order.packages.length === 0) {
-        errors.push({
-            field: `${prefix}packages`,
-            message: 'At least one package with dimensions (length, width, height) is required',
-            ecountField: 'ADD_TXT_02, ADD_TXT_03, ADD_TXT_04'
-        });
-    } else {
-        const pkg = order.packages[0];
-        if (!pkg.length || pkg.length <= 0) {
-            errors.push({
-                field: `${prefix}packages[0].length`,
-                message: 'Package length is required and must be positive',
-                ecountField: 'ADD_TXT_02'
-            });
-        }
-        if (!pkg.width || pkg.width <= 0) {
-            errors.push({
-                field: `${prefix}packages[0].width`,
-                message: 'Package width is required and must be positive',
-                ecountField: 'ADD_TXT_03'
-            });
-        }
-        if (!pkg.height || pkg.height <= 0) {
-            errors.push({
-                field: `${prefix}packages[0].height`,
-                message: 'Package height is required and must be positive',
-                ecountField: 'ADD_TXT_04'
-            });
-        }
-    }
-
-    // Validate declaration info
+    // Validate declaration info (bây giờ chứa cả dimensions)
     if (!order.declarationInfo || order.declarationInfo.length === 0) {
         errors.push({
             field: `${prefix}declarationInfo`,
-            message: 'At least one declaration item with product name and price is required',
-            ecountField: 'ADD_TXT_06, ADD_NUM_02'
+            message: 'At least one declaration item with product name, dimensions, and prices is required',
+            ecountField: 'Multiple fields'
         });
     } else {
         const decl = order.declarationInfo[0];
+        
         if (!decl.nameEn || decl.nameEn.trim() === '') {
             errors.push({
                 field: `${prefix}declarationInfo[0].nameEn`,
@@ -287,10 +231,43 @@ function validateBusinessRules(order, index = null) {
                 ecountField: 'ADD_TXT_06'
             });
         }
+        
+        if (!decl.length || decl.length <= 0) {
+            errors.push({
+                field: `${prefix}declarationInfo[0].length`,
+                message: 'Length is required and must be positive',
+                ecountField: 'ADD_TXT_02'
+            });
+        }
+        
+        if (!decl.width || decl.width <= 0) {
+            errors.push({
+                field: `${prefix}declarationInfo[0].width`,
+                message: 'Width is required and must be positive',
+                ecountField: 'ADD_TXT_03'
+            });
+        }
+        
+        if (!decl.height || decl.height <= 0) {
+            errors.push({
+                field: `${prefix}declarationInfo[0].height`,
+                message: 'Height is required and must be positive',
+                ecountField: 'ADD_TXT_04'
+            });
+        }
+        
         if (decl.unitPrice === undefined || decl.unitPrice === null) {
             errors.push({
                 field: `${prefix}declarationInfo[0].unitPrice`,
                 message: 'Unit price is required',
+                ecountField: 'Declared value'
+            });
+        }
+        
+        if (decl.sellingPrice === undefined || decl.sellingPrice === null) {
+            errors.push({
+                field: `${prefix}declarationInfo[0].sellingPrice`,
+                message: 'Selling price is required',
                 ecountField: 'ADD_NUM_02'
             });
         }
@@ -304,13 +281,13 @@ function validateBusinessRules(order, index = null) {
             ecountField: 'ADD_LTXT_02_T'
         });
     }
-
-    // Validate price
-    if (order.price === undefined || order.price === null || order.price < 0) {
+    
+    // Validate additional service
+    if (!order.additionalService || order.additionalService.trim() === '') {
         errors.push({
-            field: `${prefix}price`,
-            message: 'Price must be provided and non-negative',
-            ecountField: 'PRICE'
+            field: `${prefix}additionalService`,
+            message: 'Additional service is required',
+            ecountField: 'ADD_TXT_07_T'
         });
     }
 

@@ -83,6 +83,11 @@ class OrderModel {
         try {
             const fields = [];
             const values = [];
+
+            if (updateData.erpOrderCode !== undefined) {
+                fields.push('erp_order_code = ?');
+                values.push(updateData.erpOrderCode);
+            }
             
             if (updateData.waybillNumber !== undefined) {
                 fields.push('waybill_number = ?');

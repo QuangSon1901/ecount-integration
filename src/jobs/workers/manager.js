@@ -6,6 +6,7 @@ const UpdateWarningBatchWorker = require('./update-warning-batch.worker');
 const UpdateStatusEcountWorker = require('./update-status-ecount.worker');
 const UpdateStatusBatchWorker = require('./update-status-batch.worker');
 const TrackOtherOrderWorker = require('./track-other-order.worker');
+const LookupDocNoWorker = require('./lookup-docno.worker');
 const logger = require('../../utils/logger');
 
 class WorkerManager {
@@ -17,11 +18,12 @@ class WorkerManager {
         logger.info('Starting all workers...');
 
         this.workers = [
-            new CreateOrderWorker(),           // 5 concurrent
-            new UpdateTrackingBatchWorker(),  // 2 concurrent
-            new UpdateStatusBatchWorker(),     // 2 concurrent
-            new TrackOtherOrderWorker(),
-            new UpdateWarningBatchWorker(),
+            // new CreateOrderWorker(),           // 5 concurrent
+            // new UpdateTrackingBatchWorker(),  // 2 concurrent
+            // new UpdateStatusBatchWorker(),     // 2 concurrent
+            // new TrackOtherOrderWorker(),
+            // new UpdateWarningBatchWorker(),
+            new LookupDocNoWorker(),   
         ];
 
         this.workers.forEach(worker => {

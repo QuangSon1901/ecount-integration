@@ -5,150 +5,6 @@ const logger = require('../../utils/logger');
 
 class ApiOrderService {
     /**
-     * Tạo order qua API (không mua label)
-     */
-    async createOrder(orderData, apiCustomer) {
-        try {
-            logger.info('Creating order via API', {
-                customerId: apiCustomer.customer_id,
-                customerCode: apiCustomer.customer_code
-            });
-
-            // Generate internal order number
-            const orderNumber = this.generateOrderNumber();
-
-            // Extract receiver info from new structure or legacy fields
-            const receiver = orderData.receiver || {};
-            const receiverName = receiver.name || orderData.receiverName || orderData.orderMemo2 || '';
-            const receiverCountry = receiver.countryCode || orderData.receiverCountry || '';
-            const receiverAddress = receiver.addressLine1 || orderData.receiverAddress || '';
-            const receiverCity = receiver.city || orderData.receiverCity || '';
-            const receiverState = receiver.province || orderData.receiverState || '';
-            const receiverPostalCode = receiver.postalCode || orderData.receiverPostalCode || '';
-            const receiverPhone = receiver.phone || orderData.receiverPhone || '';
-            const receiverEmail = receiver.email || orderData.receiverEmail || '';
-
-            // Extract package dimensions
-            const pkg = orderData.packages && orderData.packages[0] ? orderData.packages[0] : {};
-            const length = pkg.length || orderData.customFields?.length || 0;
-            const width = pkg.width || orderData.customFields?.width || 0;
-            const height = pkg.height || orderData.customFields?.height || 0;
-            const weight = pkg.weight || orderData.customFields?.weight || 0;
-
-            // Extract declaration info
-            const decl = orderData.declarationInfo && orderData.declarationInfo[0] ? orderData.declarationInfo[0] : {};
-            const productDescription = decl.nameEn || orderData.customFields?.productDescription || '';
-            const declaredValue = decl.unitPrice || orderData.customFields?.declaredValue || orderData.price || 0;
-
-            // Prepare data for ECount
-            const ecountData = {
-                ioDate: orderData.ioDate,
-                customerCode: orderData.customerCode || apiCustomer.customer_code,
-                customerName: orderData.customerName || apiCustomer.customer_name,
-                warehouseCode: orderData.warehouseCode || 'HCM',
-                employeeCode: orderData.employeeCode || '',
-
-                orderNumber: orderData.orderNumber || orderNumber,
-                orderMemo1: orderData.orderMemo1 || orderData.orderNumber,
-                orderMemo2: orderData.orderMemo2 || receiverName,
-                orderMemo3: orderData.orderMemo3 || '',
-                orderMemo4: orderData.orderMemo4 || '',
-                orderMemo5: orderData.orderMemo5 || '',
-
-                // Receiver info - now properly mapped
-                receiverName: receiverName,
-                receiverCountry: receiverCountry,
-                receiverAddress: receiverAddress,
-                receiverCity: receiverCity,
-                receiverState: receiverState,
-                receiverPostalCode: receiverPostalCode,
-
-                // Additional service field
-                additionalService: orderData.additionalService || '',
-
-                productSize: orderData.productSize || '',
-                quantity: orderData.quantity || 1,
-                price: orderData.price || declaredValue || 0,
-
-                serviceType: orderData.serviceType || '',
-                trackingNumber: orderData.trackingNumber || '',
-
-                // Custom fields with proper mapping
-                customFields: {
-                    length: length,
-                    width: width,
-                    height: height,
-                    weight: weight,
-                    declaredValue: declaredValue,
-                    productDescription: productDescription,
-                    ...orderData.customFields
-                }
-            };
-
-            // Call ECount API
-            const ecountResult = await ecountOrderService.createSaleOrder(ecountData);
-
-            if (!ecountResult.success) {
-                throw new Error('Failed to create order on ECount');
-            }
-
-            // Save to database
-            const orderId = await OrderModel.createFromAPI({
-                orderNumber: orderNumber,
-                customerOrderNumber: orderData.orderNumber,
-                platformOrderNumber: orderData.platformOrderNumber || null,
-                erpOrderCode: orderData.orderNumber,
-                ecountOrderId: ecountResult.ecountOrderId,
-
-                carrier: orderData.serviceType || null,
-
-                receiverName: receiverName,
-                receiverCountry: receiverCountry,
-                receiverState: receiverState,
-                receiverCity: receiverCity,
-                receiverPostalCode: receiverPostalCode,
-                receiverPhone: receiverPhone,
-                receiverEmail: receiverEmail,
-
-                apiCustomerId: apiCustomer.customer_id,
-                partnerID: apiCustomer.customer_code,
-                partnerName: apiCustomer.customer_name,
-
-                orderData: orderData,
-                ecountResponse: ecountResult.rawResponse,
-                ecountLink: process.env.ECOUNT_HASH_LINK
-            });
-
-            logger.info('Order created successfully via API', {
-                orderId,
-                ecountOrderId: ecountResult.ecountOrderId,
-                customerId: apiCustomer.customer_id
-            });
-
-            // Get full order data
-            const order = await OrderModel.findById(orderId);
-
-            return {
-                success: true,
-                data: {
-                    order_id: orderId,
-                    order_number: orderNumber,
-                    customer_order_number: orderData.orderNumber,
-                    ecount_order_id: ecountResult.ecountOrderId,
-                    status: 'new',
-                    ecount_data: ecountResult.ecountData,
-                    order: this.formatOrderResponse(order)
-                },
-                message: 'Order created successfully on ECount'
-            };
-
-        } catch (error) {
-            logger.error('Failed to create order via API:', error);
-            throw error;
-        }
-    }
-
-    /**
      * Tạo nhiều orders trong 1 lần gọi API ECount
      */
     async createBulkOrders(orders, apiCustomer) {
@@ -168,26 +24,31 @@ class ApiOrderService {
 
                 // Extract receiver info
                 const receiver = orderData.receiver || {};
-                const receiverName = receiver.name || orderData.receiverName || orderData.orderMemo2 || '';
-                const receiverCountry = receiver.countryCode || orderData.receiverCountry || '';
-                const receiverAddress = receiver.addressLine1 || orderData.receiverAddress || '';
-                const receiverCity = receiver.city || orderData.receiverCity || '';
-                const receiverState = receiver.province || orderData.receiverState || '';
-                const receiverPostalCode = receiver.postalCode || orderData.receiverPostalCode || '';
-                const receiverPhone = receiver.phone || orderData.receiverPhone || '';
-                const receiverEmail = receiver.email || orderData.receiverEmail || '';
+                const receiverName = receiver.name || '';
+                const receiverCountry = receiver.countryCode || '';
+                const receiverAddress1 = receiver.addressLine1 || '';
+                const receiverAddress2 = receiver.addressLine2 || '';
+                const receiverCity = receiver.city || '';
+                const receiverState = receiver.province || '';
+                const receiverZipCode = receiver.zipCode || '';
+                const receiverPhone = receiver.phone || '';
+                const receiverEmail = receiver.email || '';
 
-                // Extract package dimensions
-                const pkg = orderData.packages && orderData.packages[0] ? orderData.packages[0] : {};
-                const length = pkg.length || orderData.customFields?.length || 0;
-                const width = pkg.width || orderData.customFields?.width || 0;
-                const height = pkg.height || orderData.customFields?.height || 0;
-                const weight = pkg.weight || orderData.customFields?.weight || 0;
-
-                // Extract declaration info
                 const decl = orderData.declarationInfo && orderData.declarationInfo[0] ? orderData.declarationInfo[0] : {};
-                const productDescription = decl.nameEn || orderData.customFields?.productDescription || '';
-                const declaredValue = decl.unitPrice || orderData.customFields?.declaredValue || orderData.price || 0;
+                const productENName = decl.nameEn || '';
+                const productCNName = decl.nameCN || '';
+                const quantity = decl.quantity || 1;
+                const length = decl.length || 0;
+                const width = decl.width || 0;
+                const height = decl.height || 0;
+                const unitWeight = decl.unitWeight || 0;
+                const unitPrice = decl.unitPrice || 0;
+                const sellingPrice = decl.sellingPrice || 0;
+
+                const customs = orderData.customsNumber || {};
+                const IOSSCode = customs.IOSSCode || '';
+                const VATCode = customs.VATCode || '';
+                const EORINumber = customs.EORINumber || '';
 
                 ordersToCreate.push({
                     index: i,
@@ -197,55 +58,57 @@ class ApiOrderService {
                         ioDate: orderData.ioDate,
                         customerCode: orderData.customerCode || apiCustomer.customer_code,
                         customerName: orderData.customerName || apiCustomer.customer_name,
-                        warehouseCode: orderData.warehouseCode || 'HCM',
+                        warehouseCode: orderData.warehouseCode || '',
                         employeeCode: orderData.employeeCode || '',
 
                         orderNumber: orderData.orderNumber || orderNumber,
-                        orderMemo1: orderData.orderMemo1 || orderData.orderNumber,
+                        orderMemo1: orderData.orderMemo1 || receiverZipCode,
                         orderMemo2: orderData.orderMemo2 || receiverName,
                         orderMemo3: orderData.orderMemo3 || '',
-                        orderMemo4: orderData.orderMemo4 || '',
-                        orderMemo5: orderData.orderMemo5 || '',
+                        orderMemo4: orderData.orderMemo4 || receiverEmail,
+                        orderMemo5: orderData.orderMemo5 || receiverAddress2,
 
+                        // Receiver info
                         receiverName: receiverName,
                         receiverCountry: receiverCountry,
-                        receiverAddress: receiverAddress,
+                        receiverAddress1: receiverAddress1,
+                        receiverAddress2: receiverAddress2,
                         receiverCity: receiverCity,
                         receiverState: receiverState,
-                        receiverPostalCode: receiverPostalCode,
+                        receiverZipCode: receiverZipCode,
+                        receiverPhone: receiverPhone,
+                        receiverEmail: receiverEmail,
 
+                        // Customs info
+                        customsIOSSCode: IOSSCode,
+                        customsVAT: VATCode,
+                        customsEORINumber: EORINumber,
+
+                        // Service info
                         additionalService: orderData.additionalService || '',
-
-                        productSize: orderData.productSize || '',
-                        quantity: orderData.quantity || 1,
-                        price: orderData.price || declaredValue || 0,
-
                         serviceType: orderData.serviceType || '',
                         trackingNumber: orderData.trackingNumber || '',
 
+                        // Product info
+                        productSize: orderData.productSize || '',
+                        quantity: quantity,
+                        
+                        // Custom fields with proper mapping
                         customFields: {
                             length: length,
                             width: width,
                             height: height,
-                            weight: weight,
-                            declaredValue: declaredValue,
-                            productDescription: productDescription,
+                            weight: unitWeight,
+                            declaredValue: unitPrice,
+                            sellingPrice: sellingPrice,
+                            productENName: productENName,
+                            productCNName: productCNName,
                             ...orderData.customFields
                         }
-                    },
-                    receiverInfo: {
-                        receiverName,
-                        receiverCountry,
-                        receiverState,
-                        receiverCity,
-                        receiverPostalCode,
-                        receiverPhone,
-                        receiverEmail
                     }
                 });
             }
 
-            // Gọi ECount API 1 lần với tất cả orders
             const ecountResult = await ecountOrderService.createBulkSaleOrdersWithDocNo(
                 ordersToCreate.map(o => o.ecountData)
             );
@@ -257,6 +120,7 @@ class ApiOrderService {
             // Lưu từng order vào database
             const results = [];
             const errors = [];
+            const ordersForLookup = [];
 
             for (let i = 0; i < ordersToCreate.length; i++) {
                 const orderToCreate = ordersToCreate[i];
@@ -277,28 +141,27 @@ class ApiOrderService {
                 try {
                     const orderId = await OrderModel.createFromAPI({
                         orderNumber: orderToCreate.orderNumber,
-                        customerOrderNumber: orderToCreate.orderData.orderNumber,
-                        platformOrderNumber: orderToCreate.orderData.platformOrderNumber || null,
-                        erpOrderCode: docNo || slipNo,
-                        ecountOrderId: slipNo,
+                        customerOrderNumber: orderToCreate.ecountData.orderNumber,
+                        platformOrderNumber: orderToCreate.platformOrderNumber || null,
+                        erpOrderCode: null,
+                        ecountOrderId: ecountResult.ecountOrderId,
 
-                        carrier: orderToCreate.orderData.serviceType || null,
+                        carrier: orderToCreate.serviceType || null,
 
-                        receiverName: orderToCreate.receiverInfo.receiverName,
-                        receiverCountry: orderToCreate.receiverInfo.receiverCountry,
-                        receiverState: orderToCreate.receiverInfo.receiverState,
-                        receiverCity: orderToCreate.receiverInfo.receiverCity,
-                        receiverPostalCode: orderToCreate.receiverInfo.receiverPostalCode,
-                        receiverPhone: orderToCreate.receiverInfo.receiverPhone,
-                        receiverEmail: orderToCreate.receiverInfo.receiverEmail,
+                        receiverName: orderToCreate.receiverName,
+                        receiverCountry: orderToCreate.receiverCountry,
+                        receiverState: orderToCreate.receiverState,
+                        receiverCity: orderToCreate.receiverCity,
+                        receiverPostalCode: orderToCreate.receiverZipCode,
+                        receiverPhone: orderToCreate.receiverPhone,
+                        receiverEmail: orderToCreate.receiverEmail,
 
                         apiCustomerId: apiCustomer.customer_id,
                         partnerID: apiCustomer.customer_code,
                         partnerName: apiCustomer.customer_name,
 
-                        orderData: orderToCreate.orderData,
+                        orderData: orderToCreate,
                         ecountResponse: ecountResult.rawResponse,
-                        ecountLink: process.env.ECOUNT_HASH_LINK
                     });
 
                     const order = await OrderModel.findById(orderId);
@@ -306,12 +169,13 @@ class ApiOrderService {
                     results.push({
                         index: i,
                         success: true,
-                        order_id: orderId,
-                        order_number: orderToCreate.orderNumber,
-                        customer_order_number: orderToCreate.orderData.orderNumber,
-                        doc_no: docNo,
                         status: 'new',
                         order: this.formatOrderResponse(order)
+                    });
+
+                    ordersForLookup.push({
+                        orderId: orderId,
+                        slipNo: slipNo
                     });
 
                 } catch (error) {
@@ -322,6 +186,22 @@ class ApiOrderService {
                         order: orderToCreate.orderData,
                         doc_no: docNo,
                     });
+                }
+            }
+
+            if (ordersForLookup.length > 0) {
+                const jobService = require('../queue/job.service');
+                
+                try {
+                    await jobService.addLookupDocNoJob(
+                        ordersForLookup.map(o => o.slipNo),
+                        ordersForLookup.map(o => o.orderId),
+                        30
+                    );
+                    
+                    logger.info(`Added lookup DOC_NO job for ${ordersForLookup.length} orders`);
+                } catch (jobError) {
+                    logger.error('Failed to add lookup DOC_NO job:', jobError);
                 }
             }
 
@@ -356,15 +236,13 @@ class ApiOrderService {
     formatOrderResponse(order) {
         return {
             order_id: order.id,
-            order_number: order.order_number,
-            customer_order_number: order.customer_order_number,
+            reference_code: order.order_number,
+            order_number: order.customer_order_number,
             platform_order_number: order.platform_order_number,
-            ecount_order_id: order.ecount_order_id,
-            erp_order_code: order.erp_order_code,
+            code_thg: order.erp_order_code,
 
             status: order.status,
             order_status: order.order_status,
-            erp_status: order.erp_status,
 
             carrier: order.carrier,
             product_code: order.product_code,
