@@ -39,6 +39,71 @@ router.get('/health', (req, res) => {
     });
 });
 
+router.get('/services', apiAuthMiddleware, (req, res) => {
+    res.json({
+        success: true,
+        data: [
+            { code: 'VN-YTYCPREC', name: 'VN-YTYCPREC' },
+            { code: 'VNTHZXR', name: 'VNTHZXR' },
+            { code: 'VNBKZXR', name: 'VNBKZXR' },
+            { code: 'VNMUZXR', name: 'VNMUZXR' },
+            { code: 'YTYCPREG', name: 'YTYCPREG' },
+            { code: 'YTYCPREC', name: 'YTYCPREC' },
+            { code: 'FZZXR', name: 'FZZXR' },
+            { code: 'BKPHR', name: 'BKPHR' },
+            { code: 'THPHR', name: 'THPHR' },
+            { code: 'THZXR', name: 'THZXR' },
+            { code: 'BKZXR', name: 'BKZXR' },
+            { code: 'MUZXR', name: 'MUZXR' },
+            { code: 'ZBZXRPH', name: 'ZBZXRPH' },
+        ],
+        timestamp: new Date().toISOString(),
+    });
+});
+
+router.get('/add-services', apiAuthMiddleware, (req, res) => {
+    res.json({
+        success: true,
+        data: [
+            { code: 'G0', name: 'G0' },
+            { code: 'G1', name: 'G1' },
+            { code: 'V0', name: 'V0' },
+            { code: 'V1', name: 'V1' },
+        ],
+        timestamp: new Date().toISOString(),
+    });
+});
+
+
+router.get('/warehouses', apiAuthMiddleware, (req, res) => {
+    res.json({
+        success: true,
+        data: [
+            {
+                'code': 'CNEXP',
+                'name': 'CN-THG-EXP',
+            },
+            {
+                'code': 'CNFFM',
+                'name': 'CN-THG-FFM',
+            },
+            {
+                'code': 'USDRO',
+                'name': 'US-THG-DROP',
+            },
+            {
+                'code': 'VNHCM',
+                'name': 'VN-HCM-THG',
+            },
+            {
+                'code': 'VNHN',
+                'name': 'VN-HN-THG',
+            }
+        ],
+        timestamp: new Date().toISOString(),
+    });
+});
+
 router.use('/orders', apiOrderRoutes);
 
 module.exports = router;

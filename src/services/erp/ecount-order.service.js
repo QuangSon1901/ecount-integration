@@ -1,8 +1,6 @@
 const axios = require('axios');
 const logger = require('../../utils/logger');
 
-const docNoLookupService = require('./ecount-docno-lookup.service');
-
 /**
  * Extract error message safely from axios error (avoid circular structure)
  */
@@ -99,91 +97,6 @@ class ECountOrderService {
             const errorMsg = getErrorMessage(error);
             logger.error('ECount OAPI login failed:', errorMsg);
             throw new Error(`Failed to login to ECount: ${errorMsg}`);
-        }
-    }
-
-    /**
-     * Create sale order on ECount
-     */
-    async createSaleOrder(orderData) {
-        try {
-            // Get session
-            const sessionId = await this.login();
-
-            const url = `${this.baseUrl}/OAPI/V2/Sale/SaveSale?SESSION_ID=${sessionId}`;
-            
-            // Transform data to ECount format
-            const ecountPayload = this.transformToECountFormat(orderData);
-
-            logger.info('Creating order on ECount', {
-                customerCode: orderData.customerCode,
-                itemsCount: ecountPayload.SaleList?.length || 0
-            });
-
-            const response = await axios.post(url, ecountPayload, {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 60000
-            });
-
-            // Check for Error object first
-            if (response.data?.Error) {
-                const errorCode = response.data.Error.Code;
-                const errorMessage = response.data.Error.Message || 'Unknown error';
-                throw new Error(`ECount API Error [Code ${errorCode}]: ${errorMessage}`);
-            }
-
-            // Check response status
-            if (response.data?.Status === 200 || response.data?.Status === "200") {
-                const data = response.data.Data;
-                
-                if (data.FailCnt > 0) {
-                    // Extract error details
-                    const errorDetails = data.ResultDetails
-                        .filter(detail => !detail.IsSuccess)
-                        .map(detail => ({
-                            error: detail.TotalError,
-                            fields: detail.Errors?.map(e => `${e.ColCd}: ${e.Message}`).join(', ')
-                        }));
-
-                    throw new Error(
-                        `ECount validation failed (${data.FailCnt} errors): ${errorDetails[0]?.error || 'Unknown validation error'}`
-                    );
-                }
-
-                // Success case
-                if (data.SuccessCnt > 0 && data.SlipNos?.length > 0) {
-                    const slipNo = data.SlipNos[0];
-
-                    return {
-                        success: true,
-                        ecountOrderId: slipNo,
-                        successCount: data.SuccessCnt,
-                        failCount: data.FailCnt,
-                        traceId: data.TRACE_ID,
-                        resultDetails: data.ResultDetails,
-                        rawResponse: response.data
-                    };
-                } else {
-                    throw new Error('ECount order created but no SlipNo returned');
-                }
-            } else {
-                throw new Error(
-                    `ECount API returned unexpected status: ${response.data?.Status}`
-                );
-            }
-
-        } catch (error) {
-            const errorMsg = getErrorMessage(error);
-            logger.error('Failed to create ECount order:', errorMsg);
-            
-            // Re-throw with more context
-            if (error.response?.data) {
-                throw new Error(
-                    `ECount order creation failed: ${errorMsg} | Response: ${JSON.stringify(error.response.data)}`
-                );
-            }
-            
-            throw new Error(`ECount order creation failed: ${errorMsg}`);
         }
     }
 
@@ -286,48 +199,6 @@ class ECountOrderService {
             }
             
             throw new Error(`ECount bulk order creation failed: ${errorMsg}`);
-        }
-    }
-
-    /**
-     * Create sale order và lookup DOC_NO
-     */
-    async createSaleOrderWithDocNo(orderData) {
-        try {
-            // Create order trên ECount
-            const result = await this.createSaleOrder(orderData);
-            
-            if (!result.success || !result.ecountOrderId) {
-                return result;
-            }
-
-            // Lookup DOC_NO từ SlipNo
-            try {
-                const mapping = await docNoLookupService.lookupDocNos([result.ecountOrderId]);
-                const docNo = mapping[result.ecountOrderId];
-                
-                if (docNo) {
-                    result.docNo = docNo;
-                    result.erpOrderCode = docNo;
-                    logger.info('DOC_NO found', { 
-                        slipNo: result.ecountOrderId, 
-                        docNo 
-                    });
-                } else {
-                    logger.warn('DOC_NO not found for SlipNo', { 
-                        slipNo: result.ecountOrderId 
-                    });
-                }
-            } catch (lookupError) {
-                logger.error('Failed to lookup DOC_NO:', lookupError);
-                // Không throw error, vẫn trả về kết quả với SlipNo
-                result.docNoLookupError = lookupError.message;
-            }
-
-            return result;
-
-        } catch (error) {
-            throw error;
         }
     }
 

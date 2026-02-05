@@ -179,6 +179,21 @@ class OrderModel {
         }
     }
 
+    static async findByReferenceCode(referenceCode) {
+        const connection = await db.getConnection();
+        
+        try {
+            const [rows] = await connection.query(
+                'SELECT * FROM orders WHERE order_number = ?',
+                [referenceCode]
+            );
+            
+            return rows[0] || null;
+        } finally {
+            connection.release();
+        }
+    }
+
     /**
      * Tìm order theo tracking number
      */

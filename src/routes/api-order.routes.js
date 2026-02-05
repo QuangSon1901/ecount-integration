@@ -10,27 +10,15 @@ router.use(apiAuthMiddleware);
 router.use(apiRateLimitMiddleware);
 
 /**
- * POST /api/v1/orders
- * Create single order on ECount
- */
-// router.post('/', validateApiOrder, apiOrderController.createOrder.bind(apiOrderController));
-
-/**
  * POST /api/v1/orders/bulk
  * Create multiple orders on ECount
  */
 router.post('/bulk', validateApiBulkOrders, apiOrderController.createBulkOrders.bind(apiOrderController));
 
 /**
- * GET /api/v1/orders/:orderId
+ * GET /api/v1/orders/:referenceCode
  * Get order details
  */
-router.get('/:orderId', apiOrderController.getOrder.bind(apiOrderController));
-
-/**
- * GET /api/v1/orders
- * List orders
- */
-router.get('/', apiOrderController.listOrders.bind(apiOrderController));
+router.get('/:referenceCode', apiOrderController.getOrder.bind(apiOrderController));
 
 module.exports = router;
