@@ -36,6 +36,12 @@ class ApiOrderService {
                     throw new Error('At least one declaration item is required');
                 }
 
+                const packages = orderData.packages || [];
+
+                if (packages.length === 0) {
+                    throw new Error('At least one declaration item is required');
+                }
+
                 const sharedIndex = declarationInfo.length > 1 ? globalIndex : null;
                 
                 for (let j = 0; j < declarationInfo.length; j++) {
@@ -57,6 +63,7 @@ class ApiOrderService {
                             receiver,
                             customs,
                             declaration: decl,
+                            packages,
                             receiverName,
                             receiverCountry,
                             receiverAddress1,
@@ -112,6 +119,7 @@ class ApiOrderService {
                         productCode: orderToCreate.ecountData.serviceType || null,
                         warehouseCode: orderToCreate.ecountData.warehouseCode || null,
                         additionalService: orderToCreate.ecountData.additionalService || null,
+                        extraServices: [{"extra_code": orderToCreate.ecountData.additionalService || ""}],
 
                         receiverName: orderToCreate.ecountData.receiverName,
                         receiverCountry: orderToCreate.ecountData.receiverCountry,
@@ -212,6 +220,7 @@ class ApiOrderService {
             receiver,
             customs,
             declaration,
+            packages,
             receiverName,
             receiverCountry,
             receiverAddress1,
@@ -229,9 +238,9 @@ class ApiOrderService {
         const productENName = declaration.nameEn || '';
         const productCNName = declaration.nameCN || '';
         const quantity = declaration.quantity || 1;
-        const length = declaration.length || 0;
-        const width = declaration.width || 0;
-        const height = declaration.height || 0;
+        const length = packages[0]?.length || 0;
+        const width = packages[0]?.width || 0;
+        const height = packages[0]?.height || 0;
         const unitWeight = declaration.unitWeight || 0;
         const unitPrice = declaration.unitPrice || 0;
         const sellingPrice = declaration.sellingPrice || 0;

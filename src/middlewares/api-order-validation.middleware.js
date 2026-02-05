@@ -22,12 +22,6 @@ const declarationItemSchema = Joi.object({
     quantity: Joi.number().integer().min(1).default(1),
     
     // Dimensions trong declaration
-    length: Joi.number().positive().required()
-        .messages({ 'any.required': 'Length (cm) is required' }),
-    width: Joi.number().positive().required()
-        .messages({ 'any.required': 'Width (cm) is required' }),
-    height: Joi.number().positive().required()
-        .messages({ 'any.required': 'Height (cm) is required' }),
     unitWeight: Joi.number().min(0).required()
         .messages({ 'any.required': 'Unit weight is required' }),
     
@@ -41,9 +35,17 @@ const declarationItemSchema = Joi.object({
     currency: Joi.string().length(3).default('USD')
 });
 
-/**
- * Receiver schema - SỬA zipCode thay vì postalCode
- */
+const packagesSchema = Joi.object({
+    length: Joi.number().positive().required()
+        .messages({ 'any.required': 'Package length (cm) is required' }),
+    width: Joi.number().positive().required()
+        .messages({ 'any.required': 'Package width (cm) is required' }),
+    height: Joi.number().positive().required()
+        .messages({ 'any.required': 'Package height (cm) is required' }),
+    weight: Joi.number().positive().required()
+        .messages({ 'any.required': 'Package weight (kg) is required' }),
+})
+
 const receiverSchema = Joi.object({
     name: Joi.string().max(255).required()
         .messages({ 'any.required': 'Receiver name is required (Name*)' }),
@@ -107,6 +109,12 @@ const apiOrderSchema = Joi.object({
             'array.min': 'At least one declaration item is required'
         }),
 
+    packages: Joi.array().items(packagesSchema).min(1).required()
+        .messages({
+            'any.required': 'Packages is required',
+            'array.min': 'At least one packages is required'
+        }),
+
     // Customs number - THÊM MỚI
     customsNumber: customsNumberSchema.optional(),
 
@@ -145,9 +153,6 @@ function normalizeOrderData(order) {
         }
         
         // Lưu dimensions từ declaration
-        normalized.customFields.length = decl.length;
-        normalized.customFields.width = decl.width;
-        normalized.customFields.height = decl.height;
         normalized.customFields.weight = decl.unitWeight;
         normalized.customFields.declaredValue = decl.unitPrice;
         normalized.customFields.sellingPrice = decl.sellingPrice;
@@ -229,30 +234,6 @@ function validateBusinessRules(order, index = null) {
                 field: `${prefix}declarationInfo[0].nameEn`,
                 message: 'Product name (English) is required',
                 ecountField: 'ADD_TXT_06'
-            });
-        }
-        
-        if (!decl.length || decl.length <= 0) {
-            errors.push({
-                field: `${prefix}declarationInfo[0].length`,
-                message: 'Length is required and must be positive',
-                ecountField: 'ADD_TXT_02'
-            });
-        }
-        
-        if (!decl.width || decl.width <= 0) {
-            errors.push({
-                field: `${prefix}declarationInfo[0].width`,
-                message: 'Width is required and must be positive',
-                ecountField: 'ADD_TXT_03'
-            });
-        }
-        
-        if (!decl.height || decl.height <= 0) {
-            errors.push({
-                field: `${prefix}declarationInfo[0].height`,
-                message: 'Height is required and must be positive',
-                ecountField: 'ADD_TXT_04'
             });
         }
         
