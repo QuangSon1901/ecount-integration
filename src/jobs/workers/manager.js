@@ -7,6 +7,7 @@ const UpdateStatusEcountWorker = require('./update-status-ecount.worker');
 const UpdateStatusBatchWorker = require('./update-status-batch.worker');
 const TrackOtherOrderWorker = require('./track-other-order.worker');
 const LookupDocNoWorker = require('./lookup-docno.worker');
+const WebhookDeliveryWorker = require('./webhook-delivery.worker');
 const logger = require('../../utils/logger');
 
 class WorkerManager {
@@ -19,11 +20,12 @@ class WorkerManager {
 
         this.workers = [
             // new CreateOrderWorker(),           // 5 concurrent
-            // new UpdateTrackingBatchWorker(),  // 2 concurrent
+            new UpdateTrackingBatchWorker(),  // 2 concurrent
             // new UpdateStatusBatchWorker(),     // 2 concurrent
             // new TrackOtherOrderWorker(),
             // new UpdateWarningBatchWorker(),
-            new LookupDocNoWorker(),   
+            new LookupDocNoWorker(),
+            new WebhookDeliveryWorker(),          // 5 concurrent — gửi webhook async
         ];
 
         this.workers.forEach(worker => {

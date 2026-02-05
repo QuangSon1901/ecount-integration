@@ -39,6 +39,32 @@ class ApiOrderController {
             next(error);
         }
     }
+
+    /**
+     * GET /api/v1/orders/:orderId
+     * Get order details
+     */
+    async getOrder(req, res, next) {
+        try {
+            const { referenceCode } = req.params;
+
+            const order = await OrderModel.findByReferenceCode(referenceCode);
+
+            if (!order) {
+                return errorResponse(res, 'Order not found', 404);
+            }
+
+            // Verify ownership
+            if (order.partner_id !== req.auth.customer_code) {
+                return errorResponse(res, 'Order not found!', 404);
+            }
+
+            return successResponse(res, apiOrderService.formatOrderResponse(order));
+
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 module.exports = new ApiOrderController();

@@ -3,6 +3,7 @@ const BaseWorker = require('./base.worker');
 const OrderModel = require('../../models/order.model');
 const JobModel = require('../../models/job.model'); // ← THÊM DÒNG NÀY
 const sessionManager = require('../../services/erp/ecount-session.manager');
+const webhookService = require('../../services/api/webhook.service');
 const telegram = require('../../utils/telegram');
 const logger = require('../../utils/logger');
 const config = require('../../config');
@@ -301,6 +302,21 @@ class UpdateTrackingBatchWorker extends BaseWorker {
         await OrderModel.update(orderId, {
             erpTrackingNumberUpdated: true,
         });
+
+        await webhookService.dispatch(
+            'tracking.updated',
+            order.partner_id,
+            order.id,
+            {
+                order: {
+                    reference_code: order.order_number,
+                    code_thg: erpOrderCode,
+                    tracking_number: trackingNumber,
+                    waybill_number: waybillNumber,
+                    label_url: labelUrl
+                }
+            }
+        );
 
         logger.info(`✓ Updated tracking for order ${orderId}`);
     }

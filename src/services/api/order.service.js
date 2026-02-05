@@ -1,6 +1,6 @@
 const ecountOrderService = require('../erp/ecount-order.service');
 const OrderModel = require('../../models/order.model');
-// const webhookService = require('./webhook.service');
+const webhookService = require('./webhook.service');
 const logger = require('../../utils/logger');
 
 class ApiOrderService {

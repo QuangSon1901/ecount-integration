@@ -275,7 +275,10 @@ class UpdateStatusBatchWorker extends BaseWorker {
     async processJobInBrowser(job, page) {
         const { orderId, erpOrderCode, trackingNumber, status } = job.payload;
 
-        logger.info(`Processing order ${orderId} - ${erpOrderCode} - Status: ${status}`);
+        const order = await OrderModel.findById(orderId);
+        if (!order) {
+            throw new Error(`Order ${orderId} not found`);
+        }
 
         // Search order
         await this.searchOrder(page, erpOrderCode);
@@ -288,6 +291,20 @@ class UpdateStatusBatchWorker extends BaseWorker {
             erpUpdated: true,
             erpStatus: status
         });
+
+        await webhookService.dispatch(
+            'order.status',
+            order.partner_id,
+            order.id,
+            {
+                order: {
+                    reference_code: order.order_number,
+                    code_thg: erpOrderCode,
+                    tracking_number: trackingNumber,
+                    status: status
+                }
+            }
+        );
 
         logger.info(`✓ Updated status for order ${orderId}`);
     }

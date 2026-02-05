@@ -52,13 +52,14 @@ class JobService {
      /**
      * Thêm job update warning lên ECount
      */
-    async addUpdateWarningJob(orderId, erpOrderCode, warningMessage, ecountLink, delaySeconds = 0) {
+    async addUpdateWarningJob(orderId, erpOrderCode, warningMessage, ecountLink, warningData, delaySeconds = 0) {
         return await JobModel.create(
             'update_warning_ecount',
             {
                 orderId,
                 erpOrderCode,
                 warningMessage,
+                warningData,
                 ecountLink
             },
             delaySeconds,
@@ -114,6 +115,27 @@ class JobService {
             },
             delaySeconds,
             3 // max 3 attempts
+        );
+    }
+
+    /**
+     * Thêm job gửi webhook delivery
+     * @param {number} webhookId   - webhook_registrations.id
+     * @param {string} event       - 'tracking.updated' | 'order.status' | 'order.exception'
+     * @param {number} orderId     - orders.id
+     * @param {object} payload     - data payload gửi kèm
+     */
+    async addWebhookDeliveryJob(webhookId, event, orderId, payload) {
+        return await JobModel.create(
+            'webhook_delivery',
+            {
+                webhookId,
+                event,
+                orderId,
+                payload
+            },
+            0,  // no delay — gửi ngay
+            3   // max 3 attempts (retry via base.worker backoff)
         );
     }
 

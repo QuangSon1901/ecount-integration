@@ -295,11 +295,26 @@ class TrackingCheckpointService {
             parseMode: 'HTML'
         });
 
+        let warningDetails = {
+            code_thg: order.erp_order_code,
+            tracking_number: order.tracking_number,
+            waybill_number: order.waybill_number || '',
+            error: {
+                node_code: nodeCode,
+                node_name: nodeName,
+                desc: event.process_content,
+                process_location: event.process_location || '',
+                time: event.process_time,
+                node_labels: nodeLabels
+            }
+        };
+
         await jobService.addUpdateWarningJob(
             order.id,
             order.erp_order_code,
             `[WARNING] ${nodeName}`,
             order.ecount_link,
+            warningDetails,
             5
         );
 
@@ -363,11 +378,26 @@ class TrackingCheckpointService {
             parseMode: 'HTML'
         });
 
+        let warningDetails = {
+            code_thg: order.erp_order_code,
+            tracking_number: order.tracking_number,
+            waybill_number: order.waybill_number || '',
+            error: {
+                node_code: nodeCode,
+                node_name: nodeName,
+                desc: event.process_content,
+                process_location: event.process_location || '',
+                time: event.process_time,
+                node_labels: nodeLabels
+            }
+        };
+
         await jobService.addUpdateWarningJob(
             order.id,
             order.erp_order_code,
             `[WARNING] ${nodeName}`,
             order.ecount_link,
+            warningDetails,
             5
         );
 
@@ -696,6 +726,7 @@ class TrackingCheckpointService {
             checkpoint.erp_order_code,
             warningData.message,
             checkpoint.ecount_link,
+            warningData,
             5
         );
 

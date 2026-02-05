@@ -743,8 +743,68 @@ const migrations = [
         name: 'add_detailed_order_2_fields',
         up: `
             ALTER TABLE orders
-            ADD COLUMN unit_weight VARCHAR(500) 
+            ADD COLUMN unit_weight VARCHAR(500)
                 AFTER package_weight
+        `
+    },
+    {
+        version: 28,
+        name: 'create_webhook_registrations_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS webhook_registrations (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                customer_id VARCHAR(100) NOT NULL COMMENT 'FK -> api_customers',
+
+                url VARCHAR(2083) NOT NULL COMMENT 'Webhook endpoint URL',
+                secret VARCHAR(255) NOT NULL COMMENT 'HMAC signing secret (hashed)',
+
+                events JSON NOT NULL COMMENT 'Danh sach events subscribe: ["tracking.updated","order.status","order.exception"]',
+
+                status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+                fail_count INT NOT NULL DEFAULT 0 COMMENT 'Consecutive failures',
+
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+                INDEX idx_customer_id (customer_id),
+                INDEX idx_status (status),
+                INDEX idx_customer_status (customer_id, status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='Bảng đăng ký webhooks của khách hàng API';
+        `
+    },
+    {
+        version: 29,
+        name: 'create_webhook_delivery_logs_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS webhook_delivery_logs (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                webhook_id INT NOT NULL COMMENT 'FK -> webhook_registrations',
+                customer_id VARCHAR(100) NOT NULL,
+
+                event VARCHAR(50) NOT NULL COMMENT 'Event type gửi',
+                order_id INT COMMENT 'Order liên quan',
+
+                payload JSON NOT NULL COMMENT 'Payload đã gửi',
+                status ENUM('pending', 'success', 'failed') NOT NULL DEFAULT 'pending',
+                http_status INT COMMENT 'HTTP status code từ endpoint',
+                response_body TEXT COMMENT 'Response body từ endpoint',
+                error_message TEXT,
+
+                attempts INT NOT NULL DEFAULT 0,
+                next_retry_at TIMESTAMP NULL COMMENT 'Thời gian retry tiếp theo',
+
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                delivered_at TIMESTAMP NULL,
+
+                INDEX idx_webhook_id (webhook_id),
+                INDEX idx_customer_id (customer_id),
+                INDEX idx_status (status),
+                INDEX idx_event (event),
+                INDEX idx_order_id (order_id),
+                INDEX idx_next_retry (status, next_retry_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='Log gửi webhook — retry queue + history';
         `
     }
 

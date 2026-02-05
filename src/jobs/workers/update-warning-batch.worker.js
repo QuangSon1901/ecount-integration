@@ -269,7 +269,7 @@ class UpdateWarningBatchWorker extends BaseWorker {
      * Xử lý 1 job trong browser đã có sẵn
      */
     async processJobInBrowser(job, page) {
-        const { orderId, erpOrderCode, warningMessage, ecountLink } = job.payload;
+        const { orderId, erpOrderCode, warningMessage, warningData, ecountLink } = job.payload;
 
         logger.info(`Processing warning for order ${orderId} - ${erpOrderCode}`);
 
@@ -283,6 +283,20 @@ class UpdateWarningBatchWorker extends BaseWorker {
 
         // Update warning message vào trường "Ghi chú"
         await this.updateWarningMessage(page, warningMessage);
+
+        await webhookService.dispatch(
+            'order.exception',
+            order.partner_id,
+            order.id,
+            {
+                order: {
+                    reference_code: order.order_number,
+                    code_thg: erpOrderCode,
+                    warningMessage: warningMessage,
+                    warningDetails: warningData
+                }
+            }
+        );
 
         logger.info(`✓ Updated warning for order ${orderId}`);
     }

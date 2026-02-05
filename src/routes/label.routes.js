@@ -8,6 +8,18 @@ const labelController = require('../controllers/label.controller');
  * @access  Public
  */
 router.get('/:accessKey', labelController.getLabelByAccessKey.bind(labelController));
+router.post('/test', (req, res) => {
+    res.json({
+        success: true,
+        data: [
+            { code: 'G0', name: 'G0' },
+            { code: 'G1', name: 'G1' },
+            { code: 'V0', name: 'V0' },
+            { code: 'V1', name: 'V1' },
+        ],
+        timestamp: new Date().toISOString(),
+    });
+});
 
 /**
  * @route   GET /api/labels/:accessKey/info

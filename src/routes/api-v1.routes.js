@@ -11,6 +11,7 @@ const apiAuditMiddleware = require('../middlewares/api-audit.middleware');
 const apiAuthRoutes = require('./api-auth.routes');
 const apiCustomerRoutes = require('./api-customer.routes');
 const apiOrderRoutes = require('./api-order.routes');
+const apiWebhookRoutes = require('./api-webhook.routes');
 
 /**
  * Apply audit middleware to all API routes
@@ -103,6 +104,8 @@ router.get('/warehouses', apiAuthMiddleware, (req, res) => {
         timestamp: new Date().toISOString(),
     });
 });
+
+router.use('/webhooks', apiWebhookRoutes);
 
 router.use('/orders', apiOrderRoutes);
 
