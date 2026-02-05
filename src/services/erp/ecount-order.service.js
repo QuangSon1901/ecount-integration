@@ -8,13 +8,11 @@ const docNoLookupService = require('./ecount-docno-lookup.service');
  */
 function getErrorMessage(error) {
     if (axios.isAxiosError(error)) {
-        // Extract relevant info from axios error
         const responseData = error.response?.data;
         const statusText = error.response?.statusText;
         const status = error.response?.status;
 
         if (responseData) {
-            // Try to get error message from response data
             if (typeof responseData === 'string') {
                 return responseData;
             }
@@ -29,7 +27,6 @@ function getErrorMessage(error) {
                     ? responseData.error
                     : JSON.stringify(responseData.error);
             }
-            // Return stringified response data (safe, no circular refs)
             try {
                 return JSON.stringify(responseData);
             } catch {
@@ -41,11 +38,9 @@ function getErrorMessage(error) {
             return `HTTP ${status}: ${statusText || 'Unknown error'}`;
         }
 
-        // Network error or request error
         return error.message || 'Network error';
     }
 
-    // Regular error
     return error.message || 'Unknown error';
 }
 
@@ -61,7 +56,6 @@ class ECountOrderService {
      * Login to ECount OAPI
      */
     async login() {
-        // Check if session is still valid
         if (this.sessionId && this.sessionExpiry && Date.now() < this.sessionExpiry) {
             logger.debug('Using cached ECount session');
             return this.sessionId;
@@ -80,16 +74,13 @@ class ECountOrderService {
                 timeout: 30000
             });
 
-            // Check for errors first
             if (response.data?.Error) {
                 const errorCode = response.data.Error.Code;
                 const errorMessage = response.data.Error.Message || 'Unknown error';
                 throw new Error(`ECount login failed [Code ${errorCode}]: ${errorMessage}`);
             }
 
-            // Check for successful login
             if (response.data?.Status === 200 && response.data?.Data?.Code === '00') {
-                // Session ID is in Data.Datas.SESSION_ID
                 this.sessionId = response.data.Data.Datas.SESSION_ID;
                 
                 if (!this.sessionId) {
@@ -97,13 +88,7 @@ class ECountOrderService {
                 }
 
                 // Session valid for 30 minutes
-                this.sessionExpiry = Date.now() + (25 * 60 * 1000); // 25 min for safety
-                
-                logger.info('ECount OAPI login successful', {
-                    sessionId: this.sessionId.substring(0, 20) + '...',
-                    comCode: response.data.Data.Datas.COM_CODE,
-                    userId: response.data.Data.Datas.USER_ID
-                });
+                this.sessionExpiry = Date.now() + (25 * 60 * 1000);
                 
                 return this.sessionId;
             } else {
@@ -151,8 +136,6 @@ class ECountOrderService {
             if (response.data?.Status === 200 || response.data?.Status === "200") {
                 const data = response.data.Data;
                 
-                
-                // Check if there are any failures
                 if (data.FailCnt > 0) {
                     // Extract error details
                     const errorDetails = data.ResultDetails
@@ -162,12 +145,6 @@ class ECountOrderService {
                             fields: detail.Errors?.map(e => `${e.ColCd}: ${e.Message}`).join(', ')
                         }));
 
-                    logger.error('ECount order validation failed', {
-                        successCount: data.SuccessCnt,
-                        failCount: data.FailCnt,
-                        errors: errorDetails
-                    });
-
                     throw new Error(
                         `ECount validation failed (${data.FailCnt} errors): ${errorDetails[0]?.error || 'Unknown validation error'}`
                     );
@@ -175,13 +152,7 @@ class ECountOrderService {
 
                 // Success case
                 if (data.SuccessCnt > 0 && data.SlipNos?.length > 0) {
-                    const slipNo = data.SlipNos[0]; // First slip number
-                    
-                    logger.info('ECount order created successfully', {
-                        slipNo: slipNo,
-                        successCount: data.SuccessCnt,
-                        traceId: data.TRACE_ID
-                    });
+                    const slipNo = data.SlipNos[0];
 
                     return {
                         success: true,
@@ -227,9 +198,9 @@ class ECountOrderService {
             const url = `${this.baseUrl}/OAPI/V2/Sale/SaveSale?SESSION_ID=${sessionId}`;
             
             // Transform tất cả orders sang ECount format
-            const saleList = ordersData.map((orderData, _) => {
-                return this.transformToECountFormatSingle({...orderData, index: _});
-            });
+            const saleList = ordersData.map(orderData => {
+                return this.transformToECountFormatSingle(orderData);
+            });            
 
             const ecountPayload = {
                 SaleList: saleList
@@ -244,7 +215,6 @@ class ECountOrderService {
                 headers: { 'Content-Type': 'application/json' },
                 timeout: 120000 // 2 minutes for bulk
             });
-            
 
             // Check for Error object first
             if (response.data?.Error) {
@@ -267,12 +237,6 @@ class ECountOrderService {
                             error: detail.TotalError,
                             fields: detail.Errors?.map(e => `${e.ColCd}: ${e.Message}`).join(', ')
                         }));
-
-                    logger.warn('ECount bulk order validation - some failures', {
-                        successCount: data.SuccessCnt,
-                        failCount: data.FailCnt,
-                        errors: errorDetails.filter(e => !e.isSuccess)
-                    });
 
                     // Nếu tất cả đều fail thì throw error
                     if (data.SuccessCnt === 0) {
@@ -433,7 +397,6 @@ class ECountOrderService {
 
             // Product info
             productSize = '',
-            quantity = 1,
 
             // Custom fields
             customFields = {}
@@ -449,6 +412,7 @@ class ECountOrderService {
         const sellingPrice = customFields.sellingPrice || '';
         const productENName = customFields.productENName || '';
         const productCNName = customFields.productCNName || '';
+        const quantity = customFields.quantity || '';
 
         // Calculate total weight
         const totalWeight = weight && quantity ? (parseFloat(weight) * quantity).toString() : '';

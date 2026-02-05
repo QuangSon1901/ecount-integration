@@ -713,6 +713,39 @@ const migrations = [
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             COMMENT='Bảng audit logs cho API requests';
         `
+    },
+    {
+        version: 26,
+        name: 'add_detailed_order_fields',
+        up: `
+            ALTER TABLE orders
+            ADD COLUMN receiver_address_line1 VARCHAR(500) 
+                COMMENT 'Địa chỉ dòng 1' 
+                AFTER receiver_postal_code,
+            ADD COLUMN receiver_address_line2 VARCHAR(500) 
+                COMMENT 'Địa chỉ dòng 2' 
+                AFTER receiver_address_line1,
+
+            ADD COLUMN declaration_items VARCHAR(500) 
+                AFTER order_data,
+
+            ADD COLUMN additional_service VARCHAR(100) 
+                COMMENT 'Dịch vụ bổ sung (G0, G1...)' 
+                AFTER product_code,
+
+            ADD COLUMN warehouse_code VARCHAR(50) 
+                COMMENT 'Mã kho hàng' 
+                AFTER additional_service
+        `
+    },
+    {
+        version: 27,
+        name: 'add_detailed_order_2_fields',
+        up: `
+            ALTER TABLE orders
+            ADD COLUMN unit_weight VARCHAR(500) 
+                AFTER package_weight
+        `
     }
 
 ];

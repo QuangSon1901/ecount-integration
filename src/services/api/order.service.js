@@ -4,25 +4,16 @@ const OrderModel = require('../../models/order.model');
 const logger = require('../../utils/logger');
 
 class ApiOrderService {
-    /**
-     * Tạo nhiều orders trong 1 lần gọi API ECount
-     */
+    
     async createBulkOrders(orders, apiCustomer) {
         try {
-            logger.info('Creating bulk orders via API', {
-                customerId: apiCustomer.customer_id,
-                customerCode: apiCustomer.customer_code,
-                orderCount: orders.length
-            });
-
-            // Chuẩn bị data cho tất cả orders
             const ordersToCreate = [];
+            let globalIndex = 0; // Index toàn cục cho các đơn riêng lẻ
             
             for (let i = 0; i < orders.length; i++) {
                 const orderData = orders[i];
                 const orderNumber = this.generateOrderNumber();
 
-                // Extract receiver info
                 const receiver = orderData.receiver || {};
                 const receiverName = receiver.name || '';
                 const receiverCountry = receiver.countryCode || '';
@@ -34,79 +25,57 @@ class ApiOrderService {
                 const receiverPhone = receiver.phone || '';
                 const receiverEmail = receiver.email || '';
 
-                const decl = orderData.declarationInfo && orderData.declarationInfo[0] ? orderData.declarationInfo[0] : {};
-                const productENName = decl.nameEn || '';
-                const productCNName = decl.nameCN || '';
-                const quantity = decl.quantity || 1;
-                const length = decl.length || 0;
-                const width = decl.width || 0;
-                const height = decl.height || 0;
-                const unitWeight = decl.unitWeight || 0;
-                const unitPrice = decl.unitPrice || 0;
-                const sellingPrice = decl.sellingPrice || 0;
-
                 const customs = orderData.customsNumber || {};
                 const IOSSCode = customs.IOSSCode || '';
                 const VATCode = customs.VATCode || '';
                 const EORINumber = customs.EORINumber || '';
 
-                ordersToCreate.push({
-                    index: i,
-                    orderNumber: orderNumber,
-                    orderData: orderData,
-                    ecountData: {
-                        ioDate: orderData.ioDate,
-                        customerCode: orderData.customerCode || apiCustomer.customer_code,
-                        customerName: orderData.customerName || apiCustomer.customer_name,
-                        warehouseCode: orderData.warehouseCode || '',
-                        employeeCode: orderData.employeeCode || '',
+                const declarationInfo = orderData.declarationInfo || [];
 
-                        orderNumber: orderData.orderNumber || orderNumber,
-                        orderMemo1: orderData.orderMemo1 || receiverZipCode,
-                        orderMemo2: orderData.orderMemo2 || receiverName,
-                        orderMemo3: orderData.orderMemo3 || '',
-                        orderMemo4: orderData.orderMemo4 || receiverEmail,
-                        orderMemo5: orderData.orderMemo5 || receiverAddress2,
+                if (declarationInfo.length === 0) {
+                    throw new Error('At least one declaration item is required');
+                }
 
-                        // Receiver info
-                        receiverName: receiverName,
-                        receiverCountry: receiverCountry,
-                        receiverAddress1: receiverAddress1,
-                        receiverAddress2: receiverAddress2,
-                        receiverCity: receiverCity,
-                        receiverState: receiverState,
-                        receiverZipCode: receiverZipCode,
-                        receiverPhone: receiverPhone,
-                        receiverEmail: receiverEmail,
+                const sharedIndex = declarationInfo.length > 1 ? globalIndex : null;
+                
+                for (let j = 0; j < declarationInfo.length; j++) {
+                    const decl = declarationInfo[j];
+                    
+                    const itemIndex = sharedIndex !== null ? sharedIndex : globalIndex++;
 
-                        // Customs info
-                        customsIOSSCode: IOSSCode,
-                        customsVAT: VATCode,
-                        customsEORINumber: EORINumber,
+                    ordersToCreate.push({
+                        index: itemIndex,
+                        orderNumber: orderNumber,
+                        originalOrderIndex: i,
+                        declarationIndex: j,
+                        orderData: orderData,
+                        ecountData: this.buildECountData({
+                            index: itemIndex,
+                            orderNumber,
+                            orderData,
+                            apiCustomer,
+                            receiver,
+                            customs,
+                            declaration: decl,
+                            receiverName,
+                            receiverCountry,
+                            receiverAddress1,
+                            receiverAddress2,
+                            receiverCity,
+                            receiverState,
+                            receiverZipCode,
+                            receiverPhone,
+                            receiverEmail,
+                            IOSSCode,
+                            VATCode,
+                            EORINumber
+                        })
+                    });
+                }
 
-                        // Service info
-                        additionalService: orderData.additionalService || '',
-                        serviceType: orderData.serviceType || '',
-                        trackingNumber: orderData.trackingNumber || '',
-
-                        // Product info
-                        productSize: orderData.productSize || '',
-                        quantity: quantity,
-                        
-                        // Custom fields with proper mapping
-                        customFields: {
-                            length: length,
-                            width: width,
-                            height: height,
-                            weight: unitWeight,
-                            declaredValue: unitPrice,
-                            sellingPrice: sellingPrice,
-                            productENName: productENName,
-                            productCNName: productCNName,
-                            ...orderData.customFields
-                        }
-                    }
-                });
+                if (sharedIndex !== null) {
+                    globalIndex++;
+                }
             }
 
             const ecountResult = await ecountOrderService.createBulkSaleOrdersWithDocNo(
@@ -117,59 +86,61 @@ class ApiOrderService {
                 throw new Error('Failed to create bulk orders on ECount');
             }
 
-            // Lưu từng order vào database
             const results = [];
             const errors = [];
             const ordersForLookup = [];
+
+            const resultsByOriginalOrder = new Map();
 
             for (let i = 0; i < ordersToCreate.length; i++) {
                 const orderToCreate = ordersToCreate[i];
                 const resultDetail = ecountResult.resultDetails[i];
                 const slipNo = resultDetail?.slipNo;
-                const docNo = resultDetail?.docNo;
                 
-                if (!slipNo) {
-                    errors.push({
-                        index: i,
-                        success: false,
-                        error: 'No SlipNo returned',
-                        order: orderToCreate.orderData
-                    });
-                    continue;
-                }
-
+                if (!slipNo) continue;
+                
                 try {
-                    const orderId = await OrderModel.createFromAPI({
+                    const orderId = await OrderModel.create({
                         orderNumber: orderToCreate.orderNumber,
                         customerOrderNumber: orderToCreate.ecountData.orderNumber,
-                        platformOrderNumber: orderToCreate.platformOrderNumber || null,
+                        platformOrderNumber: null,
                         erpOrderCode: null,
-                        ecountOrderId: ecountResult.ecountOrderId,
 
-                        carrier: orderToCreate.serviceType || null,
-
-                        receiverName: orderToCreate.receiverName,
-                        receiverCountry: orderToCreate.receiverCountry,
-                        receiverState: orderToCreate.receiverState,
-                        receiverCity: orderToCreate.receiverCity,
-                        receiverPostalCode: orderToCreate.receiverZipCode,
-                        receiverPhone: orderToCreate.receiverPhone,
-                        receiverEmail: orderToCreate.receiverEmail,
-
-                        apiCustomerId: apiCustomer.customer_id,
                         partnerID: apiCustomer.customer_code,
                         partnerName: apiCustomer.customer_name,
 
-                        orderData: orderToCreate,
-                        ecountResponse: ecountResult.rawResponse,
+                        productCode: orderToCreate.ecountData.serviceType || null,
+                        warehouseCode: orderToCreate.ecountData.warehouseCode || null,
+                        additionalService: orderToCreate.ecountData.additionalService || null,
+
+                        receiverName: orderToCreate.ecountData.receiverName,
+                        receiverCountry: orderToCreate.ecountData.receiverCountry,
+                        receiverState: orderToCreate.ecountData.receiverState,
+                        receiverCity: orderToCreate.ecountData.receiverCity,
+                        receiverPostalCode: orderToCreate.ecountData.receiverZipCode,
+                        receiverPhone: orderToCreate.ecountData.receiverPhone,
+                        receiverEmail: orderToCreate.ecountData.receiverEmail,
+                        receiverAddress1: orderToCreate.ecountData.receiverAddress1,
+                        receiverAddress2: orderToCreate.ecountData.receiverAddress2,
+
+                        declaredValue: orderToCreate.ecountData.customFields.declaredValue,
+                        itemsCount: orderToCreate.orderData.declarationInfo?.length || 0,
+                        declarationItems: orderToCreate.orderData.declarationInfo,
+
+                        vatNumber: orderToCreate.orderData.customsNumber?.VATCode || null,
+                        iossCode: orderToCreate.orderData.customsNumber?.IOSSCode || null,
+                        eoriNumber: orderToCreate.orderData.customsNumber?.EORINumber || null,
+                        orderData: orderToCreate.orderData,
                     });
 
                     const order = await OrderModel.findById(orderId);
 
-                    results.push({
-                        index: i,
-                        success: true,
-                        status: 'new',
+                    if (!resultsByOriginalOrder.has(orderToCreate.originalOrderIndex)) {
+                        resultsByOriginalOrder.set(orderToCreate.originalOrderIndex, []);
+                    }
+
+                    resultsByOriginalOrder.get(orderToCreate.originalOrderIndex).push({
+                        declarationIndex: orderToCreate.declarationIndex,
                         order: this.formatOrderResponse(order)
                     });
 
@@ -180,13 +151,20 @@ class ApiOrderService {
 
                 } catch (error) {
                     errors.push({
-                        index: i,
                         success: false,
                         error: error.message,
                         order: orderToCreate.orderData,
-                        doc_no: docNo,
                     });
                 }
+            }
+
+            // Format kết quả theo originalOrderIndex
+            for (const [originalIndex, orderResults] of resultsByOriginalOrder.entries()) {
+                results.push({
+                    success: true,
+                    status: 'new',
+                    orders: orderResults.length > 1 ? orderResults : orderResults[0].order,
+                });
             }
 
             if (ordersForLookup.length > 0) {
@@ -199,18 +177,10 @@ class ApiOrderService {
                         30
                     );
                     
-                    logger.info(`Added lookup DOC_NO job for ${ordersForLookup.length} orders`);
                 } catch (jobError) {
                     logger.error('Failed to add lookup DOC_NO job:', jobError);
                 }
             }
-
-            logger.info('Bulk orders created', {
-                total: orders.length,
-                successful: results.length,
-                failed: errors.length,
-                customerId: apiCustomer.customer_id
-            });
 
             return {
                 success: errors.length === 0,
@@ -231,32 +201,117 @@ class ApiOrderService {
     }
 
     /**
+     * Build ECount data helper
+     */
+    buildECountData(params) {
+        const {
+            index,
+            orderNumber,
+            orderData,
+            apiCustomer,
+            receiver,
+            customs,
+            declaration,
+            receiverName,
+            receiverCountry,
+            receiverAddress1,
+            receiverAddress2,
+            receiverCity,
+            receiverState,
+            receiverZipCode,
+            receiverPhone,
+            receiverEmail,
+            IOSSCode,
+            VATCode,
+            EORINumber
+        } = params;
+
+        const productENName = declaration.nameEn || '';
+        const productCNName = declaration.nameCN || '';
+        const quantity = declaration.quantity || 1;
+        const length = declaration.length || 0;
+        const width = declaration.width || 0;
+        const height = declaration.height || 0;
+        const unitWeight = declaration.unitWeight || 0;
+        const unitPrice = declaration.unitPrice || 0;
+        const sellingPrice = declaration.sellingPrice || 0;
+
+        return {
+            index: index,
+            ioDate: orderData.ioDate,
+            customerCode: orderData.customerCode || apiCustomer.customer_code,
+            customerName: orderData.customerName || apiCustomer.customer_name,
+            warehouseCode: orderData.warehouseCode || '',
+            employeeCode: orderData.employeeCode || '',
+
+            orderNumber: orderData.orderNumber || orderNumber,
+            orderMemo1: orderData.orderMemo1 || receiverZipCode,
+            orderMemo2: orderData.orderMemo2 || receiverName,
+            orderMemo3: orderData.orderMemo3 || '',
+            orderMemo4: orderData.orderMemo4 || receiverEmail,
+            orderMemo5: orderData.orderMemo5 || receiverAddress2,
+
+            // Receiver info
+            receiverName: receiverName,
+            receiverCountry: receiverCountry,
+            receiverAddress1: receiverAddress1,
+            receiverAddress2: receiverAddress2,
+            receiverCity: receiverCity,
+            receiverState: receiverState,
+            receiverZipCode: receiverZipCode,
+            receiverPhone: receiverPhone,
+            receiverEmail: receiverEmail,
+
+            // Customs info
+            customsIOSSCode: IOSSCode,
+            customsVAT: VATCode,
+            customsEORINumber: EORINumber,
+
+            // Service info
+            additionalService: orderData.additionalService || '',
+            serviceType: orderData.serviceType || '',
+            trackingNumber: orderData.trackingNumber || '',
+
+            // Product info
+            productSize: orderData.productSize || '',
+            
+            // Custom fields with proper mapping
+            customFields: {
+                quantity: quantity,
+                length: length,
+                width: width,
+                height: height,
+                weight: unitWeight,
+                declaredValue: unitPrice,
+                sellingPrice: sellingPrice,
+                productENName: productENName,
+                productCNName: productCNName
+            }
+        };
+    }
+
+    /**
      * Format order response
      */
     formatOrderResponse(order) {
         return {
-            order_id: order.id,
             reference_code: order.order_number,
             order_number: order.customer_order_number,
-            platform_order_number: order.platform_order_number,
             code_thg: order.erp_order_code,
 
             status: order.status,
-            order_status: order.order_status,
-
-            carrier: order.carrier,
             product_code: order.product_code,
-            tracking_number: order.tracking_number,
-            waybill_number: order.waybill_number,
 
             receiver: {
                 name: order.receiver_name,
-                country: order.receiver_country,
-                state: order.receiver_state,
-                city: order.receiver_city,
-                postal_code: order.receiver_postal_code,
                 phone: order.receiver_phone,
-                email: order.receiver_email
+                email: order.receiver_email,
+                countryCode: order.receiver_country,
+                province: order.receiver_state,
+                city: order.receiver_city,
+                zipCode: order.receiver_postal_code,
+                addressLine1: order.receiver_address_line1,
+                addressLine2: order.receiver_address_line2,
             },
 
             created_at: order.created_at,
