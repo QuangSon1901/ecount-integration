@@ -47,6 +47,7 @@ function renderCustomerInfo() {
     setText('customerMeta',  CUSTOMER.customer_code + ' · ' + (CUSTOMER.email || '—'));
     setText('infoCode',      CUSTOMER.customer_code);
     setText('infoEmail',     CUSTOMER.email || '—');
+    setText('infoPhone',     CUSTOMER.phone || '—');
     setText('infoEnv',       CUSTOMER.environment);
     setText('infoRate',      CUSTOMER.rate_limit_per_hour + ' / ' + CUSTOMER.rate_limit_per_day);
     setText('infoWebhook',   CUSTOMER.webhook_enabled ? 'Enabled' : 'Disabled');
@@ -86,20 +87,25 @@ async function reloadCredentials() {
 
 function renderCredentials(creds) {
     if (creds.length === 0) {
-        setHtml('credentialsList', '<p style="color:var(--text2)">Chưa có credentials.</p>');
+        setHtml('credentialsList',
+            '<div style="text-align:center;padding:24px 0;">' +
+            '<p style="color:var(--text2);margin-bottom:12px;">Chưa có credentials nào.</p>' +
+            '<button class="btn btn-primary btn-sm" id="btnGenerateCred">🔑 Tạo Credentials</button>' +
+            '</div>');
+
+        var genBtn = document.getElementById('btnGenerateCred');
+        if (genBtn) genBtn.addEventListener('click', handleGenerateCredential);
         return;
     }
 
     var rows = creds.map(function (c) {
-        var refreshBtn = c.status === 'active'
-            ? '<button class="btn btn-sm btn-danger btn-refresh-cred" data-cred-id="' + c.id + '" data-env="' + esc(c.environment) + '">🔄 Refresh</button>'
-            : '';
         return '<div class="cred-row">' +
             '<span class="cred-label">Client ID</span>' +
             '<span class="cred-value">' + esc(c.client_id) + '</span>' +
             '<button class="btn-copy" data-copy="' + esc(c.client_id) + '">Copy</button>' +
-            '<span class="badge badge-' + (c.status === 'active' ? 'success' : 'danger') + '">' + esc(c.status) + '</span>' +
-            refreshBtn +
+            '<span class="badge badge-success">' + esc(c.status) + '</span>' +
+            '<button class="btn btn-sm btn-refresh-cred" data-cred-id="' + c.id + '" data-env="' + esc(c.environment) + '" style="background:var(--warning);color:#fff;border-color:var(--warning);">🔄 Refresh</button>' +
+            '<button class="btn btn-sm btn-danger btn-revoke-cred" data-cred-id="' + c.id + '">🚫 Revoke</button>' +
             '</div>';
     }).join('');
 
@@ -119,6 +125,38 @@ function renderCredentials(creds) {
         (function (btn) {
             btn.addEventListener('click', function () { handleRefreshCredential(btn.dataset.credId); });
         })(refreshBtns[j]);
+    }
+
+    // Attach revoke buttons
+    var revokeBtns = document.querySelectorAll('.btn-revoke-cred');
+    for (var k = 0; k < revokeBtns.length; k++) {
+        (function (btn) {
+            btn.addEventListener('click', function () { handleRevokeCredential(btn.dataset.credId); });
+        })(revokeBtns[k]);
+    }
+}
+
+async function handleGenerateCredential() {
+    if (!confirm('Tạo credential mới cho khách hàng này?\nClient Secret chỉ hiển thị MỘT LẦN.')) return;
+
+    try {
+        var res = await fetch(BASE + '/credentials', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ environment: CUSTOMER.environment || 'production' })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+
+        // Show new secret
+        document.getElementById('newSecretValue').textContent = data.data.client_secret;
+        document.getElementById('secretRevealBox').style.display = 'block';
+        showAlert('success', 'Credentials đã được tạo!');
+
+        // Reload credentials list
+        await reloadCredentials();
+    } catch (e) {
+        showAlert('error', e.message);
     }
 }
 
@@ -140,6 +178,24 @@ async function handleRefreshCredential(credentialId) {
         showAlert('success', 'Credentials đã được refresh!');
 
         // Reload credentials list
+        await reloadCredentials();
+    } catch (e) {
+        showAlert('error', e.message);
+    }
+}
+
+async function handleRevokeCredential(credentialId) {
+    if (!confirm('Revoke sẽ vô hiệu hóa credential này vĩnh viễn.\nKhách hàng sẽ không thể sử dụng credential này nữa.\n\nTiếp tục?')) return;
+
+    try {
+        var res = await fetch(BASE + '/credentials/' + credentialId + '/revoke', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+
+        showAlert('success', 'Credential đã bị revoke.');
         await reloadCredentials();
     } catch (e) {
         showAlert('error', e.message);
@@ -321,6 +377,17 @@ function updatePagination(total) {
 // EVENT LISTENERS
 // ═══════════════════════════════════════════════════════════════
 function initButtons() {
+    // Edit customer
+    document.getElementById('btnEditCustomer').addEventListener('click', openEditModal);
+    document.getElementById('btnCloseEditModal').addEventListener('click', closeEditModal);
+    document.getElementById('btnCancelEdit').addEventListener('click', closeEditModal);
+    document.getElementById('btnSaveEdit').addEventListener('click', handleSaveEdit);
+
+    // Close modal on overlay click
+    document.getElementById('editModal').addEventListener('click', function (e) {
+        if (e.target === this) closeEditModal();
+    });
+
     // Toggle webhook form
     document.getElementById('btnToggleWebhookForm').addEventListener('click', function () {
         var wrap   = document.getElementById('webhookFormWrap');
@@ -347,6 +414,69 @@ function initButtons() {
     // Pagination
     document.getElementById('btnPrevPage').addEventListener('click', function () { loadLogs(logsPage - 1); });
     document.getElementById('btnNextPage').addEventListener('click', function () { loadLogs(logsPage + 1); });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EDIT CUSTOMER
+// ═══════════════════════════════════════════════════════════════
+function openEditModal() {
+    if (!CUSTOMER) return;
+
+    document.getElementById('editName').value       = CUSTOMER.customer_name || '';
+    document.getElementById('editEmail').value      = CUSTOMER.email || '';
+    document.getElementById('editPhone').value      = CUSTOMER.phone || '';
+    document.getElementById('editStatus').value     = CUSTOMER.status || 'active';
+    document.getElementById('editWebhookEnabled').value = CUSTOMER.webhook_enabled ? 'true' : 'false';
+    document.getElementById('editRateHour').value   = CUSTOMER.rate_limit_per_hour || 6000;
+    document.getElementById('editRateDay').value    = CUSTOMER.rate_limit_per_day || 10000;
+
+    document.getElementById('editModal').classList.add('show');
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.remove('show');
+}
+
+async function handleSaveEdit() {
+    var payload = {
+        customerName:    document.getElementById('editName').value.trim(),
+        email:           document.getElementById('editEmail').value.trim() || null,
+        phone:           document.getElementById('editPhone').value.trim() || null,
+        status:          document.getElementById('editStatus').value,
+        webhookEnabled:  document.getElementById('editWebhookEnabled').value === 'true',
+        rateLimitPerHour: parseInt(document.getElementById('editRateHour').value) || 6000,
+        rateLimitPerDay:  parseInt(document.getElementById('editRateDay').value) || 10000
+    };
+
+    if (!payload.customerName) {
+        showAlert('error', 'Tên khách hàng không được để trống.');
+        return;
+    }
+
+    var btnSave = document.getElementById('btnSaveEdit');
+    btnSave.disabled = true;
+    btnSave.textContent = 'Đang lưu...';
+
+    try {
+        var res = await fetch(BASE, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Cập nhật thất bại');
+
+        showAlert('success', 'Cập nhật thông tin thành công!');
+        closeEditModal();
+
+        // Reload customer data to reflect changes
+        await fetchCustomerData();
+    } catch (e) {
+        showAlert('error', e.message);
+    } finally {
+        btnSave.disabled = false;
+        btnSave.textContent = 'Lưu thay đổi';
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════

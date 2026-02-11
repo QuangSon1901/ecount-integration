@@ -27,9 +27,9 @@ router.get('/',
     apiCustomerController.listCustomers.bind(apiCustomerController)
 );
 
-/** GET /api/v1/admin/customers/:customerId — Customer details */
+/** GET /api/v1/admin/customers/:customerId — Customer details (admin or owner) */
 router.get('/:customerId',
-    requireRole('admin'),
+    requireAdminOrOwner('customerId'),
     apiCustomerController.getCustomer.bind(apiCustomerController)
 );
 
@@ -71,6 +71,12 @@ router.get('/:customerId/credentials',
 router.post('/:customerId/credentials/refresh',
     requireAdminOrOwner('customerId'),
     apiCustomerController.refreshCredentials.bind(apiCustomerController)
+);
+
+/** POST /api/v1/admin/customers/:customerId/credentials/:credentialId/revoke — Revoke credential (Admin only) */
+router.post('/:customerId/credentials/:credentialId/revoke',
+    requireRole('admin'),
+    apiCustomerController.revokeCredential.bind(apiCustomerController)
 );
 
 /** GET /api/v1/admin/customers/:customerId/webhooks — List webhooks */

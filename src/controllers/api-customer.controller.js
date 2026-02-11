@@ -111,15 +111,16 @@ class ApiCustomerController {
                 return errorResponse(res, 'Customer not found', 404);
             }
 
-            // Get credentials
-            const credentials = await ApiCredentialModel.listByCustomer(customerId);
+            // Get credentials (only active ones — revoked are hidden)
+            const allCredentials = await ApiCredentialModel.listByCustomer(customerId);
+            const activeCredentials = allCredentials.filter(c => c.status === 'active');
 
             // Get stats
             const stats = await ApiCustomerModel.getStats(customerId);
 
             return successResponse(res, {
                 ...customer,
-                credentials: credentials.map(c => ({
+                credentials: activeCredentials.map(c => ({
                     id: c.id,
                     client_id: c.client_id,
                     environment: c.environment,
@@ -142,7 +143,11 @@ class ApiCustomerController {
     async updateCustomer(req, res, next) {
         try {
             const { customerId } = req.params;
-            const updateData = req.body;
+            const {
+                customerName, email, phone, status,
+                rateLimitPerHour, rateLimitPerDay,
+                webhookEnabled, metadata
+            } = req.body;
 
             const customer = await ApiCustomerModel.findById(customerId);
 
@@ -150,9 +155,34 @@ class ApiCustomerController {
                 return errorResponse(res, 'Customer not found', 404);
             }
 
+            // Validate status if provided
+            if (status !== undefined && !['active', 'suspended', 'inactive'].includes(status)) {
+                return errorResponse(res, 'Invalid status. Must be active, suspended, or inactive', 400);
+            }
+
+            // Validate customerName if provided
+            if (customerName !== undefined && !customerName.trim()) {
+                return errorResponse(res, 'Customer name cannot be empty', 400);
+            }
+
+            // Build sanitized update data (only allowed fields)
+            const updateData = {};
+            if (customerName !== undefined) updateData.customerName = customerName.trim();
+            if (email !== undefined) updateData.email = email;
+            if (phone !== undefined) updateData.phone = phone;
+            if (status !== undefined) updateData.status = status;
+            if (rateLimitPerHour !== undefined) updateData.rateLimitPerHour = parseInt(rateLimitPerHour);
+            if (rateLimitPerDay !== undefined) updateData.rateLimitPerDay = parseInt(rateLimitPerDay);
+            if (webhookEnabled !== undefined) updateData.webhookEnabled = webhookEnabled;
+            if (metadata !== undefined) updateData.metadata = metadata;
+
+            if (Object.keys(updateData).length === 0) {
+                return errorResponse(res, 'No valid fields to update', 400);
+            }
+
             await ApiCustomerModel.update(customerId, updateData);
 
-            logger.info('Updated customer', { customerId });
+            logger.info('Updated customer', { customerId, fields: Object.keys(updateData) });
 
             return successResponse(res, null, 'Customer updated successfully');
 
@@ -201,13 +231,13 @@ class ApiCustomerController {
             }
 
             // Get active credentials (only client_id)
-            const credentials = await ApiCredentialModel.listByCustomer(customerId, customer.environment);
+            const credentials = await ApiCredentialModel.listByCustomer(customerId, null);
 
             // Find active credential
             const activeCredential = credentials.find(c => c.status === 'active');
 
             if (!activeCredential) {
-                return successResponse(res, null, 'No active credentials found');
+                return successResponse(res, credentials, 'No active credentials found');
             }
 
             return successResponse(res, {
@@ -327,6 +357,43 @@ class ApiCustomerController {
                 client_secret: newCred.client_secret,
                 environment: target.environment
             }, 'Credentials refreshed successfully', 201);
+
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // ─── Revoke Credential ─────────────────────────────────────────
+
+    /**
+     * POST /api/v1/admin/customers/:customerId/credentials/:credentialId/revoke
+     * Revoke a specific credential (Admin only)
+     */
+    async revokeCredential(req, res, next) {
+        try {
+            const { customerId, credentialId } = req.params;
+
+            const customer = await ApiCustomerModel.findById(customerId);
+            if (!customer) {
+                return errorResponse(res, 'Customer not found', 404);
+            }
+
+            // Verify credential belongs to this customer
+            const credentials = await ApiCredentialModel.listByCustomer(customerId);
+            const target = credentials.find(c => c.id === parseInt(credentialId));
+            if (!target) {
+                return errorResponse(res, 'Credential not found for this customer', 404);
+            }
+
+            if (target.status === 'revoked') {
+                return errorResponse(res, 'Credential is already revoked', 400);
+            }
+
+            await ApiCredentialModel.revoke(target.id, 'Revoked by admin');
+
+            logger.info('Credential revoked', { customerId, credentialId: target.id });
+
+            return successResponse(res, null, 'Credential revoked successfully');
 
         } catch (error) {
             next(error);
