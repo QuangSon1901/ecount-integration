@@ -836,6 +836,17 @@ const migrations = [
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
                 COMMENT='Bảng quản trị viên — login vào dashboard với full quyền';
         `
+    },
+
+    {
+        version: 32,
+        name: 'add_client_secret_plain_to_api_credentials',
+        up: `
+            ALTER TABLE api_credentials
+            ADD COLUMN client_secret_plain VARCHAR(255) NULL
+                COMMENT 'Plaintext secret — chỉ lưu cho sandbox environment, production luôn NULL'
+                AFTER client_secret_hash;
+        `
     }
 
 ];

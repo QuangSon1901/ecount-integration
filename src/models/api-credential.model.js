@@ -10,23 +10,28 @@ class ApiCredentialModel {
      */
     static async create(credentialData) {
         const connection = await db.getConnection();
-        
+
         try {
             const clientId = this.generateClientId();
             const clientSecret = this.generateClientSecret();
             const secretHash = await bcrypt.hash(clientSecret, 10);
+            const environment = credentialData.environment || 'production';
+
+            // Sandbox: store plaintext secret so customer can view it later
+            const secretPlain = environment === 'sandbox' ? clientSecret : null;
 
             const [result] = await connection.query(
                 `INSERT INTO api_credentials (
-                    customer_id, client_id, client_secret_hash,
+                    customer_id, client_id, client_secret_hash, client_secret_plain,
                     environment, access_token_ttl, refresh_token_ttl,
                     status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     credentialData.customerId,
                     clientId,
                     secretHash,
-                    credentialData.environment || 'production',
+                    secretPlain,
+                    environment,
                     credentialData.accessTokenTTL || 3600,
                     credentialData.refreshTokenTTL || 2592000,
                     'active'
@@ -36,13 +41,13 @@ class ApiCredentialModel {
             logger.info('Created API credentials', {
                 customerId: credentialData.customerId,
                 clientId,
-                environment: credentialData.environment
+                environment
             });
 
             return {
                 id: result.insertId,
                 client_id: clientId,
-                client_secret: clientSecret // Only returned once
+                client_secret: clientSecret // Only returned once (production) / always viewable (sandbox)
             };
         } finally {
             connection.release();
@@ -128,10 +133,10 @@ class ApiCredentialModel {
      */
     static async listByCustomer(customerId, environment = null) {
         const connection = await db.getConnection();
-        
+
         try {
             let query = `
-                SELECT id, customer_id, client_id, environment, 
+                SELECT id, customer_id, client_id, client_secret_plain, environment,
                        status, last_used_at, created_at
                 FROM api_credentials
                 WHERE customer_id = ?

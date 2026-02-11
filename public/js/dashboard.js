@@ -191,6 +191,7 @@ function initEventListeners() {
     // Client: credentials
     addClick('btnCopyClientId', function () { copyField('credClientId'); });
     addClick('btnCopyNewSecret', function () { copyField('newSecretValue'); });
+    addClick('btnCopySecret', function () { copyField('credClientSecret'); });
     addClick('btnShowSecret', function () {
         showAlert('Secret key is not stored. It is only shown when newly generated.', 'info');
     });
@@ -343,6 +344,16 @@ function loadClientData() {
     setText('infoEnvironment', currentUser.environment || '-');
     setText('infoStatus', currentUser.status || '-');
 
+    // Sandbox customers cannot reset secret key — only admin can
+    if (currentUser.environment === 'sandbox') {
+        var resetBtn = document.getElementById('btnResetSecret');
+        if (resetBtn) {
+            resetBtn.disabled = true;
+            resetBtn.textContent = 'Reset disabled (Sandbox)';
+            resetBtn.title = 'Sandbox customers cannot reset secret keys. Contact admin.';
+        }
+    }
+
     loadCredentials();
     loadWebhooks();
 }
@@ -358,16 +369,42 @@ function loadCredentials() {
         .then(function (data) {
             if (data.success && data.data) {
                 document.getElementById('credClientId').value = data.data.client_id || '';
-                document.getElementById('credSecretMessage').textContent =
-                    'Secret key is hidden for security. Only shown when newly generated.';
+
+                // Sandbox: show actual secret key (stored in plaintext)
+                if (data.data.client_secret && currentUser.environment === 'sandbox') {
+                    var secretInput = document.getElementById('credClientSecret');
+                    secretInput.type = 'text';
+                    secretInput.value = data.data.client_secret;
+
+                    // Enable copy for sandbox secret
+                    var btnCopySecret = document.getElementById('btnCopySecret');
+                    if (btnCopySecret) btnCopySecret.classList.remove('hidden');
+
+                    // Hide "Show" button — not needed for sandbox
+                    var btnShow = document.getElementById('btnShowSecret');
+                    if (btnShow) btnShow.classList.add('hidden');
+
+                    document.getElementById('credSecretMessage').textContent =
+                        'Sandbox environment: Secret key is visible for testing purposes.';
+                } else {
+                    document.getElementById('credSecretMessage').textContent =
+                        'Secret key is hidden for security. Only shown when newly generated.';
+                }
             }
         })
         .catch(function () { showAlert('Failed to load credentials', 'error'); });
 }
 
 function handleResetSecret() {
-    if (!confirm('The old secret key will be invalidated immediately. Are you sure?')) return;
     if (!currentUser) return;
+
+    // Sandbox customers cannot reset secret key
+    if (currentUser.environment === 'sandbox') {
+        showAlert('Sandbox customers cannot reset secret keys. Please contact admin.', 'error');
+        return;
+    }
+
+    if (!confirm('The old secret key will be invalidated immediately. Are you sure?')) return;
 
     var btn = document.getElementById('btnResetSecret');
     btn.disabled = true;

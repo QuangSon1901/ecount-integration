@@ -230,7 +230,7 @@ class ApiCustomerController {
                 return errorResponse(res, 'Customer not found', 404);
             }
 
-            // Get active credentials (only client_id)
+            // Get active credentials (only client_id, + secret for sandbox)
             const credentials = await ApiCredentialModel.listByCustomer(customerId, null);
 
             // Find active credential
@@ -240,13 +240,20 @@ class ApiCustomerController {
                 return successResponse(res, credentials, 'No active credentials found');
             }
 
-            return successResponse(res, {
+            const responseData = {
                 client_id: activeCredential.client_id,
                 environment: activeCredential.environment,
                 created_at: activeCredential.created_at,
                 expires_at: activeCredential.expires_at,
                 status: activeCredential.status
-            }, 'Credentials retrieved successfully');
+            };
+
+            // Sandbox: include plaintext secret so customer can view/copy it
+            if (activeCredential.environment === 'sandbox' && activeCredential.client_secret_plain) {
+                responseData.client_secret = activeCredential.client_secret_plain;
+            }
+
+            return successResponse(res, responseData, 'Credentials retrieved successfully');
 
         } catch (error) {
             next(error);
@@ -328,6 +335,11 @@ class ApiCustomerController {
             const customer = await ApiCustomerModel.findById(customerId);
             if (!customer) {
                 return errorResponse(res, 'Customer not found', 404);
+            }
+
+            // Sandbox customers cannot refresh credentials themselves (admin can)
+            if (customer.environment === 'sandbox' && !req.isAdmin) {
+                return errorResponse(res, 'Sandbox customers cannot reset credentials. Please contact admin.', 403);
             }
 
             if (!credentialId) {

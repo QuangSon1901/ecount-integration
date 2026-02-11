@@ -3,427 +3,437 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>THG — Chi Tiết Khách Hàng</title>
+<title>THG — Chi Tiet Khach Hang</title>
 <style>
-/* ═══════════════════════════════════════════════════════════════════
-   RESET + VARIABLES
-   ═══════════════════════════════════════════════════════════════════ */
 * { margin:0; padding:0; box-sizing:border-box; }
 :root {
-    --primary:#2563eb; --primary-dark:#1d4ed8;
-    --success:#10b981; --warning:#f59e0b; --danger:#ef4444;
-    --bg:#f8fafc; --card:#fff; --border:#e2e8f0;
-    --text:#0f172a; --text2:#64748b; --text3:#94a3b8;
-    --radius:10px; --shadow:0 1px 3px rgba(0,0,0,.1);
+    --primary:#2563eb; --primary-dark:#1d4ed8; --primary-light:#eff6ff;
+    --success:#10b981; --success-light:#d1fae5;
+    --warning:#f59e0b; --warning-light:#fef3c7;
+    --danger:#ef4444; --danger-light:#fee2e2;
+    --bg-primary:#ffffff; --bg-secondary:#f8fafc;
+    --border:#e2e8f0;
+    --text-primary:#0f172a; --text-secondary:#64748b;
 }
 body {
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-    background:var(--bg); color:var(--text); line-height:1.6;
+    background:var(--bg-secondary); color:var(--text-primary); line-height:1.6;
     min-height:100vh;
 }
 
-/* ─── Top Bar ────────────────────────────────────────────────── */
+/* ─── Top Bar ─── */
 .topbar {
-    background:var(--card); border-bottom:1px solid var(--border);
-    padding:14px 32px; display:flex; align-items:center;
+    background:var(--bg-primary); border-bottom:1px solid var(--border);
+    padding:16px 32px; display:flex; align-items:center;
     justify-content:space-between; position:sticky; top:0; z-index:50;
 }
 .topbar-left { display:flex; align-items:center; gap:14px; }
-.topbar-left a { color:var(--text2); text-decoration:none; font-size:14px; }
-.topbar-left a:hover { color:var(--primary); }
-.topbar-left .sep { color:var(--text3); }
-.topbar-left .current { font-weight:600; color:var(--text); }
-.topbar-right { display:flex; align-items:center; gap:12px; }
-.btn-logout {
-    background:transparent; border:1px solid var(--border);
-    color:var(--text2); padding:6px 14px; border-radius:6px;
-    font-size:13px; cursor:pointer; text-decoration:none;
+.topbar-left a {
+    color:var(--text-secondary); text-decoration:none; font-size:14px;
+    display:inline-flex; align-items:center; gap:6px;
 }
-.btn-logout:hover { background:#f1f5f9; }
+.topbar-left a:hover { color:var(--primary); }
+.topbar-left .sep { color:var(--text-secondary); opacity:.4; }
+.topbar-left .current { font-weight:600; color:var(--text-primary); font-size:15px; }
+.topbar-right { display:flex; align-items:center; gap:12px; }
 
-/* ─── Page Layout ────────────────────────────────────────────── */
+/* ─── Page ─── */
 .page { max-width:960px; margin:32px auto; padding:0 24px; }
 
-/* ─── Section Header ─────────────────────────────────────────── */
-.section-header {
+/* ─── Content Card (matches dashboard) ─── */
+.content-card {
+    background:var(--bg-primary); border:1px solid var(--border);
+    border-radius:12px; padding:24px; margin-bottom:24px;
+}
+.card-header {
     display:flex; align-items:center; justify-content:space-between;
-    margin-bottom:16px; margin-top:32px;
+    margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border);
 }
-.section-header:first-child { margin-top:0; }
-.section-header h2 { font-size:18px; font-weight:600; }
-.section-header p { font-size:13px; color:var(--text2); margin-top:2px; }
+.card-title { font-size:18px; font-weight:600; }
+.card-subtitle { font-size:14px; color:var(--text-secondary); margin-top:4px; }
+.card-actions { display:flex; gap:10px; }
 
-/* ─── Cards ──────────────────────────────────────────────────── */
-.card {
-    background:var(--card); border:1px solid var(--border);
-    border-radius:var(--radius); box-shadow:var(--shadow);
-    padding:24px; margin-bottom:24px;
+/* ─── Info Box (matches dashboard) ─── */
+.info-box {
+    background:var(--bg-secondary); border:1px solid var(--border);
+    border-radius:8px; padding:4px 20px;
 }
-.card-sm { padding:16px 24px; }
+.info-row {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 0; border-bottom:1px solid var(--border);
+}
+.info-row:last-child { border-bottom:none; }
+.info-label { font-size:13px; color:var(--text-secondary); }
+.info-value { font-size:14px; font-weight:600; }
 
-/* ─── Info Grid (customer info) ──────────────────────────────── */
-.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-.info-item { display:flex; flex-direction:column; gap:3px; }
-.info-label { font-size:12px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:.4px; }
-.info-value { font-size:15px; font-weight:500; }
-
-/* ─── Badges ─────────────────────────────────────────────────── */
+/* ─── Badge ─── */
 .badge {
-    display:inline-block; padding:3px 10px; border-radius:20px;
-    font-size:12px; font-weight:600;
+    display:inline-block; padding:4px 10px;
+    border-radius:6px; font-size:12px; font-weight:600;
 }
-.badge-success { background:#d1fae5; color:#065f46; }
-.badge-warning { background:#fef3c7; color:#92400e; }
-.badge-danger  { background:#fee2e2; color:#991b1b; }
-.badge-info    { background:#dbeafe; color:#1e40af; }
+.badge-success { background:var(--success-light); color:#065f46; }
+.badge-warning { background:var(--warning-light); color:#92400e; }
+.badge-danger { background:var(--danger-light); color:#991b1b; }
+.badge-info { background:#dbeafe; color:#1e40af; }
 
-/* ─── Credentials Box ────────────────────────────────────────── */
-.cred-list { display:flex; flex-direction:column; gap:10px; }
-.cred-row {
-    display:flex; align-items:center; gap:12px;
-    background:#f8fafc; border:1px solid var(--border);
-    border-radius:8px; padding:12px 16px;
-}
-.cred-row .cred-label {
-    font-size:12px; font-weight:600; color:var(--text2);
-    text-transform:uppercase; letter-spacing:.4px; min-width:100px;
-}
-.cred-row .cred-value {
-    font-family:'SF Mono',Fira Code,monospace; font-size:14px;
-    flex:1; word-break:break-all;
-}
-.cred-row .cred-value.secret { color:var(--danger); font-weight:600; }
-.cred-row .badge { margin-left:auto; flex-shrink:0; }
-.cred-row .btn-copy {
-    background:var(--primary); color:#fff; border:none;
-    padding:5px 10px; border-radius:5px; font-size:12px; cursor:pointer;
-    flex-shrink:0;
-}
-.cred-row .btn-copy:hover { background:var(--primary-dark); }
-
-/* ─── Secret reveal box (after refresh) ──────────────────────── */
-.secret-reveal {
-    background:#fef3c7; border:1px solid #f59e0b;
-    border-radius:8px; padding:16px; margin-top:12px;
-}
-.secret-reveal p { font-size:13px; color:#92400e; margin-bottom:8px; }
-.secret-reveal strong { font-family:'SF Mono',Fira Code,monospace; font-size:15px; }
-
-/* ─── Buttons ────────────────────────────────────────────────── */
+/* ─── Buttons ─── */
 .btn {
-    display:inline-flex; align-items:center; gap:6px;
-    padding:8px 16px; border-radius:7px; font-size:14px;
-    font-weight:500; cursor:pointer; border:1px solid var(--border);
-    background:var(--card); color:var(--text); text-decoration:none;
-    transition:background .15s;
+    display:inline-flex; align-items:center; gap:8px;
+    padding:8px 16px; border:1px solid var(--border); border-radius:8px;
+    font-size:14px; font-weight:500; cursor:pointer;
+    transition:all .2s; text-decoration:none;
+    background:var(--bg-primary); color:var(--text-primary);
 }
-.btn:hover { background:#f1f5f9; }
+.btn:hover { background:var(--bg-secondary); }
 .btn-primary { background:var(--primary); color:#fff; border-color:var(--primary); }
-.btn-primary:hover { background:var(--primary-dark); }
+.btn-primary:hover { background:var(--primary-dark); border-color:var(--primary-dark); }
 .btn-danger { background:var(--danger); color:#fff; border-color:var(--danger); }
 .btn-danger:hover { background:#dc2626; }
-.btn-sm { padding:5px 10px; font-size:13px; }
+.btn-sm { padding:6px 12px; font-size:13px; }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+.btn-ghost { background:transparent; border-color:transparent; color:var(--text-secondary); padding:6px 10px; }
+.btn-ghost:hover { background:var(--bg-secondary); color:var(--text-primary); }
 
-/* ─── Tables ─────────────────────────────────────────────────── */
-.table-wrap { overflow-x:auto; margin-top:12px; }
-table { width:100%; border-collapse:collapse; font-size:14px; }
-th {
-    text-align:left; padding:10px 12px; font-size:12px;
-    font-weight:600; color:var(--text2); text-transform:uppercase;
-    letter-spacing:.4px; border-bottom:2px solid var(--border);
-    background:#f8fafc;
+/* ─── Credentials ─── */
+.cred-list { display:flex; flex-direction:column; gap:12px; }
+.cred-item {
+    background:var(--bg-secondary); border:1px solid var(--border);
+    border-radius:8px; padding:16px 20px;
 }
-td { padding:10px 12px; border-bottom:1px solid var(--border); }
-tr:last-child td { border-bottom:none; }
-.td-url { max-width:260px; font-family:'SF Mono',Fira Code,monospace; font-size:13px; word-break:break-all; color:var(--primary); }
-.td-actions { display:flex; gap:8px; }
-
-/* ─── Empty state ────────────────────────────────────────────── */
-.empty-state {
-    text-align:center; padding:48px 20px; color:var(--text2);
+.cred-item-header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:10px;
 }
-.empty-state .icon { font-size:40px; margin-bottom:12px; }
-.empty-state p { font-size:14px; }
+.cred-item-header .badge { flex-shrink:0; }
+.cred-client-id {
+    display:flex; align-items:center; gap:10px;
+}
+.cred-client-id code {
+    font-family:'Courier New',monospace; font-size:13px;
+    word-break:break-all; flex:1;
+}
+.cred-actions { display:flex; gap:8px; flex-wrap:wrap; }
 
-/* ─── Webhook form ───────────────────────────────────────────── */
-.webhook-form { display:flex; flex-direction:column; gap:12px; margin-top:16px; }
+/* ─── Secret reveal ─── */
+.secret-reveal {
+    background:var(--success-light); border:1px solid var(--success);
+    border-radius:8px; padding:16px 20px; margin-top:16px;
+}
+.secret-reveal-title { font-size:14px; font-weight:600; color:#065f46; margin-bottom:8px; }
+.secret-reveal-value {
+    display:flex; align-items:center; gap:10px;
+}
+.secret-reveal-value code {
+    font-family:'Courier New',monospace; font-size:13px;
+    word-break:break-all; flex:1; font-weight:600;
+}
+
+/* ─── Empty state ─── */
+.empty-state { text-align:center; padding:48px 20px; color:var(--text-secondary); }
+.empty-title { font-size:16px; font-weight:600; margin-bottom:8px; color:var(--text-primary); }
+
+/* ─── Table ─── */
+.table-container { overflow-x:auto; }
+.data-table { width:100%; border-collapse:collapse; }
+.data-table th {
+    text-align:left; padding:12px 16px; font-size:13px; font-weight:600;
+    color:var(--text-secondary); background:var(--bg-secondary);
+    border-bottom:1px solid var(--border);
+}
+.data-table td { padding:12px 16px; font-size:14px; border-bottom:1px solid var(--border); }
+.data-table tr:hover { background:var(--bg-secondary); }
+.td-url { max-width:260px; font-family:'Courier New',monospace; font-size:13px; word-break:break-all; color:var(--primary); }
+
+/* ─── Webhook form ─── */
+.webhook-form { display:flex; flex-direction:column; gap:14px; margin-bottom:20px; padding-bottom:20px; border-bottom:1px solid var(--border); }
 .webhook-form .row { display:flex; gap:10px; flex-wrap:wrap; }
-.webhook-form input, .webhook-form select {
-    padding:9px 12px; border:1px solid var(--border); border-radius:7px;
-    font-size:14px; outline:none; flex:1; min-width:140px;
+.webhook-form input {
+    width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px;
+    font-size:14px; outline:none; background:var(--bg-primary);
 }
-.webhook-form input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+.webhook-form input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(37,99,235,.1); }
 .events-checkboxes { display:flex; gap:16px; flex-wrap:wrap; }
 .events-checkboxes label { display:flex; align-items:center; gap:6px; font-size:14px; cursor:pointer; }
 .events-checkboxes input[type=checkbox] { accent-color:var(--primary); width:16px; height:16px; }
 
-/* ─── Alert toast ────────────────────────────────────────────── */
-.alert {
+/* ─── Filter bar ─── */
+.filter-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:16px; }
+.filter-bar select {
+    padding:8px 12px; border:1px solid var(--border); border-radius:8px;
+    font-size:13px; outline:none; background:var(--bg-primary);
+}
+.filter-bar select:focus { border-color:var(--primary); }
+
+/* ─── Log status ─── */
+.log-success { color:var(--success); font-weight:600; }
+.log-failed { color:var(--danger); font-weight:600; }
+.log-pending { color:var(--warning); font-weight:600; }
+
+/* ─── Pagination ─── */
+.pagination { display:flex; gap:8px; align-items:center; margin-top:16px; justify-content:center; }
+.pagination button {
+    padding:6px 14px; border:1px solid var(--border); border-radius:8px;
+    background:var(--bg-primary); cursor:pointer; font-size:13px; font-weight:500;
+}
+.pagination button:hover { background:var(--bg-secondary); }
+.pagination button:disabled { opacity:.4; cursor:not-allowed; }
+.pagination .page-info { font-size:13px; color:var(--text-secondary); }
+
+/* ─── Alert ─── */
+.alert-toast {
     position:fixed; top:24px; right:24px; z-index:999;
-    background:var(--card); border:1px solid var(--border);
-    border-radius:10px; padding:14px 20px; max-width:360px;
+    background:var(--bg-primary); border:1px solid var(--border);
+    border-radius:10px; padding:14px 20px; max-width:380px;
     box-shadow:0 4px 16px rgba(0,0,0,.12); font-size:14px;
     display:flex; align-items:center; gap:10px;
     transform:translateX(120%); transition:transform .3s ease;
 }
-.alert.show { transform:translateX(0); }
-.alert.success { border-color:var(--success); }
-.alert.success .alert-icon { color:var(--success); }
-.alert.error   { border-color:var(--danger);  }
-.alert.error   .alert-icon { color:var(--danger);  }
-.alert-icon { font-size:20px; flex-shrink:0; }
-
-/* ─── Logs filter bar ────────────────────────────────────────── */
-.filter-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px; }
-.filter-bar select, .filter-bar input {
-    padding:7px 12px; border:1px solid var(--border); border-radius:7px;
-    font-size:13px; outline:none;
+.alert-toast.show { transform:translateX(0); }
+.alert-toast.success { border-color:var(--success); }
+.alert-toast.error { border-color:var(--danger); }
+.alert-dot {
+    width:8px; height:8px; border-radius:50%; flex-shrink:0;
 }
-.filter-bar select:focus, .filter-bar input:focus { border-color:var(--primary); }
+.alert-toast.success .alert-dot { background:var(--success); }
+.alert-toast.error .alert-dot { background:var(--danger); }
 
-/* ─── Log status colors ──────────────────────────────────────── */
-.log-success { color:var(--success); font-weight:600; }
-.log-failed  { color:var(--danger);  font-weight:600; }
-.log-pending { color:var(--warning); font-weight:600; }
-
-/* ─── Pagination ─────────────────────────────────────────────── */
-.pagination { display:flex; gap:8px; align-items:center; margin-top:16px; justify-content:center; }
-.pagination button {
-    padding:6px 12px; border:1px solid var(--border); border-radius:6px;
-    background:var(--card); cursor:pointer; font-size:13px;
-}
-.pagination button:hover { background:#f1f5f9; }
-.pagination button:disabled { opacity:.4; cursor:not-allowed; }
-.pagination .page-info { font-size:13px; color:var(--text2); }
-
-/* ─── Modal ──────────────────────────────────────────────────── */
+/* ─── Modal ─── */
 .modal-overlay {
-    position:fixed; inset:0; background:rgba(0,0,0,.45);
-    display:flex; align-items:center; justify-content:center;
-    z-index:100; opacity:0; pointer-events:none;
-    transition:opacity .2s ease;
+    position:fixed; inset:0; background:rgba(0,0,0,.5);
+    display:none; align-items:center; justify-content:center;
+    z-index:1000;
 }
-.modal-overlay.show { opacity:1; pointer-events:auto; }
+.modal-overlay.show { display:flex; }
 .modal {
-    background:var(--card); border-radius:12px; box-shadow:0 8px 32px rgba(0,0,0,.18);
-    width:100%; max-width:540px; max-height:90vh; overflow-y:auto;
-    padding:28px 32px; position:relative;
+    background:var(--bg-primary); border-radius:12px; padding:32px;
+    width:90%; max-width:520px; max-height:90vh; overflow-y:auto;
+    position:relative;
 }
 .modal h3 { font-size:18px; font-weight:600; margin-bottom:20px; }
 .modal-close {
     position:absolute; top:16px; right:16px; background:none; border:none;
-    font-size:22px; cursor:pointer; color:var(--text2); line-height:1;
+    font-size:22px; cursor:pointer; color:var(--text-secondary); line-height:1;
 }
-.modal-close:hover { color:var(--text); }
-.form-group { display:flex; flex-direction:column; gap:4px; margin-bottom:14px; }
-.form-group label { font-size:12px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:.4px; }
-.form-group input, .form-group select {
-    padding:9px 12px; border:1px solid var(--border); border-radius:7px;
-    font-size:14px; outline:none;
+.modal-close:hover { color:var(--text-primary); }
+.form-group { margin-bottom:16px; }
+.form-label { display:block; margin-bottom:6px; font-size:14px; font-weight:500; }
+.form-input, .form-select {
+    width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px;
+    font-size:14px; background:var(--bg-primary); color:var(--text-primary); outline:none;
 }
-.form-group input:focus, .form-group select:focus {
-    border-color:var(--primary); box-shadow:0 0 0 3px rgba(37,99,235,.12);
+.form-input:focus, .form-select:focus {
+    border-color:var(--primary); box-shadow:0 0 0 3px rgba(37,99,235,.1);
 }
-.form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-.modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.modal-actions { display:flex; gap:12px; justify-content:flex-end; margin-top:24px; }
 
-/* ─── Responsive ─────────────────────────────────────────────── */
+/* ─── Mono ─── */
+.mono { font-family:'Courier New',monospace; }
+
+/* ─── Responsive ─── */
 @media(max-width:640px) {
     .page { padding:0 12px; margin:16px auto; }
-    .info-grid { grid-template-columns:1fr; }
     .topbar { padding:12px 16px; }
+    .card-header { flex-direction:column; align-items:flex-start; gap:12px; }
     .form-row { grid-template-columns:1fr; }
     .modal { padding:20px; margin:12px; }
+    .cred-actions { flex-direction:column; }
 }
 </style>
 </head>
 <body>
 
-<!-- ── Alert Toast ──────────────────────────────────────────────── -->
-<div id="alertToast" class="alert">
-    <span class="alert-icon" id="alertIcon">✅</span>
+<!-- Alert Toast -->
+<div id="alertToast" class="alert-toast">
+    <span class="alert-dot"></span>
     <span id="alertText"></span>
 </div>
 
-<!-- ── Top Bar ───────────────────────────────────────────────────── -->
+<!-- Top Bar -->
 <div class="topbar">
     <div class="topbar-left">
-        <a href="/extensions/dashboard">← Dashboard</a>
+        <a href="/extensions/dashboard">&#x2190; Dashboard</a>
         <span class="sep">/</span>
-        <span class="current" id="topbarName">Chi tiết khách hàng</span>
+        <span class="current" id="topbarName">Chi tiet khach hang</span>
     </div>
     <div class="topbar-right">
         <span id="roleTag" class="badge badge-info">Admin</span>
-        <a href="/extensions/customer/logout" class="btn-logout">Đăng xuất</a>
+        <a href="/logout" class="btn btn-sm">Logout</a>
     </div>
 </div>
 
-<!-- ── Main ──────────────────────────────────────────────────────── -->
+<!-- Main -->
 <div class="page">
 
-    <!-- 1. Customer Info ──────────────────────────────────────── -->
-    <div class="section-header">
-        <div>
-            <h2 id="customerName">—</h2>
-            <p id="customerMeta">—</p>
+    <!-- 1. Customer Info -->
+    <div class="content-card">
+        <div class="card-header">
+            <div>
+                <h2 class="card-title" id="customerName">&#x2014;</h2>
+                <p class="card-subtitle" id="customerMeta">&#x2014;</p>
+            </div>
+            <div class="card-actions">
+                <button class="btn btn-sm" id="btnEditCustomer">Edit</button>
+            </div>
         </div>
-        <button class="btn btn-primary btn-sm" id="btnEditCustomer">✏️ Chỉnh sửa</button>
-    </div>
-
-    <div class="card">
-        <div class="info-grid">
-            <div class="info-item">
-                <span class="info-label">Mã Khách Hàng</span>
-                <span class="info-value" id="infoCode">—</span>
+        <div class="info-box">
+            <div class="info-row">
+                <span class="info-label">Customer Code</span>
+                <span class="info-value" id="infoCode">&#x2014;</span>
             </div>
-            <div class="info-item">
-                <span class="info-label">Trạng Thái</span>
-                <span class="info-value" id="infoStatus">—</span>
+            <div class="info-row">
+                <span class="info-label">Status</span>
+                <span class="info-value" id="infoStatus">&#x2014;</span>
             </div>
-            <div class="info-item">
+            <div class="info-row">
                 <span class="info-label">Email</span>
-                <span class="info-value" id="infoEmail">—</span>
+                <span class="info-value" id="infoEmail">&#x2014;</span>
             </div>
-            <div class="info-item">
-                <span class="info-label">Môi Trường</span>
-                <span class="info-value" id="infoEnv">—</span>
+            <div class="info-row">
+                <span class="info-label">Phone</span>
+                <span class="info-value" id="infoPhone">&#x2014;</span>
             </div>
-            <div class="info-item">
-                <span class="info-label">Điện Thoại</span>
-                <span class="info-value" id="infoPhone">—</span>
+            <div class="info-row">
+                <span class="info-label">Environment</span>
+                <span class="info-value" id="infoEnv">&#x2014;</span>
             </div>
-            <div class="info-item">
-                <span class="info-label">Rate Limit (H / D)</span>
-                <span class="info-value" id="infoRate">—</span>
+            <div class="info-row">
+                <span class="info-label">Rate Limit (Hour / Day)</span>
+                <span class="info-value" id="infoRate">&#x2014;</span>
             </div>
-            <div class="info-item">
+            <div class="info-row">
                 <span class="info-label">Webhook</span>
-                <span class="info-value" id="infoWebhook">—</span>
+                <span class="info-value" id="infoWebhook">&#x2014;</span>
             </div>
         </div>
     </div>
 
-    <!-- 2. Credentials ─────────────────────────────────────────── -->
-    <div class="section-header">
-        <div><h2>🔑 Credentials</h2><p>Client ID & Secret để xác thực API</p></div>
-    </div>
+    <!-- 2. Credentials -->
+    <div class="content-card">
+        <div class="card-header">
+            <div>
+                <h2 class="card-title">API Credentials</h2>
+                <p class="card-subtitle">Client ID &amp; Secret for authentication</p>
+            </div>
+        </div>
 
-    <div class="card">
         <div id="credentialsList" class="cred-list">
-            <p style="color:var(--text2)">Đang tải...</p>
+            <p style="color:var(--text-secondary)">Loading...</p>
         </div>
 
-        <!-- Secret reveal box (hidden by default, shown after refresh) -->
+        <!-- Secret reveal (hidden by default) -->
         <div id="secretRevealBox" class="secret-reveal" style="display:none">
-            <p>⚠️ <strong>New secret</strong> — chỉ hiển thị MỘT LẦN. Sao chép ngay!</p>
-            <p><strong id="newSecretValue">—</strong>
-                <button class="btn btn-sm btn-primary" id="btnCopyNewSecret" style="margin-left:8px">Sao chép</button>
-            </p>
+            <div class="secret-reveal-title">New Secret Key &#x2014; save it now, it won't be shown again!</div>
+            <div class="secret-reveal-value">
+                <code id="newSecretValue">&#x2014;</code>
+                <button class="btn btn-sm" id="btnCopyNewSecret">Copy</button>
+            </div>
         </div>
     </div>
 
-    <!-- 3. Webhooks ─────────────────────────────────────────────── -->
-    <div class="section-header">
-        <div><h2>🪝 Webhooks</h2><p>Đăng ký & quản lý webhook notifications</p></div>
-        <button class="btn btn-primary btn-sm" id="btnToggleWebhookForm">+ Thêm Webhook</button>
-    </div>
+    <!-- 3. Webhooks -->
+    <div class="content-card">
+        <div class="card-header">
+            <div>
+                <h2 class="card-title">Webhooks</h2>
+                <p class="card-subtitle">Manage webhook registrations</p>
+            </div>
+            <button class="btn btn-primary btn-sm" id="btnToggleWebhookForm">+ Add Webhook</button>
+        </div>
 
-    <div class="card">
-        <!-- Add form (hidden by default) -->
+        <!-- Add form (hidden) -->
         <div id="webhookFormWrap" style="display:none">
             <div class="webhook-form">
-                <div class="row">
-                    <input type="url" id="whUrl" placeholder="https://your-server.com/webhook" required>
-                </div>
-                <div class="row">
-                    <input type="text" id="whSecret" placeholder="Secret (min 8 chars)" required>
-                </div>
+                <input type="url" id="whUrl" placeholder="https://your-server.com/webhook" required>
+                <input type="text" id="whSecret" placeholder="Secret (min 8 chars)" required>
                 <div class="events-checkboxes">
                     <label><input type="checkbox" class="event-cb" value="tracking.updated" checked> tracking.updated</label>
                     <label><input type="checkbox" class="event-cb" value="order.status"> order.status</label>
                     <label><input type="checkbox" class="event-cb" value="order.exception"> order.exception</label>
                 </div>
-                <div class="row">
-                    <button class="btn btn-primary btn-sm" id="btnSaveWebhook">💾 Lưu</button>
-                    <button class="btn btn-sm" id="btnCancelWebhook">Hủy</button>
+                <div style="display:flex;gap:10px;">
+                    <button class="btn btn-primary btn-sm" id="btnSaveWebhook">Save</button>
+                    <button class="btn btn-sm" id="btnCancelWebhook">Cancel</button>
                 </div>
             </div>
         </div>
 
-        <!-- Webhook list table -->
-        <div id="webhooksTable" class="table-wrap">
-            <p style="color:var(--text2)">Đang tải...</p>
+        <div id="webhooksTable" class="table-container">
+            <p style="color:var(--text-secondary)">Loading...</p>
         </div>
     </div>
 
-    <!-- 4. Webhook Delivery Logs ────────────────────────────────── -->
-    <div class="section-header">
-        <div><h2>📋 Webhook Delivery Logs</h2><p>Lịch sử gửi webhook</p></div>
-    </div>
+    <!-- 4. Webhook Delivery Logs -->
+    <div class="content-card">
+        <div class="card-header">
+            <div>
+                <h2 class="card-title">Webhook Delivery Logs</h2>
+                <p class="card-subtitle">History of webhook deliveries</p>
+            </div>
+        </div>
 
-    <div class="card">
         <div class="filter-bar">
             <select id="filterEvent">
-                <option value="">Tất cả events</option>
+                <option value="">All events</option>
                 <option value="tracking.updated">tracking.updated</option>
                 <option value="order.status">order.status</option>
                 <option value="order.exception">order.exception</option>
             </select>
             <select id="filterStatus">
-                <option value="">Tất cả trạng thái</option>
+                <option value="">All statuses</option>
                 <option value="success">Success</option>
                 <option value="failed">Failed</option>
                 <option value="pending">Pending</option>
             </select>
-            <button class="btn btn-sm" id="btnRefreshLogs">🔄 Tải lại</button>
+            <button class="btn btn-sm" id="btnRefreshLogs">Reload</button>
         </div>
 
-        <div id="logsTable" class="table-wrap">
-            <p style="color:var(--text2)">Đang tải...</p>
+        <div id="logsTable" class="table-container">
+            <p style="color:var(--text-secondary)">Loading...</p>
         </div>
 
         <div class="pagination">
-            <button id="btnPrevPage" disabled>← Trước</button>
-            <span class="page-info" id="pageInfo">Trang 1</span>
-            <button id="btnNextPage" disabled>Sau →</button>
+            <button id="btnPrevPage" disabled>&#x2190; Prev</button>
+            <span class="page-info" id="pageInfo">Page 1</span>
+            <button id="btnNextPage" disabled>Next &#x2192;</button>
         </div>
     </div>
 </div>
 
-<!-- ── Edit Customer Modal ───────────────────────────────────────── -->
+<!-- Edit Customer Modal -->
 <div id="editModal" class="modal-overlay">
     <div class="modal">
         <button class="modal-close" id="btnCloseEditModal">&times;</button>
-        <h3>Chỉnh sửa thông tin khách hàng</h3>
+        <h3>Edit Customer</h3>
 
         <div class="form-group">
-            <label>Tên khách hàng</label>
-            <input type="text" id="editName" placeholder="Tên khách hàng">
+            <label class="form-label">Customer Name</label>
+            <input type="text" class="form-input" id="editName" placeholder="Customer name">
         </div>
 
         <div class="form-row">
             <div class="form-group">
-                <label>Email</label>
-                <input type="email" id="editEmail" placeholder="Email">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-input" id="editEmail" placeholder="Email">
             </div>
             <div class="form-group">
-                <label>Điện thoại</label>
-                <input type="text" id="editPhone" placeholder="Số điện thoại">
+                <label class="form-label">Phone</label>
+                <input type="text" class="form-input" id="editPhone" placeholder="Phone number">
             </div>
         </div>
 
         <div class="form-row">
             <div class="form-group">
-                <label>Trạng thái</label>
-                <select id="editStatus">
+                <label class="form-label">Status</label>
+                <select class="form-select" id="editStatus">
                     <option value="active">Active</option>
                     <option value="suspended">Suspended</option>
-                    <!-- <option value="inactive">Inactive</option> -->
+                    <option value="inactive">Inactive</option>
                 </select>
             </div>
             <div class="form-group">
-                <label>Webhook</label>
-                <select id="editWebhookEnabled">
+                <label class="form-label">Webhook</label>
+                <select class="form-select" id="editWebhookEnabled">
                     <option value="true">Enabled</option>
                     <option value="false">Disabled</option>
                 </select>
@@ -432,20 +442,20 @@ tr:last-child td { border-bottom:none; }
 
         <div class="form-row">
             <div class="form-group">
-                <label>Rate Limit / Giờ</label>
-                <input type="number" id="editRateHour" min="1">
+                <label class="form-label">Rate Limit / Hour</label>
+                <input type="number" class="form-input" id="editRateHour" min="1">
             </div>
             <div class="form-group">
-                <label>Rate Limit / Ngày</label>
-                <input type="number" id="editRateDay" min="1">
+                <label class="form-label">Rate Limit / Day</label>
+                <input type="number" class="form-input" id="editRateDay" min="1">
             </div>
         </div>
 
         <div class="modal-actions">
-            <button class="btn" id="btnCancelEdit">Hủy</button>
-            <button class="btn btn-primary" id="btnSaveEdit">Lưu thay đổi</button>
+            <button class="btn" id="btnCancelEdit">Cancel</button>
+            <button class="btn btn-primary" id="btnSaveEdit">Save Changes</button>
         </div>
     </div>
 </div>
 
-<script src="/js/customer-detail.js?v=1915"></script>
+<script src="/js/customer-detail.js?v=1920"></script>
