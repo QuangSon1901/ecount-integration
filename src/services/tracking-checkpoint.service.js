@@ -58,7 +58,7 @@ class TrackingCheckpointService {
             'CUS0088': '@vtung_49',
             'CUS0288': '@hynana686',
             'CUS0270': '@myhanhtrann',
-            'CUS0132': '@vtung_49',
+            'CUS0132': '@minmin_164',
             'CUS0325': '@myhanhtrann',
             'CUS0112': '@myhanhtrann',
             'CUS0421': '@hynana686',
@@ -76,6 +76,8 @@ class TrackingCheckpointService {
             'CUS0257': '@hynana686',
             'CUS0237': '@myhanhtrann',
             'CUS0079': '@hynana686',
+            'CUS0157': '@Moonzzz03',
+            'CUS0432': '@myhanhtrann',
         }
     }
 
