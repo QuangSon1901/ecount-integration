@@ -8,7 +8,7 @@ const orderController = require('../controllers/order.controller');
 const importController = require('../controllers/import.controller');
 
 const { validateOrder, validateErpUpdate, validateOrderMulti } = require('../middlewares/validation.middleware');
-const basicAuthMiddleware = require('../middlewares/basic-auth.middleware');
+const { requireAdmin } = require('../middlewares/session-auth.middleware');
 
 const jobService = require('../services/queue/job.service');
 
@@ -26,8 +26,8 @@ const upload = multer({
     }
 });
 
-router.post('/bulk-check', basicAuthMiddleware, upload.single('file'), bulkUpdateController.bulkCheck.bind(bulkUpdateController));
-router.post('/bulk-update-status', basicAuthMiddleware, bulkUpdateController.bulkUpdateStatus.bind(bulkUpdateController));
+router.post('/bulk-check', requireAdmin, upload.single('file'), bulkUpdateController.bulkCheck.bind(bulkUpdateController));
+router.post('/bulk-update-status', requireAdmin, bulkUpdateController.bulkUpdateStatus.bind(bulkUpdateController));
 
 /**
  * @route   GET /api/orders/health
@@ -49,9 +49,9 @@ router.post('/bulk-update-status', basicAuthMiddleware, bulkUpdateController.bul
  * @access  Public
  * @query   carrier - Optional carrier code (YUNEXPRESS, DHL, etc.)
  */
-router.get('/tracking/:trackingNumber', basicAuthMiddleware, orderController.trackByTrackingNumber.bind(orderController));
-router.get('/inquiry/:orderNumber', basicAuthMiddleware, orderController.inquiryByOrderNumber.bind(orderController));
-router.get('/fee-details/:orderNumber', basicAuthMiddleware, orderController.feeDetailsByOrderNumber.bind(orderController));
+router.get('/tracking/:trackingNumber', requireAdmin, orderController.trackByTrackingNumber.bind(orderController));
+router.get('/inquiry/:orderNumber', requireAdmin, orderController.inquiryByOrderNumber.bind(orderController));
+router.get('/fee-details/:orderNumber', requireAdmin, orderController.feeDetailsByOrderNumber.bind(orderController));
 router.get('/label/:orderNumber', orderController.labelByOrderNumber.bind(orderController));
 
 /**

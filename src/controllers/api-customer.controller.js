@@ -3,6 +3,9 @@ const ApiCustomerModel = require('../models/api-customer.model');
 const ApiAuthService = require('../services/api/auth.service');
 const ApiCredentialModel = require('../models/api-credential.model');
 const ApiRateLimitModel = require('../models/api-rate-limit.model');
+const WebhookModel = require('../models/webhook.model');
+const bcrypt = require('bcrypt');
+const db = require('../database/connection');
 const { successResponse, errorResponse } = require('../utils/response');
 const logger = require('../utils/logger');
 
@@ -183,6 +186,44 @@ class ApiCustomerController {
     }
 
     /**
+     * GET /api/v1/admin/customers/:customerId/credentials
+     * Get current credentials (customer hoặc admin)
+     * Chỉ trả về client_id, KHÔNG trả về client_secret (bảo mật)
+     */
+    async getCredentials(req, res, next) {
+        try {
+            const { customerId } = req.params;
+
+            const customer = await ApiCustomerModel.findById(customerId);
+
+            if (!customer) {
+                return errorResponse(res, 'Customer not found', 404);
+            }
+
+            // Get active credentials (only client_id)
+            const credentials = await ApiCredentialModel.listByCustomer(customerId, customer.environment);
+
+            // Find active credential
+            const activeCredential = credentials.find(c => c.status === 'active');
+
+            if (!activeCredential) {
+                return successResponse(res, null, 'No active credentials found');
+            }
+
+            return successResponse(res, {
+                client_id: activeCredential.client_id,
+                environment: activeCredential.environment,
+                created_at: activeCredential.created_at,
+                expires_at: activeCredential.expires_at,
+                status: activeCredential.status
+            }, 'Credentials retrieved successfully');
+
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
      * GET /api/v1/admin/customers/:customerId/rate-limits
      * Get rate limit statistics (Admin only)
      */
@@ -205,6 +246,236 @@ class ApiCustomerController {
                 hourly: hourlyStats,
                 daily: dailyStats
             }, 'Rate limit stats retrieved successfully');
+
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // ─── Portal Password ──────────────────────────────────────────
+
+    /**
+     * POST /api/v1/admin/customers/:customerId/portal-password
+     * Admin set/reset mật khẩu portal cho khách hàng
+     */
+    async setPortalPassword(req, res, next) {
+        try {
+            const { customerId } = req.params;
+            const { password } = req.body;
+
+            if (!password || password.length < 6) {
+                return errorResponse(res, 'Password must be at least 6 characters', 400);
+            }
+
+            const customer = await ApiCustomerModel.findById(customerId);
+            if (!customer) {
+                return errorResponse(res, 'Customer not found', 404);
+            }
+
+            const hash = await bcrypt.hash(password, 10);
+            await ApiCustomerModel.setPortalPassword(customerId, hash);
+
+            logger.info('Portal password set', { customerId });
+            return successResponse(res, null, 'Portal password set successfully');
+
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // ─── Refresh Credentials ──────────────────────────────────────
+
+    /**
+     * POST /api/v1/admin/customers/:customerId/credentials/refresh
+     * Revoke credential cũ + tạo credential mới cùng environment.
+     * Body: { credentialId } — ID của credential muốn refresh.
+     */
+    async refreshCredentials(req, res, next) {
+        try {
+            const { customerId } = req.params;
+            const { credentialId } = req.body;
+
+            const customer = await ApiCustomerModel.findById(customerId);
+            if (!customer) {
+                return errorResponse(res, 'Customer not found', 404);
+            }
+
+            if (!credentialId) {
+                return errorResponse(res, 'credentialId is required', 400);
+            }
+
+            // Verify credential belongs to this customer
+            const credentials = await ApiCredentialModel.listByCustomer(customerId);
+            const target = credentials.find(c => c.id === parseInt(credentialId));
+            if (!target) {
+                return errorResponse(res, 'Credential not found for this customer', 404);
+            }
+
+            // Revoke cũ
+            await ApiCredentialModel.revoke(target.id, 'Refreshed by admin/portal');
+
+            // Tạo mới cùng environment
+            const newCred = await ApiCredentialModel.create({
+                customerId: parseInt(customerId),
+                environment: target.environment
+            });
+
+            logger.info('Credentials refreshed', { customerId, oldId: target.id, newId: newCred.id });
+
+            return successResponse(res, {
+                client_id: newCred.client_id,
+                client_secret: newCred.client_secret,
+                environment: target.environment
+            }, 'Credentials refreshed successfully', 201);
+
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // ─── Webhooks (for detail page) ───────────────────────────────
+
+    /**
+     * GET /api/v1/admin/customers/:customerId/webhooks
+     */
+    async getWebhooks(req, res, next) {
+        try {
+            const { customerId } = req.params;
+
+            const customer = await ApiCustomerModel.findById(customerId);
+            if (!customer) {
+                return errorResponse(res, 'Customer not found', 404);
+            }
+
+            const webhooks = await WebhookModel.listByCustomer(parseInt(customerId));
+            const formatted = webhooks.map(w => ({
+                id: w.id,
+                url: w.url,
+                events: typeof w.events === 'string' ? JSON.parse(w.events) : w.events,
+                status: w.status,
+                fail_count: w.fail_count,
+                created_at: w.created_at,
+                updated_at: w.updated_at
+            }));
+
+            return successResponse(res, formatted);
+
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * DELETE /api/v1/admin/customers/:customerId/webhooks/:webhookId
+     */
+    async deleteWebhook(req, res, next) {
+        try {
+            const { customerId, webhookId } = req.params;
+
+            const customer = await ApiCustomerModel.findById(customerId);
+            if (!customer) {
+                return errorResponse(res, 'Customer not found', 404);
+            }
+
+            const deleted = await WebhookModel.deleteById(parseInt(webhookId), parseInt(customerId));
+            if (!deleted) {
+                return errorResponse(res, 'Webhook not found', 404);
+            }
+
+            return successResponse(res, null, 'Webhook deleted successfully');
+
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * POST /api/v1/admin/customers/:customerId/webhooks
+     * Register webhook (từ detail page)
+     */
+    async createWebhook(req, res, next) {
+        try {
+            const { customerId } = req.params;
+            const { url, secret, events } = req.body;
+
+            const customer = await ApiCustomerModel.findById(customerId);
+            if (!customer) {
+                return errorResponse(res, 'Customer not found', 404);
+            }
+
+            const webhookService = require('../services/api/webhook.service');
+            const webhook = await webhookService.register({
+                customerId: parseInt(customerId),
+                url,
+                secret,
+                events
+            });
+
+            return successResponse(res, webhookService.formatWebhook(webhook), 'Webhook registered', 201);
+
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // ─── Webhook Delivery Logs ────────────────────────────────────
+
+    /**
+     * GET /api/v1/admin/customers/:customerId/webhook-logs
+     * Query: ?limit=50&offset=0&event=&status=
+     */
+    async getWebhookLogs(req, res, next) {
+        try {
+            const { customerId } = req.params;
+            const { limit = 50, offset = 0, event, status } = req.query;
+
+            const customer = await ApiCustomerModel.findById(customerId);
+            if (!customer) {
+                return errorResponse(res, 'Customer not found', 404);
+            }
+
+            const connection = await db.getConnection();
+            try {
+                let where = 'WHERE wdl.customer_id = ?';
+                const params = [parseInt(customerId)];
+
+                if (event) {
+                    where += ' AND wdl.event = ?';
+                    params.push(event);
+                }
+                if (status) {
+                    where += ' AND wdl.status = ?';
+                    params.push(status);
+                }
+
+                // Total count
+                const [countRows] = await connection.query(
+                    `SELECT COUNT(*) as total FROM webhook_delivery_logs wdl ${where}`,
+                    params
+                );
+                const total = countRows[0].total;
+
+                // Paginated rows
+                const [rows] = await connection.query(
+                    `SELECT wdl.*, wr.url as webhook_url
+                     FROM webhook_delivery_logs wdl
+                     LEFT JOIN webhook_registrations wr ON wdl.webhook_id = wr.id
+                     ${where}
+                     ORDER BY wdl.created_at DESC
+                     LIMIT ? OFFSET ?`,
+                    [...params, parseInt(limit), parseInt(offset)]
+                );
+
+                return successResponse(res, {
+                    logs: rows,
+                    total,
+                    limit: parseInt(limit),
+                    offset: parseInt(offset)
+                });
+
+            } finally {
+                connection.release();
+            }
 
         } catch (error) {
             next(error);

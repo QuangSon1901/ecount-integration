@@ -175,6 +175,40 @@ class ApiCustomerModel {
     }
 
     /**
+     * Set portal password (bcrypt hash)
+     */
+    static async setPortalPassword(customerId, passwordHash) {
+        const connection = await db.getConnection();
+        try {
+            const [result] = await connection.query(
+                'UPDATE api_customers SET portal_password_hash = ? WHERE id = ?',
+                [passwordHash, customerId]
+            );
+            return result.affectedRows > 0;
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
+     * Verify portal login: tìm customer theo code + compare bcrypt password.
+     * Returns customer row nếu hợp lệ, null nếu không.
+     */
+    static async verifyPortalPassword(customerCode, passwordHash) {
+        const connection = await db.getConnection();
+        try {
+            const [rows] = await connection.query(
+                `SELECT * FROM api_customers
+                 WHERE customer_code = ? AND portal_password_hash IS NOT NULL AND status = 'active'`,
+                [customerCode]
+            );
+            return rows[0] || null; // caller dùng bcrypt.compare với portal_password_hash
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
      * Get customer statistics
      */
     static async getStats(customerId) {

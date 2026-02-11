@@ -9,6 +9,7 @@ const orderRoutes = require('./routes/order.routes');
 const ecountRoutes = require('./routes/ecount.routes');
 const labelRoutes = require('./routes/label.routes');
 const extensionRoutes = require('./routes/extension.routes');
+const authRoutes = require('./routes/auth.routes');
 
 const apiV1Routes = require('./routes/api-v1.routes');
 
@@ -117,8 +118,9 @@ app.use((req, res, next) => {
 // });
 
 // Routes
-app.use('/api/v1', apiV1Routes);
+app.use('/', authRoutes); // Login/logout routes (no prefix)
 
+app.use('/api/v1', apiV1Routes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/ecount', ecountRoutes);
 app.use('/api/labels', labelRoutes);

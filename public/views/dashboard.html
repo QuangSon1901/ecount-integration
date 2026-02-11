@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>THG-FULFILL Admin Dashboard</title>
+    <title>THG-FULFILL Dashboard</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
             --primary: #2563eb;
             --primary-dark: #1d4ed8;
+            --primary-light: #eff6ff;
             --secondary: #64748b;
             --success: #10b981;
+            --success-light: #d1fae5;
             --warning: #f59e0b;
+            --warning-light: #fef3c7;
             --danger: #ef4444;
+            --danger-light: #fee2e2;
             --bg-primary: #ffffff;
             --bg-secondary: #f8fafc;
             --border: #e2e8f0;
@@ -34,189 +34,82 @@
             line-height: 1.6;
         }
 
-        /* Layout */
-        .app-container {
-            display: flex;
-            min-height: 100vh;
-        }
+        .app-container { display: flex; min-height: 100vh; }
 
-        /* Header */
-        .header {
-            position: fixed;
-            top: 0;
-            left: var(--sidebar-width);
-            right: 0;
-            height: var(--header-height);
-            background: var(--bg-primary);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 32px;
-            z-index: 100;
-        }
-
-        .header-title h1 {
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .header-title p {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-top: 2px;
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .user-badge {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 14px;
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            font-size: 14px;
-        }
-
-        .user-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: var(--primary);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 13px;
-        }
-
-        /* Sidebar */
+        /* ─── Sidebar ─── */
         .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: var(--sidebar-width);
-            height: 100vh;
+            position: fixed; left: 0; top: 0;
+            width: var(--sidebar-width); height: 100vh;
             background: var(--bg-primary);
             border-right: 1px solid var(--border);
-            overflow-y: auto;
-            z-index: 101;
+            overflow-y: auto; z-index: 101;
+            display: flex; flex-direction: column;
         }
-
         .sidebar-logo {
-            padding: 20px 20px 16px;
-            border-bottom: 1px solid var(--border);
+            padding: 20px; border-bottom: 1px solid var(--border);
         }
-
-        .logo-content {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
+        .logo-content { display: flex; align-items: center; gap: 12px; }
         .logo-icon {
-            width: 40px;
-            height: 40px;
-            background: var(--primary);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 700;
-            font-size: 16px;
+            width: 40px; height: 40px; background: var(--primary);
+            border-radius: 10px; display: flex; align-items: center;
+            justify-content: center; color: white; font-weight: 700; font-size: 16px;
         }
+        .logo-text h2 { font-size: 16px; font-weight: 700; }
+        .logo-text p { font-size: 12px; color: var(--text-secondary); }
 
-        .logo-text h2 {
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--text-primary);
-        }
-
-        .logo-text p {
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
-
-        .sidebar-nav {
-            padding: 16px 0;
-        }
-
-        .nav-section {
-            margin-bottom: 24px;
-        }
-
+        .sidebar-nav { padding: 16px 0; flex: 1; }
+        .nav-section { margin-bottom: 24px; }
         .nav-section-title {
-            padding: 0 20px 8px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            color: var(--text-secondary);
+            padding: 0 20px 8px; font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary);
         }
-
-        .nav-menu {
-            list-style: none;
-        }
-
-        .nav-item {
-            margin: 2px 12px;
-        }
-
+        .nav-menu { list-style: none; }
+        .nav-item { margin: 2px 12px; }
         .nav-link {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 12px;
-            color: var(--text-secondary);
-            text-decoration: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s;
-            cursor: pointer;
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 12px; color: var(--text-secondary);
+            text-decoration: none; border-radius: 8px;
+            font-size: 14px; font-weight: 500;
+            transition: all 0.2s; cursor: pointer;
         }
-
-        .nav-link:hover {
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-        }
-
-        .nav-link.active {
-            background: #eff6ff;
-            color: var(--primary);
-        }
-
-        .nav-icon {
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
+        .nav-link:hover { background: var(--bg-secondary); color: var(--text-primary); }
+        .nav-link.active { background: var(--primary-light); color: var(--primary); }
+        .nav-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
         .nav-badge {
-            margin-left: auto;
-            padding: 2px 8px;
-            background: var(--bg-secondary);
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
+            margin-left: auto; padding: 2px 8px;
+            background: var(--bg-secondary); border-radius: 12px;
+            font-size: 11px; font-weight: 600;
+        }
+        .nav-link.active .nav-badge { background: var(--primary); color: white; }
+
+        .sidebar-footer {
+            padding: 16px 20px; border-top: 1px solid var(--border);
+            font-size: 12px; color: var(--text-secondary);
         }
 
-        .nav-link.active .nav-badge {
-            background: var(--primary);
-            color: white;
+        /* ─── Header ─── */
+        .header {
+            position: fixed; top: 0; left: var(--sidebar-width); right: 0;
+            height: var(--header-height); background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 32px; z-index: 100;
+        }
+        .header-title h1 { font-size: 20px; font-weight: 600; }
+        .header-title p { font-size: 14px; color: var(--text-secondary); margin-top: 2px; }
+        .header-actions { display: flex; align-items: center; gap: 16px; }
+        .user-badge {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 14px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;
+        }
+        .user-avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: var(--primary); color: white;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 13px;
         }
 
-        /* Main Content */
+        /* ─── Main Content ─── */
         .main-content {
             margin-left: var(--sidebar-width);
             margin-top: var(--header-height);
@@ -225,898 +118,761 @@
             width: calc(100% - var(--sidebar-width));
         }
 
-        /* Content Sections */
-        .content-section {
-            display: none;
-        }
+        /* ─── Sections ─── */
+        .content-section { display: none; }
+        .content-section.active { display: block; }
 
-        .content-section.active {
-            display: block;
-        }
+        /* Role-based visibility */
+        [data-role]:not(.role-visible) { display: none !important; }
 
-        /* Stats Cards */
+        /* ─── Cards ─── */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 20px;
-            margin-bottom: 32px;
+            gap: 20px; margin-bottom: 32px;
         }
-
         .stat-card {
-            background: var(--bg-primary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-            transition: all 0.2s;
+            background: var(--bg-primary); border: 1px solid var(--border);
+            border-radius: 12px; padding: 20px; transition: all 0.2s;
         }
-
-        .stat-card.quick-access-card {
-            cursor: pointer;
-        }
-
-        .stat-card.quick-access-card:hover {
+        .stat-card.clickable { cursor: pointer; }
+        .stat-card.clickable:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             border-color: var(--primary);
         }
-
         .stat-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
+            display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
         }
-
-        .stat-label {
-            font-size: 13px;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-
+        .stat-label { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
         .stat-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
+            width: 36px; height: 36px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; font-size: 20px;
         }
+        .stat-value { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+        .stat-change { font-size: 13px; font-weight: 500; }
+        .stat-change.positive { color: var(--success); }
 
-        .stat-value {
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 4px;
-        }
-
-        .stat-change {
-            font-size: 13px;
-            font-weight: 500;
-        }
-
-        .stat-change.positive {
-            color: var(--success);
-        }
-
-        .stat-change.negative {
-            color: var(--danger);
-        }
-
-        /* Content Cards */
         .content-card {
-            background: var(--bg-primary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
+            background: var(--bg-primary); border: 1px solid var(--border);
+            border-radius: 12px; padding: 24px; margin-bottom: 24px;
         }
-
         .card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
         }
+        .card-title { font-size: 18px; font-weight: 600; }
+        .card-subtitle { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+        .card-actions { display: flex; gap: 12px; }
 
-        .card-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .card-subtitle {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-top: 4px;
-        }
-
-        .card-actions {
-            display: flex;
-            gap: 12px;
-        }
-
-        /* Buttons */
+        /* ─── Buttons ─── */
         .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 18px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-decoration: none;
-            background: var(--bg-primary);
-            color: var(--text-primary);
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 18px; border: 1px solid var(--border);
+            border-radius: 8px; font-size: 14px; font-weight: 500;
+            cursor: pointer; transition: all 0.2s; text-decoration: none;
+            background: var(--bg-primary); color: var(--text-primary);
         }
+        .btn:hover { background: var(--bg-secondary); }
+        .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+        .btn-danger { background: var(--danger); color: white; border-color: var(--danger); }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-sm { padding: 6px 12px; font-size: 13px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        .btn:hover {
-            background: var(--bg-secondary);
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-dark);
-            border-color: var(--primary-dark);
-        }
-
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 13px;
-        }
-
-        /* Forms */
+        /* ─── Forms ─── */
         .form-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin-bottom: 24px;
+            gap: 20px; margin-bottom: 24px;
         }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
+        .form-group { margin-bottom: 20px; }
         .form-label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-primary);
+            display: block; margin-bottom: 6px;
+            font-size: 14px; font-weight: 500;
         }
-
-        .form-label.required::after {
-            content: ' *';
-            color: var(--danger);
-        }
-
-        .form-input,
-        .form-select {
-            width: 100%;
-            padding: 10px 14px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            font-size: 14px;
-            background: var(--bg-primary);
-            color: var(--text-primary);
+        .form-label.required::after { content: ' *'; color: var(--danger); }
+        .form-input, .form-select {
+            width: 100%; padding: 10px 14px;
+            border: 1px solid var(--border); border-radius: 8px;
+            font-size: 14px; background: var(--bg-primary); color: var(--text-primary);
             transition: all 0.2s;
         }
-
-        .form-input:focus,
-        .form-select:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        .form-input:focus, .form-select:focus {
+            outline: none; border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
         }
+        .form-input[readonly] { background: var(--bg-secondary); }
 
-        /* Table */
-        .table-container {
-            overflow-x: auto;
-        }
-
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
+        /* ─── Table ─── */
+        .table-container { overflow-x: auto; }
+        .data-table { width: 100%; border-collapse: collapse; }
         .data-table th {
-            text-align: left;
-            padding: 12px 16px;
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--text-secondary);
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border);
+            text-align: left; padding: 12px 16px;
+            font-size: 13px; font-weight: 600; color: var(--text-secondary);
+            background: var(--bg-secondary); border-bottom: 1px solid var(--border);
         }
-
         .data-table td {
-            padding: 14px 16px;
-            font-size: 14px;
-            border-bottom: 1px solid var(--border);
+            padding: 14px 16px; font-size: 14px; border-bottom: 1px solid var(--border);
         }
+        .data-table tr:hover { background: var(--bg-secondary); }
 
-        .data-table tr:hover {
-            background: var(--bg-secondary);
-        }
-
-        /* Badge */
+        /* ─── Badge ─── */
         .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 600;
+            display: inline-block; padding: 4px 10px;
+            border-radius: 6px; font-size: 12px; font-weight: 600;
         }
+        .badge-success { background: var(--success-light); color: #065f46; }
+        .badge-warning { background: var(--warning-light); color: #92400e; }
+        .badge-danger { background: var(--danger-light); color: #991b1b; }
+        .badge-info { background: #dbeafe; color: #1e40af; }
 
-        .badge-success {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .badge-warning {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .badge-danger {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .badge-info {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-
-        /* Alert */
+        /* ─── Alert ─── */
         .alert {
-            padding: 14px 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            display: none;
+            padding: 14px 16px; border-radius: 8px;
+            margin-bottom: 20px; font-size: 14px; display: none;
         }
-
-        .alert.show {
-            display: block;
-            animation: slideDown 0.3s ease-out;
-        }
-
+        .alert.show { display: block; animation: slideDown 0.3s ease-out; }
         @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
+        .alert-success { background: var(--success-light); color: #065f46; border: 1px solid #a7f3d0; }
+        .alert-error { background: var(--danger-light); color: #991b1b; border: 1px solid #fecaca; }
+        .alert-info { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
 
-        .alert-success {
-            background: #d1fae5;
-            color: #065f46;
-            border: 1px solid #a7f3d0;
-        }
-
-        .alert-error {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #fecaca;
-        }
-
-        .alert-info {
-            background: #dbeafe;
-            color: #1e40af;
-            border: 1px solid #bfdbfe;
-        }
-
-        /* Credentials Box */
+        /* ─── Credentials ─── */
         .credentials-box {
-            background: #fef3c7;
-            border: 1px solid #fde047;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
+            background: var(--warning-light); border: 1px solid #fde047;
+            border-radius: 8px; padding: 20px; margin-top: 20px;
         }
-
-        .credentials-box h3 {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 12px;
-            color: var(--text-primary);
-        }
-
-        .credentials-warning {
-            color: #991b1b;
-            margin: 10px 0;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .credential-item {
-            margin-bottom: 16px;
-        }
-
-        .credential-label {
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--text-secondary);
-            margin-bottom: 6px;
-        }
-
+        .credentials-box h3 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+        .credential-item { margin-bottom: 16px; }
+        .credential-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
         .credential-value {
-            font-family: 'Courier New', monospace;
-            background: white;
-            padding: 10px 12px;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-            word-break: break-all;
-            font-size: 13px;
+            font-family: 'Courier New', monospace; background: white;
+            padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border);
+            word-break: break-all; font-size: 13px;
         }
+        .credential-value.secret { background: var(--warning-light); border-color: #fde047; font-weight: 600; }
 
-        .credential-value.secret {
-            background: #fef3c7;
-            border-color: #fde047;
-            font-weight: 600;
+        /* ─── Info Box ─── */
+        .info-box {
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            border-radius: 8px; padding: 20px;
         }
-
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-secondary);
+        .info-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 0; border-bottom: 1px solid var(--border);
         }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { font-size: 13px; color: var(--text-secondary); }
+        .info-value { font-size: 14px; font-weight: 600; }
 
-        .empty-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-            opacity: 0.5;
-        }
-
-        .empty-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: var(--text-primary);
-        }
-
-        .empty-text {
-            font-size: 14px;
-        }
-
-        /* Loading */
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 40px;
-            color: var(--text-secondary);
-        }
-
-        .loading.show {
-            display: block;
-        }
-
-        /* Hidden */
-        .hidden {
-            display: none !important;
-        }
-
-        /* Tool Info Box */
+        /* ─── Tool Card ─── */
         .tool-info-box {
-            padding: 40px;
-            text-align: center;
-            color: var(--text-secondary);
+            padding: 40px; text-align: center; color: var(--text-secondary);
         }
-
-        .tool-info-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-        }
-
+        .tool-info-icon { font-size: 48px; margin-bottom: 16px; }
         .tool-info-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 8px;
+            font-size: 18px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;
         }
+        .tool-info-description { font-size: 14px; margin-bottom: 24px; }
 
-        .tool-info-description {
-            font-size: 14px;
-            margin-bottom: 24px;
+        /* ─── Empty / Loading ─── */
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
+        .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+        .empty-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); }
+        .loading { display: none; text-align: center; padding: 40px; color: var(--text-secondary); }
+        .loading.show { display: block; }
+        .hidden { display: none !important; }
+
+        /* ─── Mono ─── */
+        .mono { font-family: 'Courier New', monospace; }
+
+        /* ─── Copy btn ─── */
+        .copy-group { display: flex; gap: 8px; }
+        .copy-group input { flex: 1; }
+
+        /* ─── Modal ─── */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000;
         }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: white; border-radius: 12px; padding: 32px;
+            width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto;
+        }
+        .modal h3 { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
+        .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
 
-        /* Responsive */
+        /* ─── Responsive ─── */
         @media (max-width: 1024px) {
-            :root {
-                --sidebar-width: 0px;
-            }
-
-            .sidebar {
-                transform: translateX(-100%);
-                transition: transform 0.3s;
-            }
-
-            .sidebar.open {
-                transform: translateX(0);
-            }
-
-            .header {
-                left: 0;
-            }
-
-            .main-content {
-                margin-left: 0;
-                width: 100%;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
+            :root { --sidebar-width: 0px; }
+            .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+            .sidebar.open { transform: translateX(0); }
+            .header { left: 0; }
+            .main-content { margin-left: 0; width: 100%; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .form-grid { grid-template-columns: 1fr; }
         }
-
         @media (max-width: 768px) {
-            .header {
-                padding: 0 16px;
-            }
-
-            .main-content {
-                padding: 16px;
-            }
-
-            .card-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 12px;
-            }
-
-            .card-actions {
-                width: 100%;
-            }
-
-            .card-actions .btn {
-                flex: 1;
-            }
+            .header { padding: 0 16px; }
+            .main-content { padding: 16px; }
+            .card-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .card-actions { width: 100%; }
+            .card-actions .btn { flex: 1; }
         }
     </style>
 </head>
 <body>
     <div class="app-container">
-        <!-- Sidebar -->
+        <!-- ═══════ SIDEBAR ═══════ -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-logo">
                 <div class="logo-content">
                     <div class="logo-icon">TF</div>
                     <div class="logo-text">
                         <h2>THG-FULFILL</h2>
-                        <p>Admin Dashboard</p>
+                        <p id="sidebarSubtitle">Dashboard</p>
                     </div>
                 </div>
             </div>
 
             <nav class="sidebar-nav">
-                <!-- Overview -->
-                <div class="nav-section">
-                    <div class="nav-section-title">Tổng quan</div>
-                    <ul class="nav-menu">
-                        <li class="nav-item">
-                            <div class="nav-link active" data-section="overview">
-                                <span class="nav-icon">📊</span>
-                                Dashboard
-                            </div>
-                        </li>
-                    </ul>
+                <!-- ── ADMIN NAV ── -->
+                <div data-role="admin">
+                    <div class="nav-section">
+                        <div class="nav-section-title">Overview</div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <div class="nav-link active" data-section="admin-overview">
+                                    <span class="nav-icon">&#x1F4CA;</span> Dashboard
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="nav-section">
+                        <div class="nav-section-title">Customer Management</div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <div class="nav-link" data-section="admin-customers">
+                                    <span class="nav-icon">&#x1F465;</span> Customers
+                                    <span class="nav-badge" id="navCustomerCount">0</span>
+                                </div>
+                            </li>
+                            <li class="nav-item">
+                                <div class="nav-link" data-section="admin-create-customer">
+                                    <span class="nav-icon">&#x2795;</span> Create Customer
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="nav-section">
+                        <div class="nav-section-title">Documentation</div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <div class="nav-link" data-section="api-docs">
+                                    <span class="nav-icon">&#x1F4D6;</span> Open API Docs
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="nav-section">
+                        <div class="nav-section-title">Extensions</div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <div class="nav-link" data-section="admin-tools">
+                                    <span class="nav-icon">&#x1F527;</span> Internal Tools
+                                </div>
+                            </li>
+                            <li class="nav-item">
+                                <div class="nav-link" data-section="public-extensions">
+                                    <span class="nav-icon">&#x1F3F7;</span> Public Extensions
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
 
-                <!-- Internal Tools -->
-                <div class="nav-section">
-                    <div class="nav-section-title">🔒 Công cụ nội bộ</div>
-                    <ul class="nav-menu">
-                        <li class="nav-item">
-                            <div class="nav-link" data-section="bulk-update">
-                                <span class="nav-icon">📦</span>
-                                Bulk Update
-                            </div>
-                        </li>
-                        <li class="nav-item">
-                            <div class="nav-link" data-section="ecount-extension">
-                                <span class="nav-icon">🔧</span>
-                                ECount Extension
-                            </div>
-                        </li>
-                    </ul>
-                </div>
+                <!-- ── CLIENT NAV ── -->
+                <div data-role="customer">
+                    <div class="nav-section">
+                        <div class="nav-section-title">Overview</div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <div class="nav-link active" data-section="client-overview">
+                                    <span class="nav-icon">&#x1F4CA;</span> Account
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
 
-                <!-- API Management -->
-                <div class="nav-section">
-                    <div class="nav-section-title">🔐 API Management</div>
-                    <ul class="nav-menu">
-                        <li class="nav-item">
-                            <div class="nav-link" data-section="api-customers">
-                                <span class="nav-icon">👥</span>
-                                Customers
-                                <span class="nav-badge" id="customerCount">0</span>
-                            </div>
-                        </li>
-                        <li class="nav-item">
-                            <div class="nav-link" data-section="api-create">
-                                <span class="nav-icon">➕</span>
-                                Create Customer
-                            </div>
-                        </li>
-                    </ul>
-                </div>
+                    <div class="nav-section">
+                        <div class="nav-section-title">Open API</div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <div class="nav-link" data-section="client-credentials">
+                                    <span class="nav-icon">&#x1F511;</span> API Credentials
+                                </div>
+                            </li>
+                            <li class="nav-item">
+                                <div class="nav-link" data-section="client-webhooks">
+                                    <span class="nav-icon">&#x1F514;</span> Webhooks
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
 
-                <!-- Public Tools -->
-                <div class="nav-section">
-                    <div class="nav-section-title">🌐 Công cụ công khai</div>
-                    <ul class="nav-menu">
-                        <li class="nav-item">
-                            <div class="nav-link" data-section="label-extension">
-                                <span class="nav-icon">🏷️</span>
-                                Label Extension
-                            </div>
-                        </li>
-                    </ul>
+                    <div class="nav-section">
+                        <div class="nav-section-title">Documentation</div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <div class="nav-link" data-section="api-docs">
+                                    <span class="nav-icon">&#x1F4D6;</span> Open API Docs
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="nav-section">
+                        <div class="nav-section-title">Extensions</div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <div class="nav-link" data-section="public-extensions">
+                                    <span class="nav-icon">&#x1F3F7;</span> Public Extensions
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </nav>
+
+            <div class="sidebar-footer">
+                <div id="sidebarVersion">v1.0</div>
+            </div>
         </aside>
 
-        <!-- Main Content -->
+        <!-- ═══════ MAIN ═══════ -->
         <main class="main-content">
             <!-- Header -->
             <header class="header">
                 <div class="header-title">
-                    <h1 id="pageTitle">Dashboard Overview</h1>
-                    <p id="pageSubtitle">Quản lý và theo dõi hệ thống</p>
+                    <h1 id="pageTitle">Dashboard</h1>
+                    <p id="pageSubtitle"></p>
                 </div>
                 <div class="header-actions">
                     <div class="user-badge">
-                        <div class="user-avatar">A</div>
-                        <span>Admin</span>
+                        <div class="user-avatar" id="userAvatar">?</div>
+                        <div>
+                            <div id="userName" style="font-weight:600;">Loading...</div>
+                            <div id="userRole" style="font-size:12px;color:var(--text-secondary);"></div>
+                        </div>
                     </div>
+                    <a href="/logout" class="btn" style="padding:8px 16px;font-size:14px;">Logout</a>
                 </div>
             </header>
 
-            <!-- Alert Container -->
+            <!-- Alert container -->
             <div id="alertContainer"></div>
 
-            <!-- Overview Section -->
-            <section id="overview" class="content-section active">
+            <!-- ═══════════════════════════════════════ -->
+            <!-- ADMIN SECTIONS                         -->
+            <!-- ═══════════════════════════════════════ -->
+
+            <!-- Admin Overview -->
+            <section id="admin-overview" class="content-section" data-role="admin">
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-header">
-                            <span class="stat-label">Total Tools</span>
-                            <div class="stat-icon" style="background: #eff6ff; color: #2563eb;">
-                                🔧
-                            </div>
-                        </div>
-                        <div class="stat-value">4</div>
-                        <div class="stat-change positive">3 Active</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-header">
                             <span class="stat-label">API Customers</span>
-                            <div class="stat-icon" style="background: #f0fdf4; color: #10b981;">
-                                👥
-                            </div>
+                            <div class="stat-icon" style="background:#f0fdf4;color:#10b981;">&#x1F465;</div>
                         </div>
                         <div class="stat-value" id="statsCustomerCount">0</div>
                         <div class="stat-change positive" id="statsActiveCount">0 Active</div>
                     </div>
-
                     <div class="stat-card">
                         <div class="stat-header">
                             <span class="stat-label">System Status</span>
-                            <div class="stat-icon" style="background: #f0fdf4; color: #10b981;">
-                                ✓
-                            </div>
+                            <div class="stat-icon" style="background:#f0fdf4;color:#10b981;">&#x2713;</div>
                         </div>
-                        <div class="stat-value" style="font-size: 20px;">Healthy</div>
+                        <div class="stat-value" style="font-size:20px;">Healthy</div>
                         <div class="stat-change positive">All services running</div>
                     </div>
-
                     <div class="stat-card">
                         <div class="stat-header">
                             <span class="stat-label">Last Update</span>
-                            <div class="stat-icon" style="background: #eff6ff; color: #2563eb;">
-                                🕐
-                            </div>
+                            <div class="stat-icon" style="background:var(--primary-light);color:var(--primary);">&#x1F552;</div>
                         </div>
-                        <div class="stat-value" style="font-size: 16px;" id="lastUpdate">Just now</div>
+                        <div class="stat-value" style="font-size:16px;" id="lastUpdate">--:--</div>
                         <div class="stat-change">Auto refresh</div>
                     </div>
                 </div>
 
-                <!-- Quick Access -->
                 <div class="content-card">
                     <div class="card-header">
                         <div>
                             <h2 class="card-title">Quick Access</h2>
-                            <p class="card-subtitle">Các công cụ thường dùng</p>
+                            <p class="card-subtitle">Common actions</p>
                         </div>
                     </div>
-
                     <div class="stats-grid">
-                        <div class="stat-card quick-access-card" data-navigate="bulk-update">
-                            <div class="stat-icon" style="background: #eff6ff; color: #2563eb; margin-bottom: 12px;">
-                                📦
-                            </div>
-                            <div class="stat-label" style="font-size: 15px; font-weight: 600; color: var(--text-primary);">
-                                Bulk Update Orders
-                            </div>
-                            <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
-                                Upload Excel để cập nhật đơn hàng hàng loạt
-                            </p>
+                        <div class="stat-card clickable" data-navigate="admin-customers">
+                            <div class="stat-icon" style="background:var(--warning-light);color:var(--warning);margin-bottom:12px;">&#x1F465;</div>
+                            <div style="font-size:15px;font-weight:600;">Manage Customers</div>
+                            <p style="font-size:13px;color:var(--text-secondary);margin-top:4px;">View and manage API customers</p>
                         </div>
-
-                        <div class="stat-card quick-access-card" data-navigate="api-create">
-                            <div class="stat-icon" style="background: #f0fdf4; color: #10b981; margin-bottom: 12px;">
-                                ➕
-                            </div>
-                            <div class="stat-label" style="font-size: 15px; font-weight: 600; color: var(--text-primary);">
-                                Create API Customer
-                            </div>
-                            <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
-                                Tạo khách hàng mới và generate credentials
-                            </p>
+                        <div class="stat-card clickable" data-navigate="admin-create-customer">
+                            <div class="stat-icon" style="background:#f0fdf4;color:var(--success);margin-bottom:12px;">&#x2795;</div>
+                            <div style="font-size:15px;font-weight:600;">Create Customer</div>
+                            <p style="font-size:13px;color:var(--text-secondary);margin-top:4px;">Create new API customer</p>
                         </div>
-
-                        <div class="stat-card quick-access-card" data-navigate="api-customers">
-                            <div class="stat-icon" style="background: #fef3c7; color: #f59e0b; margin-bottom: 12px;">
-                                👥
-                            </div>
-                            <div class="stat-label" style="font-size: 15px; font-weight: 600; color: var(--text-primary);">
-                                Manage Customers
-                            </div>
-                            <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
-                                Xem và quản lý danh sách khách hàng API
-                            </p>
+                        <div class="stat-card clickable" data-navigate="api-docs">
+                            <div class="stat-icon" style="background:var(--primary-light);color:var(--primary);margin-bottom:12px;">&#x1F4D6;</div>
+                            <div style="font-size:15px;font-weight:600;">API Documentation</div>
+                            <p style="font-size:13px;color:var(--text-secondary);margin-top:4px;">View Open API Docs</p>
                         </div>
-
-                        <div class="stat-card quick-access-card" data-url="/api/orders/pending/summary">
-                            <div class="stat-icon" style="background: #f0fdf4; color: #10b981; margin-bottom: 12px;">
-                                📊
-                            </div>
-                            <div class="stat-label" style="font-size: 15px; font-weight: 600; color: var(--text-primary);">
-                                Pending Orders
-                            </div>
-                            <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
-                                Xem đơn hàng đang chờ xử lý
-                            </p>
+                        <div class="stat-card clickable" data-navigate="admin-tools">
+                            <div class="stat-icon" style="background:var(--primary-light);color:var(--primary);margin-bottom:12px;">&#x1F527;</div>
+                            <div style="font-size:15px;font-weight:600;">Internal Tools</div>
+                            <p style="font-size:13px;color:var(--text-secondary);margin-top:4px;">Bulk update, extensions</p>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- Bulk Update Section -->
-            <section id="bulk-update" class="content-section">
+            <!-- Admin: Customer List -->
+            <section id="admin-customers" class="content-section" data-role="admin">
                 <div class="content-card">
                     <div class="card-header">
                         <div>
-                            <h2 class="card-title">Bulk Update Orders</h2>
-                            <p class="card-subtitle">Upload file Excel để tra cứu và cập nhật trạng thái đơn hàng</p>
-                        </div>
-                        <a href="/extensions/bulk-update" class="btn btn-primary">
-                            <span>→</span> Mở công cụ
-                        </a>
-                    </div>
-
-                    <div class="tool-info-box">
-                        <div class="tool-info-icon">📦</div>
-                        <h3 class="tool-info-title">Bulk Update Tool</h3>
-                        <p class="tool-info-description">
-                            Click nút "Mở công cụ" để truy cập trang bulk update đầy đủ
-                        </p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ECount Extension Section -->
-            <section id="ecount-extension" class="content-section">
-                <div class="content-card">
-                    <div class="card-header">
-                        <div>
-                            <h2 class="card-title">ECount Extension Tool</h2>
-                            <p class="card-subtitle">Extension Chrome tự động mua tem và cập nhật tracking number</p>
+                            <h2 class="card-title">API Customers</h2>
+                            <p class="card-subtitle">All registered API customers</p>
                         </div>
                         <div class="card-actions">
-                            <a href="/extensions/tool-express" class="btn">
-                                <span>📖</span> Hướng dẫn
-                            </a>
-                            <a href="/extensions/download/tool-express" class="btn btn-primary">
-                                <span>⬇</span> Tải xuống
-                            </a>
+                            <button class="btn" id="btnReloadCustomers">Reload</button>
+                            <button class="btn btn-primary" id="btnGoCreateCustomer">+ Create</button>
                         </div>
                     </div>
-
-                    <div class="tool-info-box">
-                        <div class="tool-info-icon">🔧</div>
-                        <h3 class="tool-info-title">ECount Extension</h3>
-                        <p class="tool-info-description">
-                            Extension Chrome để tự động hóa quy trình mua tem và cập nhật ERP
-                        </p>
+                    <div id="loadingCustomers" class="loading">Loading...</div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Code</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Environment</th>
+                                    <th>Status</th>
+                                    <th>Rate Limit</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customersTableBody"></tbody>
+                        </table>
                     </div>
                 </div>
             </section>
 
-            <!-- Label Extension Section -->
-            <section id="label-extension" class="content-section">
+            <!-- Admin: Create Customer -->
+            <section id="admin-create-customer" class="content-section" data-role="admin">
                 <div class="content-card">
                     <div class="card-header">
                         <div>
-                            <h2 class="card-title">Down Label Extension Tool</h2>
-                            <p class="card-subtitle">Extension Chrome hỗ trợ khách hàng tải nhanh label từ ECount ERP</p>
+                            <h2 class="card-title">Create API Customer</h2>
+                            <p class="card-subtitle">Create a new customer and generate Client ID / Secret</p>
                         </div>
-                        <div class="card-actions">
-                            <a href="/extensions/tool-label" class="btn">
-                                <span>📖</span> Hướng dẫn
-                            </a>
-                            <a href="/extensions/download/tool-label" class="btn btn-primary">
-                                <span>⬇</span> Tải xuống
-                            </a>
+                    </div>
+                    <form id="createCustomerForm">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label required">Customer Code</label>
+                                <input type="text" class="form-input" id="formCustomerCode" required placeholder="CUS0001">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label required">Customer Name</label>
+                                <input type="text" class="form-input" id="formCustomerName" required placeholder="Company ABC">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-input" id="formEmail" placeholder="contact@example.com">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Phone</label>
+                                <input type="tel" class="form-input" id="formPhone" placeholder="+84 xxx xxx xxx">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label required">Environment</label>
+                                <select class="form-select" id="formEnvironment">
+                                    <option value="production">Production</option>
+                                    <option value="sandbox">Sandbox</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Rate Limit (Hourly)</label>
+                                <input type="number" class="form-input" id="formRateLimitHourly" value="6000">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Rate Limit (Daily)</label>
+                                <input type="number" class="form-input" id="formRateLimitDaily" value="10000">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">+ Create Customer</button>
+                    </form>
+
+                    <div id="credentialsResult" class="credentials-box hidden">
+                        <h3>Customer created successfully!</h3>
+                        <p style="color:#991b1b;margin:10px 0;font-size:14px;font-weight:500;">
+                            Client Secret is shown ONLY ONCE. Please copy and store securely!
+                        </p>
+                        <div class="credential-item">
+                            <div class="credential-label">Customer ID:</div>
+                            <div class="credential-value" id="resultCustomerId"></div>
+                        </div>
+                        <div class="credential-item">
+                            <div class="credential-label">Customer Code:</div>
+                            <div class="credential-value" id="resultCustomerCode"></div>
+                        </div>
+                        <div class="credential-item">
+                            <div class="credential-label">Client ID:</div>
+                            <div class="credential-value" id="resultClientId"></div>
+                        </div>
+                        <div class="credential-item">
+                            <div class="credential-label">Client Secret (ONE TIME ONLY):</div>
+                            <div class="credential-value secret" id="resultClientSecret"></div>
+                        </div>
+                        <div class="credential-item">
+                            <div class="credential-label">Environment:</div>
+                            <div class="credential-value" id="resultEnvironment"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Admin: Internal Tools -->
+            <section id="admin-tools" class="content-section" data-role="admin">
+                <div class="stats-grid">
+                    <div class="content-card">
+                        <div class="card-header">
+                            <div>
+                                <h2 class="card-title">Bulk Update Orders</h2>
+                                <p class="card-subtitle">Upload Excel to batch update order statuses</p>
+                            </div>
+                            <a href="/extensions/bulk-update" class="btn btn-primary">Open Tool</a>
+                        </div>
+                        <div class="tool-info-box">
+                            <div class="tool-info-icon">&#x1F4E6;</div>
+                            <h3 class="tool-info-title">Bulk Update Tool</h3>
+                            <p class="tool-info-description">Click "Open Tool" to access the full bulk update page</p>
                         </div>
                     </div>
 
+                    <div class="content-card">
+                        <div class="card-header">
+                            <div>
+                                <h2 class="card-title">ECount Extension</h2>
+                                <p class="card-subtitle">Chrome extension for ECount automation</p>
+                            </div>
+                            <div class="card-actions">
+                                <a href="/extensions/tool-express" class="btn">Guide</a>
+                                <a href="/extensions/download/tool-express" class="btn btn-primary">Download</a>
+                            </div>
+                        </div>
+                        <div class="tool-info-box">
+                            <div class="tool-info-icon">&#x1F527;</div>
+                            <h3 class="tool-info-title">ECount Extension</h3>
+                            <p class="tool-info-description">Automate label purchases and tracking updates</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══════════════════════════════════════ -->
+            <!-- CLIENT SECTIONS                        -->
+            <!-- ═══════════════════════════════════════ -->
+
+            <!-- Client: Account Overview (read-only) -->
+            <section id="client-overview" class="content-section" data-role="customer">
+                <div class="content-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Account Information</h2>
+                            <p class="card-subtitle">Your account details (read-only)</p>
+                        </div>
+                    </div>
+                    <div class="info-box" id="clientInfoBox">
+                        <div class="info-row">
+                            <span class="info-label">Customer Code</span>
+                            <span class="info-value" id="infoCustomerCode">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Customer Name</span>
+                            <span class="info-value" id="infoCustomerName">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Email</span>
+                            <span class="info-value" id="infoEmail">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Phone</span>
+                            <span class="info-value" id="infoPhone">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Environment</span>
+                            <span class="info-value" id="infoEnvironment">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Status</span>
+                            <span class="info-value" id="infoStatus">-</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Client: API Credentials -->
+            <section id="client-credentials" class="content-section" data-role="customer">
+                <div class="content-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">API Credentials</h2>
+                            <p class="card-subtitle">Your Client ID and Secret Key</p>
+                        </div>
+                    </div>
+
+                    <div style="padding:4px 0;">
+                        <div style="background:var(--warning-light);border:1px solid #fbbf24;padding:16px;border-radius:8px;margin-bottom:20px;">
+                            <div style="display:flex;align-items:start;gap:12px;">
+                                <div style="font-size:20px;">&#x26A0;</div>
+                                <div style="font-size:13px;color:#92400e;">
+                                    <strong>Note:</strong> Secret key is shown only once when generated. Please store it securely.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" style="font-weight:600;">Client ID</label>
+                            <div class="copy-group">
+                                <input type="text" class="form-input mono" id="credClientId" readonly>
+                                <button class="btn" id="btnCopyClientId">Copy</button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" style="font-weight:600;">Secret Key</label>
+                            <div class="copy-group">
+                                <input type="password" class="form-input mono" id="credClientSecret" readonly value="********">
+                                <button class="btn" id="btnShowSecret">Show</button>
+                            </div>
+                            <p id="credSecretMessage" style="margin-top:8px;font-size:13px;color:var(--text-secondary);font-style:italic;"></p>
+                        </div>
+
+                        <button class="btn btn-danger" id="btnResetSecret" style="margin-top:16px;">Reset Secret Key</button>
+
+                        <div id="newSecretBox" class="hidden" style="margin-top:16px;padding:16px;background:#f0fdf4;border:1px solid #10b981;border-radius:8px;">
+                            <div style="font-size:14px;font-weight:600;margin-bottom:8px;color:#065f46;">New Secret Key (Save now!)</div>
+                            <div class="copy-group">
+                                <input type="text" class="form-input mono" id="newSecretValue" readonly>
+                                <button class="btn" id="btnCopyNewSecret">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Client: Webhooks -->
+            <section id="client-webhooks" class="content-section" data-role="customer">
+                <div class="content-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Webhooks</h2>
+                            <p class="card-subtitle">Register URLs to receive automatic notifications</p>
+                        </div>
+                        <button class="btn btn-primary" id="btnAddWebhook">+ Add Webhook</button>
+                    </div>
+                    <div id="webhooksContainer">
+                        <div class="loading show">Loading...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══════════════════════════════════════ -->
+            <!-- SHARED SECTIONS (both roles)           -->
+            <!-- ═══════════════════════════════════════ -->
+
+            <!-- API Docs (iframe to docs page) -->
+            <section id="api-docs" class="content-section">
+                <div class="content-card" style="padding:0;overflow:hidden;">
+                    <iframe id="docsIframe" src="/extensions/api-docs" style="width:100%;border:none;min-height:calc(100vh - 160px);"></iframe>
+                </div>
+            </section>
+
+            <!-- Public Extensions -->
+            <section id="public-extensions" class="content-section">
+                <div class="content-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Label Extension</h2>
+                            <p class="card-subtitle">Chrome extension for quick label downloads from ECount ERP</p>
+                        </div>
+                        <div class="card-actions">
+                            <a href="/extensions/tool-label" class="btn">Guide</a>
+                            <a href="/extensions/download/tool-label" class="btn btn-primary">Download</a>
+                        </div>
+                    </div>
                     <div class="tool-info-box">
-                        <div class="tool-info-icon">🏷️</div>
+                        <div class="tool-info-icon">&#x1F3F7;</div>
                         <h3 class="tool-info-title">Label Download Extension</h3>
-                        <p class="tool-info-description">
-                            Extension Chrome công khai cho khách hàng tải label nhanh chóng
-                        </p>
-                        </div>
-            </div>
-        </section>
-
-        <!-- API Create Customer Section -->
-        <section id="api-create" class="content-section">
-            <div class="content-card">
-                <div class="card-header">
-                    <div>
-                        <h2 class="card-title">Tạo API Customer</h2>
-                        <p class="card-subtitle">Tạo khách hàng mới và generate Client ID/Secret</p>
+                        <p class="tool-info-description">Public Chrome extension for quick label downloads</p>
                     </div>
                 </div>
+            </section>
+        </main>
+    </div>
 
-                <form id="createCustomerForm">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label required">Mã Khách Hàng</label>
-                            <input type="text" class="form-input" id="customerCode" required placeholder="CUS0001">
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label required">Tên Khách Hàng</label>
-                            <input type="text" class="form-input" id="customerName" required placeholder="Công ty ABC">
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Email</label>
-                            <input type="email" class="form-input" id="email" placeholder="contact@example.com">
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Số Điện Thoại</label>
-                            <input type="tel" class="form-input" id="phone" placeholder="+84 xxx xxx xxx">
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label required">Môi Trường</label>
-                            <select class="form-select" id="environment">
-                                <option value="production">Production</option>
-                                <option value="sandbox">Sandbox</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Rate Limit (Hourly)</label>
-                            <input type="number" class="form-input" id="rateLimitHourly" value="6000">
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Rate Limit (Daily)</label>
-                            <input type="number" class="form-input" id="rateLimitDaily" value="10000">
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary">
-                        <span>➕</span> Tạo Khách Hàng
-                    </button>
-                </form>
-
-                <!-- Credentials Result -->
-                <div id="credentialsResult" class="credentials-box hidden">
-                    <h3>✅ Khách hàng đã được tạo thành công!</h3>
-                    <p class="credentials-warning">
-                        ⚠️ <strong>Lưu ý:</strong> Client Secret chỉ hiển thị MỘT LẦN duy nhất. Vui lòng sao chép và lưu trữ an toàn!
-                    </p>
-                    
-                    <div class="credential-item">
-                        <div class="credential-label">Customer ID:</div>
-                        <div class="credential-value" id="resultCustomerId"></div>
-                    </div>
-
-                    <div class="credential-item">
-                        <div class="credential-label">Customer Code:</div>
-                        <div class="credential-value" id="resultCustomerCode"></div>
-                    </div>
-
-                    <div class="credential-item">
-                        <div class="credential-label">Client ID:</div>
-                        <div class="credential-value" id="resultClientId"></div>
-                    </div>
-
-                    <div class="credential-item">
-                        <div class="credential-label">Client Secret (⚠️ CHỈ HIỂN THỊ MỘT LẦN):</div>
-                        <div class="credential-value secret" id="resultClientSecret"></div>
-                    </div>
-
-                    <div class="credential-item">
-                        <div class="credential-label">Environment:</div>
-                        <div class="credential-value" id="resultEnvironment"></div>
+    <!-- Webhook Modal -->
+    <div class="modal-overlay" id="webhookModal">
+        <div class="modal">
+            <h3>Add Webhook</h3>
+            <form id="webhookForm">
+                <div class="form-group">
+                    <label class="form-label required">Webhook URL</label>
+                    <input type="url" class="form-input" id="webhookUrl" required placeholder="https://your-domain.com/webhook">
+                </div>
+                <div class="form-group">
+                    <label class="form-label required">Events</label>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <label style="font-size:14px;display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" name="webhookEvents" value="tracking.updated" checked> tracking.updated
+                        </label>
+                        <label style="font-size:14px;display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" name="webhookEvents" value="order.status"> order.status
+                        </label>
+                        <label style="font-size:14px;display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" name="webhookEvents" value="order.exception"> order.exception
+                        </label>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        <!-- API Customers Section -->
-        <section id="api-customers" class="content-section">
-            <div class="content-card">
-                <div class="card-header">
-                    <div>
-                        <h2 class="card-title">API Customers</h2>
-                        <p class="card-subtitle">Danh sách khách hàng sử dụng API</p>
-                    </div>
-                    <button class="btn" id="reloadCustomersBtn">
-                        <span>🔄</span> Tải lại
-                    </button>
+                <div class="form-group">
+                    <label class="form-label required">Secret</label>
+                    <input type="text" class="form-input" id="webhookSecret" required placeholder="Min 8 characters" minlength="8">
+                    <p style="margin-top:4px;font-size:12px;color:var(--text-secondary);">Used to sign webhook payloads (HMAC-SHA256)</p>
                 </div>
-
-                <div id="loadingCustomers" class="loading">
-                    <p>Đang tải...</p>
+                <div class="modal-actions">
+                    <button type="button" class="btn" id="btnCancelWebhook">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Webhook</button>
                 </div>
+            </form>
+        </div>
+    </div>
 
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Mã KH</th>
-                                <th>Tên Khách Hàng</th>
-                                <th>Email</th>
-                                <th>Môi Trường</th>
-                                <th>Trạng Thái</th>
-                                <th>Rate Limit (H/D)</th>
-                                <th>Ngày Tạo</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="customersTableBody">
-                            <!-- Rows will be inserted here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-    </main>
-</div>
-
-<script src="/js/dashboard.js?1233"></script>
-
+    <script src="/js/dashboard.js?1912"></script>
 </body>
 </html>

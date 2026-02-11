@@ -60,8 +60,10 @@ const receiverSchema = Joi.object({
     addressLine1: Joi.string().max(500).required()
         .messages({ 'any.required': 'Street address is required (Street line 1*)' }),
     addressLine2: Joi.string().max(500).optional().allow(''),
-    zipCode: Joi.string().max(20).optional().allow(''), // ĐỔI TỪ postalCode
-    phone: Joi.string().max(50).optional().allow(''),
+    zipCode: Joi.string().max(20).required()
+        .messages({ 'any.required': 'Zip code is required' }), // ĐỔI TỪ postalCode
+    phone: Joi.string().max(50).required()
+        .messages({ 'any.required': 'Phone number is required' }),
     email: Joi.string().email().max(100).optional().allow('')
 });
 
@@ -83,7 +85,8 @@ const apiOrderSchema = Joi.object({
         .messages({ 'string.pattern.base': 'ioDate must be in YYYYMMDD format' }),
     customerCode: Joi.string().max(50).optional(),
     customerName: Joi.string().max(255).optional(),
-    warehouseCode: Joi.string().max(50).optional().allow(''),
+    warehouseCode: Joi.string().max(50).required()
+        .messages({ 'any.required': 'Warehouse code is required' }),
     employeeCode: Joi.string().max(50).allow('').optional(),
 
     // Order info - required

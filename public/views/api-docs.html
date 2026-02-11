@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>THG-FULFILL Open API Documentation</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #2563eb; --primary-dark: #1d4ed8; --primary-light: #eff6ff;
+            --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
+            --bg: #ffffff; --bg-alt: #f8fafc; --border: #e2e8f0;
+            --text: #0f172a; --text-secondary: #64748b;
+            --code-bg: #1e293b; --code-text: #e2e8f0;
+            --sidebar-w: 240px;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--text); line-height: 1.7; background: var(--bg); }
+
+        /* Layout */
+        .docs-layout { display: flex; min-height: 100vh; }
+        .docs-sidebar {
+            position: fixed; top: 0; left: 0; width: var(--sidebar-w); height: 100vh;
+            background: var(--bg); border-right: 1px solid var(--border);
+            overflow-y: auto; padding: 24px 0; z-index: 10;
+        }
+        .docs-main { margin-left: var(--sidebar-w); flex: 1; padding: 40px 48px; max-width: 900px; }
+
+        /* Sidebar */
+        .docs-sidebar-title { padding: 0 20px 16px; font-size: 15px; font-weight: 700; color: var(--primary); }
+        .docs-sidebar-version { padding: 0 20px 20px; font-size: 12px; color: var(--text-secondary); border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+        .docs-nav-group { padding: 0 12px; margin-bottom: 20px; }
+        .docs-nav-group-title { padding: 0 8px 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); }
+        .docs-nav-link {
+            display: block; padding: 6px 12px; font-size: 13px; color: var(--text-secondary);
+            text-decoration: none; border-radius: 6px; cursor: pointer; transition: all 0.15s;
+        }
+        .docs-nav-link:hover { background: var(--bg-alt); color: var(--text); }
+        .docs-nav-link.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+
+        /* Sections */
+        .docs-section { padding-bottom: 48px; margin-bottom: 48px; border-bottom: 1px solid var(--border); }
+        .docs-section:last-child { border-bottom: none; }
+        .docs-section h2 { font-size: 24px; font-weight: 700; margin-bottom: 16px; padding-top: 8px; }
+        .docs-section h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; }
+        .docs-section h4 { font-size: 15px; font-weight: 600; margin: 20px 0 8px; }
+        .docs-section p { margin-bottom: 14px; font-size: 15px; color: #334155; }
+        .docs-section ul { margin: 0 0 16px 20px; font-size: 15px; color: #334155; }
+        .docs-section li { margin-bottom: 4px; }
+
+        /* Method badges */
+        .method { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 700; font-family: monospace; margin-right: 8px; }
+        .method-get { background: #d1fae5; color: #065f46; }
+        .method-post { background: #dbeafe; color: #1e40af; }
+        .method-delete { background: #fee2e2; color: #991b1b; }
+        .method-patch { background: #fef3c7; color: #92400e; }
+
+        /* Endpoint URL */
+        .endpoint { display: flex; align-items: center; padding: 12px 16px; background: var(--bg-alt); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 16px; font-family: 'Courier New', monospace; font-size: 14px; }
+
+        /* Code blocks */
+        .code-example { margin: 16px 0 24px; border-radius: 8px; overflow: hidden; border: 1px solid #334155; }
+        .code-tabs { display: flex; background: #0f172a; border-bottom: 1px solid #334155; }
+        .code-tab {
+            padding: 8px 16px; font-size: 13px; color: #94a3b8; background: transparent;
+            border: none; cursor: pointer; font-family: inherit; transition: all 0.15s;
+        }
+        .code-tab:hover { color: #e2e8f0; }
+        .code-tab.active { color: #ffffff; border-bottom: 2px solid var(--primary); }
+        .code-blocks { position: relative; }
+        .code-block { display: none; background: var(--code-bg); padding: 16px 20px; overflow-x: auto; margin: 0; }
+        .code-block.active { display: block; }
+        .code-block code { color: var(--code-text); font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6; white-space: pre; }
+        .copy-code-btn {
+            position: absolute; top: 8px; right: 8px; padding: 4px 10px;
+            background: #334155; color: #94a3b8; border: none; border-radius: 4px;
+            font-size: 12px; cursor: pointer;
+        }
+        .copy-code-btn:hover { background: #475569; color: #e2e8f0; }
+        .copy-code-btn--copied { background: var(--success); color: white; }
+
+        /* Inline code */
+        code.inline { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: 'Courier New', monospace; color: #e11d48; }
+
+        /* Tables */
+        .param-table { width: 100%; border-collapse: collapse; margin: 12px 0 24px; font-size: 14px; }
+        .param-table th { text-align: left; padding: 10px 12px; background: var(--bg-alt); border: 1px solid var(--border); font-weight: 600; font-size: 13px; color: var(--text-secondary); }
+        .param-table td { padding: 10px 12px; border: 1px solid var(--border); vertical-align: top; }
+        .param-table .required { color: var(--danger); font-weight: 600; font-size: 11px; }
+        .param-table .optional { color: var(--text-secondary); font-size: 11px; }
+
+        /* Alert box */
+        .alert { padding: 14px 16px; border-radius: 8px; margin: 16px 0; font-size: 14px; }
+        .alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+        .alert-warning { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .docs-sidebar { display: none; }
+            .docs-main { margin-left: 0; padding: 24px 16px; }
+        }
+    </style>
+</head>
+<body>
+<div class="docs-layout">
+    <!-- ═══ SIDEBAR ═══ -->
+    <nav class="docs-sidebar">
+        <div class="docs-sidebar-title">THG-FULFILL API</div>
+        <div class="docs-sidebar-version">Version 1.0</div>
+
+        <div class="docs-nav-group">
+            <div class="docs-nav-group-title">Getting Started</div>
+            <a class="docs-nav-link active" data-section="overview">Overview</a>
+            <a class="docs-nav-link" data-section="authentication">Authentication</a>
+        </div>
+        <div class="docs-nav-group">
+            <div class="docs-nav-group-title">Orders</div>
+            <a class="docs-nav-link" data-section="create-orders">Create Orders</a>
+            <a class="docs-nav-link" data-section="get-order">Get Order</a>
+        </div>
+        <div class="docs-nav-group">
+            <div class="docs-nav-group-title">Reference Data</div>
+            <a class="docs-nav-link" data-section="get-fields">Services &amp; Warehouses</a>
+        </div>
+        <div class="docs-nav-group">
+            <div class="docs-nav-group-title">Webhooks</div>
+            <a class="docs-nav-link" data-section="webhooks">Webhooks</a>
+        </div>
+        <div class="docs-nav-group">
+            <div class="docs-nav-group-title">Reference</div>
+            <a class="docs-nav-link" data-section="errors">Error Codes</a>
+        </div>
+    </nav>
+
+    <!-- ═══ MAIN CONTENT ═══ -->
+    <main class="docs-main">
+
+        <!-- ──────────────── OVERVIEW ──────────────── -->
+        <section id="overview" class="docs-section">
+            <h2>Overview</h2>
+            <p>THG-FULFILL Open API allows partners to create shipping orders, track shipments, and receive real-time notifications through webhooks.</p>
+
+            <h4>Base URL</h4>
+            <div class="endpoint"><code class="inline">https://express.thgfulfill.com/api/v1</code></div>
+
+            <h4>Key Features</h4>
+            <ul>
+                <li>Create bulk shipping orders (up to 100 per request)</li>
+                <li>Query order status and tracking information</li>
+                <li>Real-time webhook notifications for tracking updates, status changes, and exceptions</li>
+                <li>OAuth2 Client Credentials authentication</li>
+                <li>Rate limiting with per-hour and per-day quotas</li>
+                <li>Sandbox environment for testing</li>
+            </ul>
+
+            <h4>Response Format</h4>
+            <p>All responses use JSON with a consistent envelope:</p>
+            <div class="code-example">
+                <div class="code-blocks">
+                    <pre class="code-block active" data-lang="json"><code>{
+  "success": true,
+  "message": "Success",
+  "data": { ... },
+  "timestamp": "2025-01-15T10:30:00.000Z"
+}</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- ──────────────── AUTHENTICATION ──────────────── -->
+        <section id="authentication" class="docs-section">
+            <h2>Authentication</h2>
+            <p>The API uses OAuth2 Client Credentials flow. You'll need your <code class="inline">client_id</code> and <code class="inline">client_secret</code> from the dashboard.</p>
+
+            <h3>1. Get Access Token</h3>
+            <div class="endpoint">
+                <span class="method method-post">POST</span>
+                <span>/api/v1/auth/token</span>
+            </div>
+
+            <h4>Request Body</h4>
+            <table class="param-table">
+                <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code class="inline">client_id</code></td><td>string</td><td><span class="required">Required</span></td><td>Your client ID (starts with <code class="inline">thg_</code>)</td></tr>
+                    <tr><td><code class="inline">client_secret</code></td><td>string</td><td><span class="required">Required</span></td><td>Your client secret</td></tr>
+                </tbody>
+            </table>
+
+            <div class="code-example">
+                <div class="code-tabs">
+                    <button class="code-tab active" data-lang="curl">cURL</button>
+                    <button class="code-tab" data-lang="nodejs">Node.js</button>
+                    <button class="code-tab" data-lang="php">PHP</button>
+                </div>
+                <div class="code-blocks">
+                    <button class="copy-code-btn">Copy</button>
+                    <pre class="code-block active" data-lang="curl"><code>curl -X POST https://express.thgfulfill.com/api/v1/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_id": "thg_your_client_id",
+    "client_secret": "your_client_secret"
+  }'</code></pre>
+                    <pre class="code-block" data-lang="nodejs"><code>const response = await fetch('https://express.thgfulfill.com/api/v1/auth/token', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    client_id: 'thg_your_client_id',
+    client_secret: 'your_client_secret'
+  })
+});
+const data = await response.json();
+console.log(data.data.access_token);</code></pre>
+                    <pre class="code-block" data-lang="php"><code>$ch = curl_init('https://express.thgfulfill.com/api/v1/auth/token');
+curl_setopt_array($ch, [
+    CURLOPT_POST =&gt; true,
+    CURLOPT_HTTPHEADER =&gt; ['Content-Type: application/json'],
+    CURLOPT_POSTFIELDS =&gt; json_encode([
+        'client_id' =&gt; 'thg_your_client_id',
+        'client_secret' =&gt; 'your_client_secret',
+    ]),
+    CURLOPT_RETURNTRANSFER =&gt; true,
+]);
+$response = json_decode(curl_exec($ch), true);
+$accessToken = $response['data']['access_token'];</code></pre>
+                </div>
+            </div>
+
+            <h4>Response</h4>
+            <div class="code-example">
+                <div class="code-blocks">
+                    <pre class="code-block active" data-lang="json"><code>{
+  "success": true,
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIs...",
+    "refresh_token": "rf_abc123...",
+    "token_type": "Bearer",
+    "expires_in": 3600
+  }
+}</code></pre>
+                </div>
+            </div>
+
+            <h3>2. Use the Token</h3>
+            <p>Include the access token in the <code class="inline">Authorization</code> header for all API requests:</p>
+            <div class="code-example">
+                <div class="code-blocks">
+                    <pre class="code-block active" data-lang="curl"><code>Authorization: Bearer eyJhbGciOiJIUzI1NiIs...</code></pre>
+                </div>
+            </div>
+
+            <h3>3. Refresh Token</h3>
+            <div class="endpoint">
+                <span class="method method-post">POST</span>
+                <span>/api/v1/auth/refresh</span>
+            </div>
+            <p>Use the refresh token to get a new access token without re-authenticating.</p>
+
+            <h3>4. Verify Token</h3>
+            <div class="endpoint">
+                <span class="method method-get">GET</span>
+                <span>/api/v1/auth/verify</span>
+            </div>
+            <p>Check if the current access token is still valid.</p>
+
+            <h3>5. Revoke Token</h3>
+            <div class="endpoint">
+                <span class="method method-post">POST</span>
+                <span>/api/v1/auth/revoke</span>
+            </div>
+            <p>Revoke the current access token.</p>
+        </section>
+
+        <!-- ──────────────── CREATE ORDERS ──────────────── -->
+        <section id="create-orders" class="docs-section">
+            <h2>Create Orders</h2>
+            <div class="endpoint">
+                <span class="method method-post">POST</span>
+                <span>/api/v1/orders/bulk</span>
+            </div>
+            <p>Create one or more shipping orders. Maximum 100 orders per request.</p>
+
+            <div class="alert alert-info">Requires <code class="inline">bulk_order_enabled</code> permission on your account.</div>
+
+            <h3>Order Object</h3>
+            <table class="param-table">
+                <thead><tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code class="inline">orderNumber</code></td><td>string</td><td><span class="required">Required</span></td><td>Your unique order reference</td></tr>
+                    <tr><td><code class="inline">platformOrderNumber</code></td><td>string</td><td><span class="optional">Optional</span></td><td>Platform order number (e.g. Shopify order ID)</td></tr>
+                    <tr><td><code class="inline">serviceType</code></td><td>string</td><td><span class="required">Required</span></td><td>Shipping service code (e.g. <code class="inline">VN-YTYCPREC</code>)</td></tr>
+                    <tr><td><code class="inline">additionalService</code></td><td>string</td><td><span class="required">Required</span></td><td>Additional service: <code class="inline">G0</code>, <code class="inline">G1</code>, <code class="inline">V0</code>, <code class="inline">V1</code></td></tr>
+                    <tr><td><code class="inline">warehouseCode</code></td><td>string</td><td><span class="required">Required</span></td><td>Warehouse code (e.g. <code class="inline">CNEXP</code>)</td></tr>
+                    <tr><td><code class="inline">receiver</code></td><td>object</td><td><span class="required">Required</span></td><td>Receiver information (see below)</td></tr>
+                    <tr><td><code class="inline">declarationInfo</code></td><td>array</td><td><span class="required">Required</span></td><td>Declaration items (min 1)</td></tr>
+                    <tr><td><code class="inline">packages</code></td><td>array</td><td><span class="required">Required</span></td><td>Package dimensions (min 1)</td></tr>
+                    <tr><td><code class="inline">customsNumber</code></td><td>object</td><td><span class="optional">Optional</span></td><td>Customs numbers (IOSS, VAT, EORI)</td></tr>
+                </tbody>
+            </table>
+
+            <h4>receiver Object</h4>
+            <table class="param-table">
+                <thead><tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code class="inline">name</code></td><td>string</td><td><span class="required">Required</span></td><td>Full name of receiver</td></tr>
+                    <tr><td><code class="inline">countryCode</code></td><td>string</td><td><span class="required">Required</span></td><td>2-letter country code (e.g. US, GB)</td></tr>
+                    <tr><td><code class="inline">province</code></td><td>string</td><td><span class="required">Required</span></td><td>State/Province</td></tr>
+                    <tr><td><code class="inline">city</code></td><td>string</td><td><span class="required">Required</span></td><td>City</td></tr>
+                    <tr><td><code class="inline">addressLine1</code></td><td>string</td><td><span class="required">Required</span></td><td>Street address</td></tr>
+                    <tr><td><code class="inline">addressLine2</code></td><td>string</td><td><span class="optional">Optional</span></td><td>Additional address info</td></tr>
+                    <tr><td><code class="inline">zipCode</code></td><td>string</td><td><span class="required">Required</span></td><td>Postal/ZIP code</td></tr>
+                    <tr><td><code class="inline">phone</code></td><td>string</td><td><span class="required">Required</span></td><td>Phone number</td></tr>
+                    <tr><td><code class="inline">email</code></td><td>string</td><td><span class="optional">Optional</span></td><td>Email address</td></tr>
+                </tbody>
+            </table>
+
+            <h4>declarationInfo Item</h4>
+            <table class="param-table">
+                <thead><tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code class="inline">nameEn</code></td><td>string</td><td><span class="required">Required</span></td><td>Product name (English)</td></tr>
+                    <tr><td><code class="inline">nameCN</code></td><td>string</td><td><span class="optional">Optional</span></td><td>Product name (Chinese)</td></tr>
+                    <tr><td><code class="inline">quantity</code></td><td>integer</td><td><span class="required">Required</span></td><td>Quantity (default: 1)</td></tr>
+                    <tr><td><code class="inline">unitWeight</code></td><td>number</td><td><span class="required">Required</span></td><td>Unit weight (kg)</td></tr>
+                    <tr><td><code class="inline">unitPrice</code></td><td>number</td><td><span class="required">Required</span></td><td>Declared unit price (USD)</td></tr>
+                    <tr><td><code class="inline">sellingPrice</code></td><td>number</td><td><span class="required">Required</span></td><td>Actual selling price (USD)</td></tr>
+                    <tr><td><code class="inline">hsCode</code></td><td>string</td><td><span class="optional">Optional</span></td><td>HS code</td></tr>
+                    <tr><td><code class="inline">currency</code></td><td>string</td><td><span class="optional">Optional</span></td><td>Currency code (default: USD)</td></tr>
+                </tbody>
+            </table>
+
+            <h4>packages Item</h4>
+            <table class="param-table">
+                <thead><tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code class="inline">length</code></td><td>number</td><td><span class="required">Required</span></td><td>Length in cm</td></tr>
+                    <tr><td><code class="inline">width</code></td><td>number</td><td><span class="required">Required</span></td><td>Width in cm</td></tr>
+                    <tr><td><code class="inline">height</code></td><td>number</td><td><span class="required">Required</span></td><td>Height in cm</td></tr>
+                    <tr><td><code class="inline">weight</code></td><td>number</td><td><span class="required">Required</span></td><td>Weight in kg</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Request Example</h3>
+            <div class="code-example">
+                <div class="code-tabs">
+                    <button class="code-tab active" data-lang="curl">cURL</button>
+                    <button class="code-tab" data-lang="nodejs">Node.js</button>
+                    <button class="code-tab" data-lang="php">PHP</button>
+                </div>
+                <div class="code-blocks">
+                    <button class="copy-code-btn">Copy</button>
+                    <pre class="code-block active" data-lang="curl"><code>curl -X POST https://express.thgfulfill.com/api/v1/orders/bulk \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orders": [{
+      "orderNumber": "ORD-2025-001",
+      "serviceType": "VN-YTYCPREC",
+      "additionalService": "G0",
+      "receiver": {
+        "name": "John Doe",
+        "countryCode": "US",
+        "province": "California",
+        "city": "Los Angeles",
+        "addressLine1": "123 Main St",
+        "zipCode": "90001",
+        "phone": "+1234567890"
+      },
+      "declarationInfo": [{
+        "nameEn": "T-Shirt",
+        "quantity": 2,
+        "unitWeight": 0.3,
+        "unitPrice": 15.00,
+        "sellingPrice": 29.99,
+        "hsCode": "6109100010"
+      }],
+      "packages": [{
+        "length": 30,
+        "width": 20,
+        "height": 10,
+        "weight": 0.6
+      }]
+    }]
+  }'</code></pre>
+                    <pre class="code-block" data-lang="nodejs"><code>const response = await fetch('https://express.thgfulfill.com/api/v1/orders/bulk', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    orders: [{
+      orderNumber: 'ORD-2025-001',
+      serviceType: 'VN-YTYCPREC',
+      additionalService: 'G0',
+      receiver: {
+        name: 'John Doe',
+        countryCode: 'US',
+        province: 'California',
+        city: 'Los Angeles',
+        addressLine1: '123 Main St',
+        zipCode: '90001',
+        phone: '+1234567890'
+      },
+      declarationInfo: [{
+        nameEn: 'T-Shirt',
+        quantity: 2,
+        unitWeight: 0.3,
+        unitPrice: 15.00,
+        sellingPrice: 29.99
+      }],
+      packages: [{
+        length: 30, width: 20, height: 10, weight: 0.6
+      }]
+    }]
+  })
+});
+const data = await response.json();</code></pre>
+                    <pre class="code-block" data-lang="php"><code>$ch = curl_init('https://express.thgfulfill.com/api/v1/orders/bulk');
+curl_setopt_array($ch, [
+    CURLOPT_POST =&gt; true,
+    CURLOPT_HTTPHEADER =&gt; [
+        'Authorization: Bearer YOUR_ACCESS_TOKEN',
+        'Content-Type: application/json',
+    ],
+    CURLOPT_POSTFIELDS =&gt; json_encode([
+        'orders' =&gt; [[
+            'orderNumber' =&gt; 'ORD-2025-001',
+            'serviceType' =&gt; 'VN-YTYCPREC',
+            'additionalService' =&gt; 'G0',
+            'receiver' =&gt; [
+                'name' =&gt; 'John Doe',
+                'countryCode' =&gt; 'US',
+                'province' =&gt; 'California',
+                'city' =&gt; 'Los Angeles',
+                'addressLine1' =&gt; '123 Main St',
+                'zipCode' =&gt; '90001',
+            ],
+            'declarationInfo' =&gt; [[
+                'nameEn' =&gt; 'T-Shirt',
+                'quantity' =&gt; 2,
+                'unitWeight' =&gt; 0.3,
+                'unitPrice' =&gt; 15.00,
+                'sellingPrice' =&gt; 29.99,
+            ]],
+            'packages' =&gt; [[
+                'length' =&gt; 30, 'width' =&gt; 20,
+                'height' =&gt; 10, 'weight' =&gt; 0.6,
+            ]],
+        ]],
+    ]),
+    CURLOPT_RETURNTRANSFER =&gt; true,
+]);
+$response = json_decode(curl_exec($ch), true);</code></pre>
+                </div>
+            </div>
+
+            <h3>Response</h3>
+            <div class="code-example">
+                <div class="code-blocks">
+                    <pre class="code-block active" data-lang="json"><code>{
+    "success": true,
+    "message": "Processed 1 orders: 1 successful, 0 failed",
+    "data": {
+        "total": 1,
+        "successful": 1,
+        "failed": 0,
+        "results": [
+            {
+                "success": true,
+                "status": "new",
+                "orders": {
+                    "reference_code": "API17708281859424887",
+                    "status": "pending",
+                }
+            },
+        ],
+        "errors": []
+    }
+}</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- ──────────────── GET ORDER ──────────────── -->
+        <section id="get-order" class="docs-section">
+            <h2>Get Order</h2>
+            <div class="endpoint">
+                <span class="method method-get">GET</span>
+                <span>/api/v1/orders/:referenceCode</span>
+            </div>
+            <p>Retrieve details of a specific order by its order number.</p>
+
+            <h4>Path Parameters</h4>
+            <table class="param-table">
+                <thead><tr><th>Parameter</th><th>Type</th><th></th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code class="inline">referenceCode</code></td><td>string</td><td><span class="required">Required</span></td><td>The order number</td></tr>
+                </tbody>
+            </table>
+
+            <div class="code-example">
+                <div class="code-tabs">
+                    <button class="code-tab active" data-lang="curl">cURL</button>
+                    <button class="code-tab" data-lang="nodejs">Node.js</button>
+                    <button class="code-tab" data-lang="php">PHP</button>
+                </div>
+                <div class="code-blocks">
+                    <button class="copy-code-btn">Copy</button>
+                    <pre class="code-block active" data-lang="curl"><code>curl https://express.thgfulfill.com/api/v1/orders/ORD-2025-001 \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"</code></pre>
+                    <pre class="code-block" data-lang="nodejs"><code>const response = await fetch(
+  'https://express.thgfulfill.com/api/v1/orders/ORD-2025-001',
+  { headers: { 'Authorization': 'Bearer YOUR_ACCESS_TOKEN' } }
+);
+const data = await response.json();</code></pre>
+                    <pre class="code-block" data-lang="php"><code>$ch = curl_init('https://express.thgfulfill.com/api/v1/orders/ORD-2025-001');
+curl_setopt_array($ch, [
+    CURLOPT_HTTPHEADER =&gt; ['Authorization: Bearer YOUR_ACCESS_TOKEN'],
+    CURLOPT_RETURNTRANSFER =&gt; true,
+]);
+$response = json_decode(curl_exec($ch), true);</code></pre>
+                </div>
+            </div>
+
+            <h3>Response</h3>
+            <div class="code-example">
+                <div class="code-blocks">
+                    <pre class="code-block active" data-lang="json"><code>{
+    "success": true,
+    "message": "Success",
+    "data": {
+        "reference_code": "API17708281859424887",
+        "order_number": "ORDER-001-TEST",
+        "code_thg": null,
+        "status": "pending",
+        "product_code": "VNBKZXR",
+    }
+}</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- ──────────────── GET FIELDS ──────────────── -->
+        <section id="get-fields" class="docs-section">
+            <h2>Services &amp; Warehouses</h2>
+            <p>Retrieve reference data needed for creating orders.</p>
+
+            <h3>List Shipping Services</h3>
+            <div class="endpoint">
+                <span class="method method-get">GET</span>
+                <span>/api/v1/services</span>
+            </div>
+            <p>Returns all available shipping service types (e.g. <code class="inline">VN-YTYCPREC</code>, <code class="inline">VNTHZXR</code>).</p>
+
+            <h3>List Additional Services</h3>
+            <div class="endpoint">
+                <span class="method method-get">GET</span>
+                <span>/api/v1/add-services</span>
+            </div>
+            <p>Returns additional services: <code class="inline">G0</code> (non-EU, no IOSS), <code class="inline">G1</code>, <code class="inline">V0</code> (non-EU), <code class="inline">V1</code> (EU).</p>
+
+            <h3>List Warehouses</h3>
+            <div class="endpoint">
+                <span class="method method-get">GET</span>
+                <span>/api/v1/warehouses</span>
+            </div>
+            <p>Returns available warehouse codes:</p>
+            <table class="param-table">
+                <thead><tr><th>Code</th><th>Name</th></tr></thead>
+                <tbody>
+                    <tr><td><code class="inline">CNEXP</code></td><td>CN-THG-EXP</td></tr>
+                    <tr><td><code class="inline">CNFFM</code></td><td>CN-THG-FFM</td></tr>
+                    <tr><td><code class="inline">USDRO</code></td><td>US-THG-DROP</td></tr>
+                    <tr><td><code class="inline">VNHCM</code></td><td>VN-HCM-THG</td></tr>
+                    <tr><td><code class="inline">VNHN</code></td><td>VN-HN-THG</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ──────────────── WEBHOOKS ──────────────── -->
+        <section id="webhooks" class="docs-section">
+            <h2>Webhooks</h2>
+            <p>Receive real-time notifications when events occur on your orders.</p>
+
+            <h3>Available Events</h3>
+            <table class="param-table">
+                <thead><tr><th>Event</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code class="inline">tracking.updated</code></td><td>Tracking status has been updated</td></tr>
+                    <tr><td><code class="inline">order.status</code></td><td>Order status has changed</td></tr>
+                    <tr><td><code class="inline">order.exception</code></td><td>An exception occurred on the order</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Register Webhook</h3>
+            <div class="endpoint">
+                <span class="method method-post">POST</span>
+                <span>/api/v1/webhooks</span>
+            </div>
+            <table class="param-table">
+                <thead><tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code class="inline">url</code></td><td>string</td><td><span class="required">Required</span></td><td>Your HTTPS endpoint URL</td></tr>
+                    <tr><td><code class="inline">secret</code></td><td>string</td><td><span class="required">Required</span></td><td>Secret for HMAC-SHA256 signing (min 8 chars)</td></tr>
+                    <tr><td><code class="inline">events</code></td><td>array</td><td><span class="required">Required</span></td><td>Events to subscribe to</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Payload Signature</h3>
+            <p>Each webhook delivery includes these headers:</p>
+            <table class="param-table">
+                <thead><tr><th>Header</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code class="inline">X-Webhook-Event</code></td><td>The event type (e.g. <code class="inline">tracking.updated</code>)</td></tr>
+                    <tr><td><code class="inline">X-Webhook-Signature</code></td><td>HMAC-SHA256 signature of the payload</td></tr>
+                </tbody>
+            </table>
+
+            <h4>Verifying Signatures</h4>
+            <div class="code-example">
+                <div class="code-tabs">
+                    <button class="code-tab active" data-lang="nodejs">Node.js</button>
+                    <button class="code-tab" data-lang="php">PHP</button>
+                </div>
+                <div class="code-blocks">
+                    <button class="copy-code-btn">Copy</button>
+                    <pre class="code-block active" data-lang="nodejs"><code>const crypto = require('crypto');
+
+function verifyWebhook(payload, signature, secret) {
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(JSON.stringify(payload))
+    .digest('hex');
+  return signature === expected;
+}</code></pre>
+                    <pre class="code-block" data-lang="php"><code>function verifyWebhook($payload, $signature, $secret) {
+    $expected = hash_hmac('sha256', json_encode($payload), $secret);
+    return hash_equals($expected, $signature);
+}</code></pre>
+                </div>
+            </div>
+
+            <h3>Retry Policy</h3>
+            <ul>
+                <li>Up to <strong>6 attempts</strong> with exponential backoff</li>
+                <li>Webhook is <strong>auto-deactivated</strong> after 5 consecutive failures</li>
+                <li>Successful delivery resets the failure counter</li>
+            </ul>
+
+            <h3>List Webhooks</h3>
+            <div class="endpoint">
+                <span class="method method-get">GET</span>
+                <span>/api/v1/webhooks</span>
+            </div>
+
+            <h3>Delete Webhook</h3>
+            <div class="endpoint">
+                <span class="method method-delete">DELETE</span>
+                <span>/api/v1/webhooks/:id</span>
+            </div>
+        </section>
+
+        <!-- ──────────────── ERRORS ──────────────── -->
+        <section id="errors" class="docs-section">
+            <h2>Error Codes</h2>
+            <p>The API uses standard HTTP status codes with a consistent error response format.</p>
+
+            <h4>Error Response Format</h4>
+            <div class="code-example">
+                <div class="code-blocks">
+                    <pre class="code-block active" data-lang="json"><code>{
+  "success": false,
+  "message": "Validation failed",
+  "data": {
+    "errors": [
+      { "field": "receiver.name", "message": "Receiver name is required" }
+    ]
+  },
+  "timestamp": "2025-01-15T10:30:00.000Z"
+}</code></pre>
+                </div>
+            </div>
+
+            <h4>HTTP Status Codes</h4>
+            <table class="param-table">
+                <thead><tr><th>Code</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>200</strong></td><td>Success</td></tr>
+                    <tr><td><strong>201</strong></td><td>Created successfully</td></tr>
+                    <tr><td><strong>400</strong></td><td>Bad Request - Invalid or missing parameters</td></tr>
+                    <tr><td><strong>401</strong></td><td>Unauthorized - Invalid or expired token</td></tr>
+                    <tr><td><strong>403</strong></td><td>Forbidden - Insufficient permissions</td></tr>
+                    <tr><td><strong>404</strong></td><td>Not Found - Resource does not exist</td></tr>
+                    <tr><td><strong>409</strong></td><td>Conflict - Duplicate resource (e.g. customer code)</td></tr>
+                    <tr><td><strong>429</strong></td><td>Too Many Requests - Rate limit exceeded</td></tr>
+                    <tr><td><strong>500</strong></td><td>Internal Server Error</td></tr>
+                </tbody>
+            </table>
+
+            <div class="alert alert-warning">
+                <strong>Rate Limits:</strong> Each customer has hourly and daily rate limits. When exceeded, you'll receive a 429 response with a <code class="inline">Retry-After</code> header.
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<script src="/js/api-docs.js?1912"></script>
+</body>
+</html>

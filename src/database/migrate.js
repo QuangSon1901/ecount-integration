@@ -806,6 +806,36 @@ const migrations = [
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             COMMENT='Log gửi webhook — retry queue + history';
         `
+    },
+    {
+        version: 30,
+        name: 'add_portal_password_to_api_customers',
+        up: `
+            ALTER TABLE api_customers
+            ADD COLUMN portal_password_hash VARCHAR(255) NULL
+                COMMENT 'bcrypt hash — khách hàng dùng để login trang chi tiết'
+                AFTER metadata;
+        `
+    },
+
+    {
+        version: 31,
+        name: 'create_admin_users_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS admin_users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(50) UNIQUE NOT NULL COMMENT 'Username đăng nhập',
+                password_hash VARCHAR(255) NOT NULL COMMENT 'bcrypt hash',
+                full_name VARCHAR(100) COMMENT 'Họ tên đầy đủ',
+                email VARCHAR(100) COMMENT 'Email liên hệ',
+                status ENUM('active', 'inactive') DEFAULT 'active' COMMENT 'Trạng thái tài khoản',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_username (username),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                COMMENT='Bảng quản trị viên — login vào dashboard với full quyền';
+        `
     }
 
 ];

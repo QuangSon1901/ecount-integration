@@ -1,72 +1,101 @@
-// src/routes/api-customer.routes.js
+/**
+ * api-customer.routes.js
+ *
+ * Admin routes to manage API customers.
+ * Uses clean RBAC middleware.
+ */
+
 const express = require('express');
 const router = express.Router();
 const apiCustomerController = require('../controllers/api-customer.controller');
-const basicAuthMiddleware = require('../middlewares/basic-auth.middleware');
+const { requireRole, requireAdminOrOwner } = require('../middlewares/rbac.middleware');
+const { validateWebhookCreate } = require('../middlewares/api-webhook-validation.middleware');
 
-/**
- * Admin routes (Basic Auth required)
- * These routes are for THG staff to manage API customers
- */
+// ════════════════════════════════════════════
+// ADMIN-ONLY ROUTES
+// ════════════════════════════════════════════
 
-/**
- * @route   POST /api/v1/admin/customers
- * @desc    Create new API customer
- * @access  Admin
- */
+/** POST /api/v1/admin/customers — Create new customer */
 router.post('/',
-    basicAuthMiddleware,
+    requireRole('admin'),
     apiCustomerController.createCustomer.bind(apiCustomerController)
 );
 
-/**
- * @route   GET /api/v1/admin/customers
- * @desc    List all customers
- * @access  Admin
- */
+/** GET /api/v1/admin/customers — List all customers */
 router.get('/',
-    basicAuthMiddleware,
+    requireRole('admin'),
     apiCustomerController.listCustomers.bind(apiCustomerController)
 );
 
-/**
- * @route   GET /api/v1/admin/customers/:customerId
- * @desc    Get customer details
- * @access  Admin
- */
+/** GET /api/v1/admin/customers/:customerId — Customer details */
 router.get('/:customerId',
-    basicAuthMiddleware,
+    requireRole('admin'),
     apiCustomerController.getCustomer.bind(apiCustomerController)
 );
 
-/**
- * @route   PATCH /api/v1/admin/customers/:customerId
- * @desc    Update customer
- * @access  Admin
- */
+/** PATCH /api/v1/admin/customers/:customerId — Update customer */
 router.patch('/:customerId',
-    basicAuthMiddleware,
+    requireRole('admin'),
     apiCustomerController.updateCustomer.bind(apiCustomerController)
 );
 
-/**
- * @route   POST /api/v1/admin/customers/:customerId/credentials
- * @desc    Generate new credentials for customer
- * @access  Admin
- */
+/** POST /api/v1/admin/customers/:customerId/credentials — Generate credentials */
 router.post('/:customerId/credentials',
-    basicAuthMiddleware,
+    requireRole('admin'),
     apiCustomerController.generateCredentials.bind(apiCustomerController)
 );
 
-/**
- * @route   GET /api/v1/admin/customers/:customerId/rate-limits
- * @desc    Get rate limit statistics
- * @access  Admin
- */
+/** GET /api/v1/admin/customers/:customerId/rate-limits — Rate limit stats */
 router.get('/:customerId/rate-limits',
-    basicAuthMiddleware,
+    requireRole('admin'),
     apiCustomerController.getRateLimitStats.bind(apiCustomerController)
+);
+
+/** POST /api/v1/admin/customers/:customerId/portal-password — Set portal password */
+router.post('/:customerId/portal-password',
+    requireRole('admin'),
+    apiCustomerController.setPortalPassword.bind(apiCustomerController)
+);
+
+// ════════════════════════════════════════════
+// ADMIN + CUSTOMER (own data only) ROUTES
+// ════════════════════════════════════════════
+
+/** GET /api/v1/admin/customers/:customerId/credentials — Get credentials (client_id only) */
+router.get('/:customerId/credentials',
+    requireAdminOrOwner('customerId'),
+    apiCustomerController.getCredentials.bind(apiCustomerController)
+);
+
+/** POST /api/v1/admin/customers/:customerId/credentials/refresh — Refresh credentials */
+router.post('/:customerId/credentials/refresh',
+    requireAdminOrOwner('customerId'),
+    apiCustomerController.refreshCredentials.bind(apiCustomerController)
+);
+
+/** GET /api/v1/admin/customers/:customerId/webhooks — List webhooks */
+router.get('/:customerId/webhooks',
+    requireAdminOrOwner('customerId'),
+    apiCustomerController.getWebhooks.bind(apiCustomerController)
+);
+
+/** POST /api/v1/admin/customers/:customerId/webhooks — Register webhook */
+router.post('/:customerId/webhooks',
+    requireAdminOrOwner('customerId'),
+    validateWebhookCreate,
+    apiCustomerController.createWebhook.bind(apiCustomerController)
+);
+
+/** DELETE /api/v1/admin/customers/:customerId/webhooks/:webhookId — Delete webhook */
+router.delete('/:customerId/webhooks/:webhookId',
+    requireAdminOrOwner('customerId'),
+    apiCustomerController.deleteWebhook.bind(apiCustomerController)
+);
+
+/** GET /api/v1/admin/customers/:customerId/webhook-logs — Webhook delivery logs */
+router.get('/:customerId/webhook-logs',
+    requireAdminOrOwner('customerId'),
+    apiCustomerController.getWebhookLogs.bind(apiCustomerController)
 );
 
 module.exports = router;

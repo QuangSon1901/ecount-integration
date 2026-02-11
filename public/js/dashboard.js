@@ -1,383 +1,598 @@
-// Dashboard JavaScript - No Inline Handlers
-const API_BASE_URL = '/api/v1';
+/**
+ * dashboard.js — Main dashboard logic with clean RBAC
+ * No inline JS. All handlers attached via addEventListener.
+ */
+var API = '/api/v1';
+var currentUser = null;
 
-// ============================================
-// INITIALIZATION
-// ============================================
-document.addEventListener('DOMContentLoaded', () => {
-    initNavigation();
-    initQuickAccessCards();
-    initEventListeners();
-    loadCustomers();
-    updateLastUpdateTime();
-    
-    // Update time every minute
-    setInterval(updateLastUpdateTime, 60000);
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function () {
+    fetchCurrentUser().then(function () {
+        initNavigation();
+        initQuickAccessCards();
+        initEventListeners();
+
+        if (currentUser) {
+            if (currentUser.role === 'admin') {
+                loadCustomers();
+            } else if (currentUser.role === 'customer') {
+                loadClientData();
+            }
+        }
+
+        updateClock();
+        setInterval(updateClock, 60000);
+    });
 });
 
-// ============================================
-// NAVIGATION
-// ============================================
-function initNavigation() {
-    const navLinks = document.querySelectorAll('.nav-link');
-    
-    navLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            
-            const sectionId = link.getAttribute('data-section');
-            if (sectionId) {
-                navigateToSection(sectionId);
-                
-                // Update active state
-                navLinks.forEach(l => l.classList.remove('active'));
-                link.classList.add('active');
+// ════════════════════════════════════════════
+// AUTH & ROLE
+// ════════════════════════════════════════════
+function fetchCurrentUser() {
+    return fetch(API + '/me')
+        .then(function (r) {
+            if (!r.ok) { window.location.href = '/login'; return; }
+            return r.json();
+        })
+        .then(function (data) {
+            if (data && data.success && data.data) {
+                currentUser = data.data;
+                renderUserUI();
+                applyRBAC();
+            } else {
+                window.location.href = '/login';
             }
+        })
+        .catch(function () {
+            showAlert('Cannot load user info', 'error');
         });
-    });
+}
+
+function renderUserUI() {
+    if (!currentUser) return;
+    var nameEl = document.getElementById('userName');
+    var roleEl = document.getElementById('userRole');
+    var avatarEl = document.getElementById('userAvatar');
+    var subtitleEl = document.getElementById('sidebarSubtitle');
+
+    if (currentUser.role === 'admin') {
+        nameEl.textContent = currentUser.fullName || currentUser.username;
+        roleEl.textContent = 'Administrator';
+        avatarEl.textContent = (currentUser.username || 'A')[0].toUpperCase();
+        subtitleEl.textContent = 'Admin Dashboard';
+    } else {
+        nameEl.textContent = currentUser.customerName || currentUser.customerCode;
+        roleEl.textContent = 'Customer';
+        avatarEl.textContent = (currentUser.customerCode || 'C')[0].toUpperCase();
+        subtitleEl.textContent = 'Customer Portal';
+    }
+}
+
+function applyRBAC() {
+    if (!currentUser) return;
+    var role = currentUser.role;
+
+    // Show elements for this role
+    var els = document.querySelectorAll('[data-role="' + role + '"]');
+    for (var i = 0; i < els.length; i++) {
+        els[i].classList.add('role-visible');
+    }
+
+    // Show shared sections (no data-role)
+    // They're always visible by CSS
+
+    // Set initial active section
+    if (role === 'admin') {
+        navigateToSection('admin-overview');
+    } else {
+        navigateToSection('client-overview');
+    }
+}
+
+// ════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════
+function initNavigation() {
+    var links = document.querySelectorAll('.nav-link[data-section]');
+    for (var i = 0; i < links.length; i++) {
+        links[i].addEventListener('click', handleNavClick);
+    }
+}
+
+function handleNavClick(e) {
+    var section = this.getAttribute('data-section');
+    if (section) {
+        navigateToSection(section);
+        setActiveNav(this);
+    }
 }
 
 function navigateToSection(sectionId) {
     // Hide all sections
-    document.querySelectorAll('.content-section').forEach(section => {
-        section.classList.remove('active');
-    });
-    
-    // Show target section
-    const targetSection = document.getElementById(sectionId);
-    if (targetSection) {
-        targetSection.classList.add('active');
-        updatePageTitle(sectionId);
-        
-        // Load data if needed
-        if (sectionId === 'api-customers') {
-            loadCustomers();
-        }
-        
-        // Scroll to top
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+    var sections = document.querySelectorAll('.content-section');
+    for (var i = 0; i < sections.length; i++) {
+        sections[i].classList.remove('active');
     }
+
+    // Show target
+    var target = document.getElementById(sectionId);
+    if (target) {
+        target.classList.add('active');
+        updatePageTitle(sectionId);
+
+        // Lazy-load data
+        if (sectionId === 'admin-customers') loadCustomers();
+        if (sectionId === 'client-credentials') loadCredentials();
+        if (sectionId === 'client-webhooks') loadWebhooks();
+    }
+
+    // Update nav highlight
+    var navLink = document.querySelector('.nav-link[data-section="' + sectionId + '"]');
+    if (navLink) setActiveNav(navLink);
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+function setActiveNav(activeLink) {
+    var all = document.querySelectorAll('.nav-link');
+    for (var i = 0; i < all.length; i++) {
+        all[i].classList.remove('active');
+    }
+    activeLink.classList.add('active');
+}
+
+var pageTitles = {
+    'admin-overview':        { t: 'Dashboard Overview',   s: 'System overview and quick actions' },
+    'admin-customers':       { t: 'API Customers',        s: 'Manage API customers' },
+    'admin-create-customer': { t: 'Create Customer',      s: 'Create new API customer' },
+    'admin-tools':           { t: 'Internal Tools',       s: 'Admin-only tools and extensions' },
+    'client-overview':       { t: 'Account Overview',     s: 'Your account information' },
+    'client-credentials':    { t: 'API Credentials',      s: 'Your Client ID and Secret Key' },
+    'client-webhooks':       { t: 'Webhooks',             s: 'Manage webhook registrations' },
+    'api-docs':              { t: 'API Documentation',    s: 'THG-FULFILL Open API reference' },
+    'public-extensions':     { t: 'Public Extensions',    s: 'Chrome extensions for ECount' }
+};
 
 function updatePageTitle(sectionId) {
-    const titles = {
-        'overview': { 
-            title: 'Dashboard Overview', 
-            subtitle: 'Quản lý và theo dõi hệ thống' 
-        },
-        'bulk-update': { 
-            title: 'Bulk Update Orders', 
-            subtitle: 'Cập nhật đơn hàng hàng loạt' 
-        },
-        'ecount-extension': { 
-            title: 'ECount Extension', 
-            subtitle: 'Extension Chrome tự động hóa' 
-        },
-        'label-extension': { 
-            title: 'Label Extension', 
-            subtitle: 'Extension tải label công khai' 
-        },
-        'api-create': { 
-            title: 'Create API Customer', 
-            subtitle: 'Tạo khách hàng mới' 
-        },
-        'api-customers': { 
-            title: 'API Customers', 
-            subtitle: 'Quản lý khách hàng API' 
-        }
-    };
-    
-    const pageInfo = titles[sectionId] || { title: 'Dashboard', subtitle: '' };
-    
-    const titleEl = document.getElementById('pageTitle');
-    const subtitleEl = document.getElementById('pageSubtitle');
-    
-    if (titleEl) titleEl.textContent = pageInfo.title;
-    if (subtitleEl) subtitleEl.textContent = pageInfo.subtitle;
+    var info = pageTitles[sectionId] || { t: 'Dashboard', s: '' };
+    var titleEl = document.getElementById('pageTitle');
+    var subEl = document.getElementById('pageSubtitle');
+    if (titleEl) titleEl.textContent = info.t;
+    if (subEl) subEl.textContent = info.s;
 }
 
-// ============================================
+// ════════════════════════════════════════════
 // QUICK ACCESS CARDS
-// ============================================
+// ════════════════════════════════════════════
 function initQuickAccessCards() {
-    const cards = document.querySelectorAll('.quick-access-card');
-    
-    cards.forEach(card => {
-        card.addEventListener('click', () => {
-            const navigateTo = card.getAttribute('data-navigate');
-            const url = card.getAttribute('data-url');
-            
-            if (navigateTo) {
-                navigateToSection(navigateTo);
-                
-                // Update nav active state
-                document.querySelectorAll('.nav-link').forEach(link => {
-                    if (link.getAttribute('data-section') === navigateTo) {
-                        link.classList.add('active');
-                    } else {
-                        link.classList.remove('active');
-                    }
-                });
-            } else if (url) {
-                window.location.href = url;
-            }
+    var cards = document.querySelectorAll('.stat-card.clickable[data-navigate]');
+    for (var i = 0; i < cards.length; i++) {
+        cards[i].addEventListener('click', function () {
+            var nav = this.getAttribute('data-navigate');
+            if (nav) navigateToSection(nav);
         });
-    });
+    }
 }
 
-// ============================================
+// ════════════════════════════════════════════
 // EVENT LISTENERS
-// ============================================
+// ════════════════════════════════════════════
 function initEventListeners() {
-    // Reload customers button
-    const reloadBtn = document.getElementById('reloadCustomersBtn');
-    if (reloadBtn) {
-        reloadBtn.addEventListener('click', () => {
-            loadCustomers();
+    // Admin: reload customers
+    addClick('btnReloadCustomers', function () { loadCustomers(); });
+    addClick('btnGoCreateCustomer', function () { navigateToSection('admin-create-customer'); });
+
+    // Admin: create customer form
+    var form = document.getElementById('createCustomerForm');
+    if (form) form.addEventListener('submit', handleCreateCustomer);
+
+    // Client: credentials
+    addClick('btnCopyClientId', function () { copyField('credClientId'); });
+    addClick('btnCopyNewSecret', function () { copyField('newSecretValue'); });
+    addClick('btnShowSecret', function () {
+        showAlert('Secret key is not stored. It is only shown when newly generated.', 'info');
+    });
+    addClick('btnResetSecret', handleResetSecret);
+
+    // Client: webhooks
+    addClick('btnAddWebhook', function () {
+        document.getElementById('webhookModal').classList.add('show');
+    });
+    addClick('btnCancelWebhook', function () {
+        document.getElementById('webhookModal').classList.remove('show');
+    });
+
+    var whForm = document.getElementById('webhookForm');
+    if (whForm) whForm.addEventListener('submit', handleAddWebhook);
+
+    // Modal overlay click-to-close
+    var overlay = document.getElementById('webhookModal');
+    if (overlay) {
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) overlay.classList.remove('show');
         });
     }
-    
-    // Create customer form
-    const createForm = document.getElementById('createCustomerForm');
-    if (createForm) {
-        createForm.addEventListener('submit', handleCreateCustomer);
+}
+
+function addClick(id, fn) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('click', fn);
+}
+
+// ════════════════════════════════════════════
+// ADMIN: CUSTOMER MANAGEMENT
+// ════════════════════════════════════════════
+function loadCustomers() {
+    var loading = document.getElementById('loadingCustomers');
+    var tbody = document.getElementById('customersTableBody');
+    if (!tbody) return;
+
+    if (loading) loading.classList.add('show');
+    tbody.innerHTML = '';
+
+    fetch(API + '/admin/customers')
+        .then(function (r) { return r.json(); })
+        .then(function (result) {
+            if (result.success) {
+                var customers = result.data.customers;
+                updateStats(customers);
+                if (customers.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:#64748b;">No customers yet</td></tr>';
+                } else {
+                    renderCustomerRows(customers, tbody);
+                }
+            } else {
+                showAlert(result.message || 'Failed to load customers', 'error');
+            }
+        })
+        .catch(function () { showAlert('Server connection error', 'error'); })
+        .finally(function () { if (loading) loading.classList.remove('show'); });
+}
+
+function renderCustomerRows(customers, tbody) {
+    for (var i = 0; i < customers.length; i++) {
+        var c = customers[i];
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td>' + c.id + '</td>' +
+            '<td><strong>' + esc(c.customer_code) + '</strong></td>' +
+            '<td>' + esc(c.customer_name) + '</td>' +
+            '<td>' + (c.email ? esc(c.email) : '-') + '</td>' +
+            '<td><span class="badge badge-' + (c.environment === 'production' ? 'success' : 'warning') + '">' + c.environment + '</span></td>' +
+            '<td><span class="badge badge-' + statusBadge(c.status) + '">' + c.status + '</span></td>' +
+            '<td>' + c.rate_limit_per_hour + ' / ' + c.rate_limit_per_day + '</td>' +
+            '<td>' + fmtDate(c.created_at) + '</td>' +
+            '<td><button class="btn btn-sm view-btn" data-id="' + c.id + '" data-code="' + esc(c.customer_code) + '">View</button></td>';
+        tbody.appendChild(tr);
+    }
+
+    // Attach view buttons
+    var btns = tbody.querySelectorAll('.view-btn');
+    for (var j = 0; j < btns.length; j++) {
+        btns[j].addEventListener('click', function () {
+            var id = this.getAttribute('data-id');
+            if (id) window.location.href = '/extensions/customer/' + id;
+        });
     }
 }
 
-// ============================================
-// UTILITY FUNCTIONS
-// ============================================
-function updateLastUpdateTime() {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('vi-VN', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-    });
-    
-    const element = document.getElementById('lastUpdate');
-    if (element) {
-        element.textContent = timeStr;
+function updateStats(customers) {
+    var total = customers.length;
+    var active = 0;
+    for (var i = 0; i < customers.length; i++) {
+        if (customers[i].status === 'active') active++;
     }
+    setText('navCustomerCount', total);
+    setText('statsCustomerCount', total);
+    setText('statsActiveCount', active + ' Active');
 }
 
-function showAlert(message, type = 'success') {
-    const alertContainer = document.getElementById('alertContainer');
-    if (!alertContainer) return;
-    
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} show`;
-    alertDiv.textContent = message;
-    alertContainer.appendChild(alertDiv);
-
-    setTimeout(() => {
-        alertDiv.classList.remove('show');
-        setTimeout(() => alertDiv.remove(), 300);
-    }, 5000);
-}
-
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-    });
-}
-
-function getStatusBadgeClass(status) {
-    const classes = {
-        'active': 'success',
-        'suspended': 'warning',
-        'inactive': 'danger'
-    };
-    return classes[status] || 'info';
-}
-
-// ============================================
-// API CUSTOMER MANAGEMENT
-// ============================================
-async function handleCreateCustomer(e) {
+function handleCreateCustomer(e) {
     e.preventDefault();
 
-    const data = {
-        customer_code: document.getElementById('customerCode').value,
-        customer_name: document.getElementById('customerName').value,
-        email: document.getElementById('email').value || undefined,
-        phone: document.getElementById('phone').value || undefined,
-        environment: document.getElementById('environment').value,
-        rate_limit_per_hour: parseInt(document.getElementById('rateLimitHourly').value),
-        rate_limit_per_day: parseInt(document.getElementById('rateLimitDaily').value)
+    var data = {
+        customer_code: val('formCustomerCode'),
+        customer_name: val('formCustomerName'),
+        email: val('formEmail') || undefined,
+        phone: val('formPhone') || undefined,
+        environment: val('formEnvironment'),
+        rate_limit_per_hour: parseInt(val('formRateLimitHourly')),
+        rate_limit_per_day: parseInt(val('formRateLimitDaily'))
     };
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/admin/customers`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-            showAlert('Khách hàng đã được tạo thành công!', 'success');
-
-            // Display credentials
-            displayCredentials(result.data);
-
-            // Reset form
+    fetch(API + '/admin/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+    .then(function (res) {
+        if (res.ok) {
+            showAlert('Customer created successfully!', 'success');
+            displayCredentials(res.data.data);
             document.getElementById('createCustomerForm').reset();
-
-            // Reload customers and navigate after delay
-            setTimeout(() => {
-                loadCustomers();
-                navigateToSection('api-customers');
-            }, 2000);
         } else {
-            showAlert(result.message || 'Có lỗi xảy ra', 'error');
+            showAlert(res.data.message || 'Error creating customer', 'error');
         }
-    } catch (error) {
-        showAlert('Không thể kết nối đến server', 'error');
-        console.error('Create customer error:', error);
-    }
+    })
+    .catch(function () { showAlert('Server connection error', 'error'); });
 }
 
 function displayCredentials(data) {
-    document.getElementById('resultCustomerId').textContent = data.customer_id;
-    document.getElementById('resultCustomerCode').textContent = data.customer_code;
-    document.getElementById('resultClientId').textContent = data.credentials.client_id;
-    document.getElementById('resultClientSecret').textContent = data.credentials.client_secret;
-    document.getElementById('resultEnvironment').textContent = data.credentials.environment;
-
-    const credentialsBox = document.getElementById('credentialsResult');
-    if (credentialsBox) {
-        credentialsBox.classList.remove('hidden');
-    }
+    setText('resultCustomerId', data.customer_id);
+    setText('resultCustomerCode', data.customer_code);
+    setText('resultClientId', data.credentials.client_id);
+    setText('resultClientSecret', data.credentials.client_secret);
+    setText('resultEnvironment', data.credentials.environment);
+    document.getElementById('credentialsResult').classList.remove('hidden');
 }
 
-async function loadCustomers() {
-    const loadingEl = document.getElementById('loadingCustomers');
-    const tableBody = document.getElementById('customersTableBody');
+// ════════════════════════════════════════════
+// CLIENT: LOAD ALL DATA
+// ════════════════════════════════════════════
+function loadClientData() {
+    if (!currentUser || currentUser.role !== 'customer') return;
 
-    if (!tableBody) return;
+    // Account info (read-only)
+    setText('infoCustomerCode', currentUser.customerCode || '-');
+    setText('infoCustomerName', currentUser.customerName || '-');
+    setText('infoEmail', currentUser.email || '-');
+    setText('infoPhone', currentUser.phone || '-');
+    setText('infoEnvironment', currentUser.environment || '-');
+    setText('infoStatus', currentUser.status || '-');
 
-    // Show loading
-    if (loadingEl) loadingEl.classList.add('show');
-    tableBody.innerHTML = '';
+    loadCredentials();
+    loadWebhooks();
+}
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/admin/customers`);
-        const result = await response.json();
+// ════════════════════════════════════════════
+// CLIENT: CREDENTIALS
+// ════════════════════════════════════════════
+function loadCredentials() {
+    if (!currentUser || currentUser.role !== 'customer') return;
 
-        if (response.ok) {
-            const customers = result.data.customers;
-            
-            // Update stats
-            updateCustomerStats(customers);
-
-            // Render table
-            if (customers.length === 0) {
-                tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-secondary);">
-                            <div class="empty-icon">👥</div>
-                            <div class="empty-title">Chưa có khách hàng nào</div>
-                            <div class="empty-text">Tạo khách hàng đầu tiên để bắt đầu</div>
-                        </td>
-                    </tr>
-                `;
-            } else {
-                renderCustomersTable(customers, tableBody);
+    fetch(API + '/admin/customers/' + currentUser.id + '/credentials')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success && data.data) {
+                document.getElementById('credClientId').value = data.data.client_id || '';
+                document.getElementById('credSecretMessage').textContent =
+                    'Secret key is hidden for security. Only shown when newly generated.';
             }
-        } else {
-            showAlert(result.message || 'Không thể tải danh sách khách hàng', 'error');
-        }
-    } catch (error) {
-        showAlert('Không thể kết nối đến server', 'error');
-        console.error('Load customers error:', error);
-    } finally {
-        if (loadingEl) loadingEl.classList.remove('show');
+        })
+        .catch(function () { showAlert('Failed to load credentials', 'error'); });
+}
+
+function handleResetSecret() {
+    if (!confirm('The old secret key will be invalidated immediately. Are you sure?')) return;
+    if (!currentUser) return;
+
+    var btn = document.getElementById('btnResetSecret');
+    btn.disabled = true;
+    btn.textContent = 'Processing...';
+
+    // First get credential info to find the credential ID
+    fetch(API + '/admin/customers/' + currentUser.id + '/credentials')
+        .then(function (r) { return r.json(); })
+        .then(function (credData) {
+            if (!credData.success || !credData.data) {
+                throw new Error('No credentials found');
+            }
+            // We need the credential ID — fetch the full customer to get it
+            return fetch(API + '/admin/customers/' + currentUser.id);
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (custData) {
+            if (!custData.success) throw new Error('Cannot load customer data');
+            var creds = custData.data.credentials;
+            var activeCred = null;
+            for (var i = 0; i < creds.length; i++) {
+                if (creds[i].status === 'active') { activeCred = creds[i]; break; }
+            }
+            if (!activeCred) throw new Error('No active credential found');
+
+            return fetch(API + '/admin/customers/' + currentUser.id + '/credentials/refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ credentialId: activeCred.id })
+            });
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success && data.data) {
+                document.getElementById('newSecretValue').value = data.data.client_secret;
+                document.getElementById('newSecretBox').classList.remove('hidden');
+                document.getElementById('credClientId').value = data.data.client_id;
+                showAlert('Secret key has been reset! Save it now.', 'success');
+            } else {
+                throw new Error(data.message || 'Failed to reset');
+            }
+        })
+        .catch(function (err) { showAlert('Error: ' + err.message, 'error'); })
+        .finally(function () {
+            btn.disabled = false;
+            btn.textContent = 'Reset Secret Key';
+        });
+}
+
+// ════════════════════════════════════════════
+// CLIENT: WEBHOOKS
+// ════════════════════════════════════════════
+function loadWebhooks() {
+    if (!currentUser || currentUser.role !== 'customer') return;
+    var container = document.getElementById('webhooksContainer');
+    container.innerHTML = '<div class="loading show">Loading...</div>';
+
+    fetch(API + '/admin/customers/' + currentUser.id + '/webhooks')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                renderWebhooks(data.data || []);
+            }
+        })
+        .catch(function () {
+            container.innerHTML = '<div style="padding:20px;text-align:center;color:#ef4444;">Failed to load webhooks</div>';
+        });
+}
+
+function renderWebhooks(webhooks) {
+    var container = document.getElementById('webhooksContainer');
+
+    if (webhooks.length === 0) {
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:#64748b;">No webhooks registered yet</div>';
+        return;
+    }
+
+    var html = '<div class="table-container"><table class="data-table"><thead><tr>' +
+        '<th>URL</th><th>Events</th><th>Status</th><th>Fails</th><th>Actions</th>' +
+        '</tr></thead><tbody>';
+
+    for (var i = 0; i < webhooks.length; i++) {
+        var wh = webhooks[i];
+        var events = Array.isArray(wh.events) ? wh.events.join(', ') : wh.events;
+        var badge = wh.status === 'active'
+            ? '<span class="badge badge-success">Active</span>'
+            : '<span class="badge badge-danger">Inactive</span>';
+
+        html += '<tr>' +
+            '<td class="mono" style="font-size:13px;max-width:300px;overflow:hidden;text-overflow:ellipsis;">' + esc(wh.url) + '</td>' +
+            '<td style="font-size:12px;">' + esc(events) + '</td>' +
+            '<td>' + badge + '</td>' +
+            '<td style="text-align:center;">' + (wh.fail_count || 0) + '</td>' +
+            '<td><button class="btn btn-danger btn-sm del-wh-btn" data-wh-id="' + wh.id + '">Delete</button></td>' +
+            '</tr>';
+    }
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+
+    // Attach delete handlers
+    var btns = container.querySelectorAll('.del-wh-btn');
+    for (var j = 0; j < btns.length; j++) {
+        btns[j].addEventListener('click', function () {
+            var whId = parseInt(this.getAttribute('data-wh-id'), 10);
+            if (whId) deleteWebhook(whId);
+        });
     }
 }
 
-function renderCustomersTable(customers, tableBody) {
-    customers.forEach(customer => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${customer.id}</td>
-            <td><strong>${escapeHtml(customer.customer_code)}</strong></td>
-            <td>${escapeHtml(customer.customer_name)}</td>
-            <td>${customer.email ? escapeHtml(customer.email) : '-'}</td>
-            <td><span class="badge badge-${customer.environment === 'production' ? 'success' : 'warning'}">${customer.environment}</span></td>
-            <td><span class="badge badge-${getStatusBadgeClass(customer.status)}">${customer.status}</span></td>
-            <td>${customer.rate_limit_per_hour} / ${customer.rate_limit_per_day}</td>
-            <td>${formatDate(customer.created_at)}</td>
-            <td>
-                <button class="btn btn-sm view-customer-btn" data-customer-id="${customer.id}">
-                    <span>👁️</span> View
-                </button>
-            </td>
-        `;
-        tableBody.appendChild(row);
-    });
-    
-    // Attach event listeners to view buttons
-    attachViewCustomerButtons();
+function handleAddWebhook(e) {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    var url = val('webhookUrl');
+    var secret = val('webhookSecret');
+
+    // Gather checked events
+    var checkboxes = document.querySelectorAll('input[name="webhookEvents"]:checked');
+    var events = [];
+    for (var i = 0; i < checkboxes.length; i++) {
+        events.push(checkboxes[i].value);
+    }
+
+    if (events.length === 0) {
+        showAlert('Please select at least one event', 'error');
+        return;
+    }
+
+    fetch(API + '/admin/customers/' + currentUser.id + '/webhooks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url, secret: secret, events: events })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        if (data.success) {
+            showAlert('Webhook added successfully', 'success');
+            document.getElementById('webhookModal').classList.remove('show');
+            document.getElementById('webhookForm').reset();
+            loadWebhooks();
+        } else {
+            showAlert(data.message || 'Failed to add webhook', 'error');
+        }
+    })
+    .catch(function () { showAlert('Server error', 'error'); });
 }
 
-function attachViewCustomerButtons() {
-    const buttons = document.querySelectorAll('.view-customer-btn');
-    buttons.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const customerId = e.currentTarget.getAttribute('data-customer-id');
-            viewCustomerDetails(customerId);
-        });
-    });
+function deleteWebhook(whId) {
+    if (!confirm('Delete this webhook?')) return;
+    if (!currentUser) return;
+
+    fetch(API + '/admin/customers/' + currentUser.id + '/webhooks/' + whId, {
+        method: 'DELETE'
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        if (data.success) {
+            showAlert('Webhook deleted', 'success');
+            loadWebhooks();
+        } else {
+            showAlert(data.message || 'Failed to delete', 'error');
+        }
+    })
+    .catch(function () { showAlert('Server error', 'error'); });
 }
 
-function viewCustomerDetails(customerId) {
-    // TODO: Implement customer details modal or page
-    showAlert(`Xem chi tiết customer ID: ${customerId} (Coming soon)`, 'info');
+// ════════════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════════════
+function showAlert(msg, type) {
+    var container = document.getElementById('alertContainer');
+    if (!container) return;
+    var div = document.createElement('div');
+    div.className = 'alert alert-' + (type || 'success') + ' show';
+    div.textContent = msg;
+    container.appendChild(div);
+    setTimeout(function () {
+        div.classList.remove('show');
+        setTimeout(function () { div.remove(); }, 300);
+    }, 5000);
 }
 
-function updateCustomerStats(customers) {
-    const totalCount = customers.length;
-    const activeCount = customers.filter(c => c.status === 'active').length;
-    
-    const customerCountEl = document.getElementById('customerCount');
-    const statsCustomerCountEl = document.getElementById('statsCustomerCount');
-    const statsActiveCountEl = document.getElementById('statsActiveCount');
-    
-    if (customerCountEl) customerCountEl.textContent = totalCount;
-    if (statsCustomerCountEl) statsCustomerCountEl.textContent = totalCount;
-    if (statsActiveCountEl) statsActiveCountEl.textContent = `${activeCount} Active`;
-}
-
-// ============================================
-// SECURITY HELPERS
-// ============================================
-function escapeHtml(text) {
+function esc(text) {
     if (!text) return '';
-    
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    
-    return String(text).replace(/[&<>"']/g, m => map[m]);
+    var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return String(text).replace(/[&<>"']/g, function (m) { return map[m]; });
 }
 
-// ============================================
-// EXPORT FOR DEBUGGING (Optional)
-// ============================================
-if (typeof window !== 'undefined') {
-    window.DashboardApp = {
-        navigateToSection,
-        loadCustomers,
-        viewCustomerDetails
-    };
+function fmtDate(str) {
+    var d = new Date(str);
+    return d.toLocaleDateString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+}
+
+function statusBadge(s) {
+    return s === 'active' ? 'success' : s === 'suspended' ? 'warning' : 'danger';
+}
+
+function setText(id, v) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = v;
+}
+
+function val(id) {
+    var el = document.getElementById(id);
+    return el ? el.value : '';
+}
+
+function copyField(id) {
+    var input = document.getElementById(id);
+    if (!input || !input.value) return;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(input.value).then(function () {
+            showAlert('Copied to clipboard!', 'success');
+        });
+    } else {
+        input.select();
+        document.execCommand('copy');
+        showAlert('Copied to clipboard!', 'success');
+    }
+}
+
+function updateClock() {
+    var el = document.getElementById('lastUpdate');
+    if (el) {
+        el.textContent = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    }
 }
