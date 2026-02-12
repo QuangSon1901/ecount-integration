@@ -5,6 +5,7 @@ const ApiCredentialModel = require('../models/api-credential.model');
 const ApiRateLimitModel = require('../models/api-rate-limit.model');
 const WebhookModel = require('../models/webhook.model');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const db = require('../database/connection');
 const { successResponse, errorResponse } = require('../utils/response');
 const logger = require('../utils/logger');
@@ -23,7 +24,9 @@ class ApiCustomerController {
                 phone,
                 environment = 'production',
                 rate_limit_per_hour = 6000,
-                rate_limit_per_day = 10000
+                rate_limit_per_day = 10000,
+                webhook_enabled = true,
+                bulk_order_enabled = true
             } = req.body;
 
             // Validate required fields
@@ -39,6 +42,9 @@ class ApiCustomerController {
                 });
             }
 
+            // Generate random portal password (12 chars, alphanumeric)
+            const portalPassword = crypto.randomBytes(9).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 12);
+
             // Create customer
             const customerId = await ApiCustomerModel.create({
                 customerCode: customer_code,
@@ -47,11 +53,14 @@ class ApiCustomerController {
                 phone,
                 environment,
                 rateLimitPerHour: rate_limit_per_hour,
-                rateLimitPerDay: rate_limit_per_day
+                rateLimitPerDay: rate_limit_per_day,
+                webhookEnabled: webhook_enabled,
+                bulkOrderEnabled: bulk_order_enabled
             });
 
-            // Generate credentials
-            const credentials = await ApiAuthService.generateCredentials(customerId, environment);
+            // Set portal password (hashed)
+            const passwordHash = await bcrypt.hash(portalPassword, 10);
+            await ApiCustomerModel.setPortalPassword(customerId, passwordHash);
 
             logger.info('Created API customer', {
                 customerId,
@@ -61,7 +70,7 @@ class ApiCustomerController {
             return successResponse(res, {
                 customer_id: customerId,
                 customer_code,
-                credentials: credentials.data
+                portal_password: portalPassword  // shown once for admin to copy
             }, 'Customer created successfully', 201);
 
         } catch (error) {
@@ -146,7 +155,7 @@ class ApiCustomerController {
             const {
                 customerName, email, phone, status,
                 rateLimitPerHour, rateLimitPerDay,
-                webhookEnabled, metadata
+                webhookEnabled, bulkOrderEnabled, metadata
             } = req.body;
 
             const customer = await ApiCustomerModel.findById(customerId);
@@ -174,6 +183,7 @@ class ApiCustomerController {
             if (rateLimitPerHour !== undefined) updateData.rateLimitPerHour = parseInt(rateLimitPerHour);
             if (rateLimitPerDay !== undefined) updateData.rateLimitPerDay = parseInt(rateLimitPerDay);
             if (webhookEnabled !== undefined) updateData.webhookEnabled = webhookEnabled;
+            if (bulkOrderEnabled !== undefined) updateData.bulkOrderEnabled = bulkOrderEnabled;
             if (metadata !== undefined) updateData.metadata = metadata;
 
             if (Object.keys(updateData).length === 0) {
@@ -298,10 +308,45 @@ class ApiCustomerController {
     async setPortalPassword(req, res, next) {
         try {
             const { customerId } = req.params;
-            const { password } = req.body;
 
-            if (!password || password.length < 6) {
-                return errorResponse(res, 'Password must be at least 6 characters', 400);
+            const customer = await ApiCustomerModel.findById(customerId);
+            if (!customer) {
+                return errorResponse(res, 'Customer not found', 404);
+            }
+
+            // Generate random password (12 chars, alphanumeric)
+            const newPassword = crypto.randomBytes(9).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 12);
+
+            const hash = await bcrypt.hash(newPassword, 10);
+            await ApiCustomerModel.setPortalPassword(customerId, hash);
+
+            logger.info('Portal password reset', { customerId });
+            return successResponse(res, {
+                portal_password: newPassword  // shown once for admin to copy
+            }, 'Portal password reset successfully');
+
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // ─── Change Portal Password (customer self-service) ──────────
+
+    /**
+     * POST /api/v1/admin/customers/:customerId/change-password
+     * Customer changes their own portal password
+     */
+    async changePortalPassword(req, res, next) {
+        try {
+            const { customerId } = req.params;
+            const { current_password, new_password } = req.body;
+
+            if (!current_password || !new_password) {
+                return errorResponse(res, 'Current password and new password are required', 400);
+            }
+
+            if (new_password.length < 6) {
+                return errorResponse(res, 'New password must be at least 6 characters', 400);
             }
 
             const customer = await ApiCustomerModel.findById(customerId);
@@ -309,11 +354,22 @@ class ApiCustomerController {
                 return errorResponse(res, 'Customer not found', 404);
             }
 
-            const hash = await bcrypt.hash(password, 10);
+            // Verify current password
+            if (!customer.portal_password_hash) {
+                return errorResponse(res, 'No portal password set. Please contact admin.', 400);
+            }
+
+            const valid = await bcrypt.compare(current_password, customer.portal_password_hash);
+            if (!valid) {
+                return errorResponse(res, 'Current password is incorrect', 401);
+            }
+
+            // Hash and set new password
+            const hash = await bcrypt.hash(new_password, 10);
             await ApiCustomerModel.setPortalPassword(customerId, hash);
 
-            logger.info('Portal password set', { customerId });
-            return successResponse(res, null, 'Portal password set successfully');
+            logger.info('Customer changed portal password', { customerId });
+            return successResponse(res, null, 'Password changed successfully');
 
         } catch (error) {
             next(error);

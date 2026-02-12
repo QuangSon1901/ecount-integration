@@ -1,6 +1,7 @@
 // src/jobs/workers/webhook-delivery.worker.js
 const BaseWorker = require('./base.worker');
 const WebhookModel = require('../../models/webhook.model');
+const ApiCustomerModel = require('../../models/api-customer.model');
 const webhookService = require('../../services/api/webhook.service');
 const logger = require('../../utils/logger');
 
@@ -31,6 +32,13 @@ class WebhookDeliveryWorker extends BaseWorker {
         if (webhook.status !== 'active') {
             logger.warn(`WebhookDeliveryWorker: webhook ${webhookId} is ${webhook.status}, skipping`);
             return { skipped: true, reason: `webhook_${webhook.status}` };
+        }
+
+        // Check customer webhook_enabled flag
+        const customer = await ApiCustomerModel.findById(webhook.customer_id);
+        if (!customer || !customer.webhook_enabled) {
+            logger.warn(`WebhookDeliveryWorker: customer ${webhook.customer_id} webhook disabled, skipping`);
+            return { skipped: true, reason: 'customer_webhook_disabled' };
         }
 
         // Gửi — throws on failure → base.worker retry

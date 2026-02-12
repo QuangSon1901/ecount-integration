@@ -187,6 +187,24 @@ function initEventListeners() {
     // Admin: create customer form
     var form = document.getElementById('createCustomerForm');
     if (form) form.addEventListener('submit', handleCreateCustomer);
+    addClick('btnCopyPortalPw', function () {
+        var pw = document.getElementById('resultPortalPassword');
+        if (pw && pw.textContent) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(pw.textContent).then(function () {
+                    showAlert('Portal password copied!', 'success');
+                });
+            } else {
+                var ta = document.createElement('textarea');
+                ta.value = pw.textContent;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showAlert('Portal password copied!', 'success');
+            }
+        }
+    });
 
     // Client: credentials
     addClick('btnCopyClientId', function () { copyField('credClientId'); });
@@ -196,6 +214,9 @@ function initEventListeners() {
         showAlert('Secret key is not stored. It is only shown when newly generated.', 'info');
     });
     addClick('btnResetSecret', handleResetSecret);
+
+    // Client: change password
+    addClick('btnChangePassword', handleChangePassword);
 
     // Client: webhooks
     addClick('btnAddWebhook', function () {
@@ -300,7 +321,9 @@ function handleCreateCustomer(e) {
         phone: val('formPhone') || undefined,
         environment: val('formEnvironment'),
         rate_limit_per_hour: parseInt(val('formRateLimitHourly')),
-        rate_limit_per_day: parseInt(val('formRateLimitDaily'))
+        rate_limit_per_day: parseInt(val('formRateLimitDaily')),
+        webhook_enabled: document.getElementById('formWebhookEnabled').checked,
+        bulk_order_enabled: document.getElementById('formBulkOrderEnabled').checked
     };
 
     fetch(API + '/admin/customers', {
@@ -312,8 +335,10 @@ function handleCreateCustomer(e) {
     .then(function (res) {
         if (res.ok) {
             showAlert('Customer created successfully!', 'success');
-            displayCredentials(res.data.data);
+            displayCreateSuccess(res.data.data);
             document.getElementById('createCustomerForm').reset();
+            document.getElementById('formWebhookEnabled').checked = true;
+            document.getElementById('formBulkOrderEnabled').checked = true;
         } else {
             showAlert(res.data.message || 'Error creating customer', 'error');
         }
@@ -321,13 +346,12 @@ function handleCreateCustomer(e) {
     .catch(function () { showAlert('Server connection error', 'error'); });
 }
 
-function displayCredentials(data) {
-    setText('resultCustomerId', data.customer_id);
+function displayCreateSuccess(data) {
     setText('resultCustomerCode', data.customer_code);
-    setText('resultClientId', data.credentials.client_id);
-    setText('resultClientSecret', data.credentials.client_secret);
-    setText('resultEnvironment', data.credentials.environment);
-    document.getElementById('credentialsResult').classList.remove('hidden');
+    setText('resultPortalPassword', data.portal_password || '');
+    var link = document.getElementById('resultViewLink');
+    if (link) link.href = '/extensions/customer/' + data.customer_id;
+    document.getElementById('createSuccessResult').classList.remove('hidden');
 }
 
 // ════════════════════════════════════════════
@@ -354,8 +378,26 @@ function loadClientData() {
         }
     }
 
-    loadCredentials();
-    loadWebhooks();
+    // Webhook feature disabled — hide content, show notice
+    if (!currentUser.webhookEnabled) {
+        var whNotice = document.getElementById('webhookDisabledNotice');
+        var whContainer = document.getElementById('webhooksContainer');
+        var whAddBtn = document.getElementById('btnAddWebhook');
+        if (whNotice) whNotice.classList.remove('hidden');
+        if (whContainer) whContainer.classList.add('hidden');
+        if (whAddBtn) whAddBtn.classList.add('hidden');
+    }
+
+    // Bulk Order / API Credentials feature disabled — hide content, show notice
+    if (!currentUser.bulkOrderEnabled) {
+        var credNotice = document.getElementById('credentialsDisabledNotice');
+        var credContent = document.getElementById('credentialsContent');
+        if (credNotice) credNotice.classList.remove('hidden');
+        if (credContent) credContent.classList.add('hidden');
+    }
+
+    if (currentUser.bulkOrderEnabled) loadCredentials();
+    if (currentUser.webhookEnabled) loadWebhooks();
 }
 
 // ════════════════════════════════════════════
@@ -452,6 +494,56 @@ function handleResetSecret() {
             btn.disabled = false;
             btn.textContent = 'Reset Secret Key';
         });
+}
+
+// ════════════════════════════════════════════
+// CLIENT: CHANGE PASSWORD
+// ════════════════════════════════════════════
+function handleChangePassword() {
+    if (!currentUser) return;
+
+    var current = val('changePwCurrent');
+    var newPw = val('changePwNew');
+    var confirm = val('changePwConfirm');
+
+    if (!current) {
+        showAlert('Please enter your current password', 'error');
+        return;
+    }
+    if (!newPw || newPw.length < 6) {
+        showAlert('New password must be at least 6 characters', 'error');
+        return;
+    }
+    if (newPw !== confirm) {
+        showAlert('New password and confirmation do not match', 'error');
+        return;
+    }
+
+    var btn = document.getElementById('btnChangePassword');
+    btn.disabled = true;
+    btn.textContent = 'Changing...';
+
+    fetch(API + '/admin/customers/' + currentUser.id + '/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_password: current, new_password: newPw })
+    })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+    .then(function (res) {
+        if (res.ok) {
+            showAlert('Password changed successfully!', 'success');
+            document.getElementById('changePwCurrent').value = '';
+            document.getElementById('changePwNew').value = '';
+            document.getElementById('changePwConfirm').value = '';
+        } else {
+            showAlert(res.data.message || 'Failed to change password', 'error');
+        }
+    })
+    .catch(function () { showAlert('Server connection error', 'error'); })
+    .finally(function () {
+        btn.disabled = false;
+        btn.textContent = 'Change Password';
+    });
 }
 
 // ════════════════════════════════════════════

@@ -305,6 +305,36 @@ body {
                 <span class="info-label">Webhook</span>
                 <span class="info-value" id="infoWebhook">&#x2014;</span>
             </div>
+            <div class="info-row">
+                <span class="info-label">Bulk Order API</span>
+                <span class="info-value" id="infoBulkOrder">&#x2014;</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Portal Password</span>
+                <span class="info-value" id="infoPortalPw">&#x2014;</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1b. Portal Password Management -->
+    <div class="content-card">
+        <div class="card-header">
+            <div>
+                <h2 class="card-title">Portal Password</h2>
+                <p class="card-subtitle">Reset portal login password for this customer</p>
+            </div>
+            <div class="card-actions">
+                <button class="btn btn-primary btn-sm" id="btnResetPortalPw">Reset Password</button>
+            </div>
+        </div>
+        <p style="font-size:13px;color:var(--text-secondary);">Click "Reset Password" to generate a new random password. The new password will be shown once — copy it and send to the customer.</p>
+
+        <div id="resetPwResult" style="display:none;margin-top:16px;padding:14px;background:var(--success-light);border:1px solid #a7f3d0;border-radius:8px;">
+            <div style="font-size:12px;font-weight:600;color:#92400e;margin-bottom:6px;">New Password (copy now — shown only once)</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <code id="resetPwValue" style="font-family:'Courier New',monospace;font-size:15px;font-weight:700;letter-spacing:1px;flex:1;word-break:break-all;"></code>
+                <button class="btn btn-sm" id="btnCopyResetPw">Copy</button>
+            </div>
         </div>
     </div>
 
@@ -442,13 +472,24 @@ body {
 
         <div class="form-row">
             <div class="form-group">
+                <label class="form-label">Bulk Order API</label>
+                <select class="form-select" id="editBulkOrderEnabled">
+                    <option value="true">Enabled</option>
+                    <option value="false">Disabled</option>
+                </select>
+            </div>
+            <div class="form-group">
                 <label class="form-label">Rate Limit / Hour</label>
                 <input type="number" class="form-input" id="editRateHour" min="1">
             </div>
+        </div>
+
+        <div class="form-row">
             <div class="form-group">
                 <label class="form-label">Rate Limit / Day</label>
                 <input type="number" class="form-input" id="editRateDay" min="1">
             </div>
+            <div class="form-group"></div>
         </div>
 
         <div class="modal-actions">
@@ -458,4 +499,4 @@ body {
     </div>
 </div>
 
-<script src="/js/customer-detail.js?v=1920"></script>
+<script src="/js/customer-detail.js?v=1923"></script>

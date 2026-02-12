@@ -491,7 +491,7 @@
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-header">
-                            <span class="stat-label">API Customers</span>
+                            <span class="stat-label">Customers</span>
                             <div class="stat-icon" style="background:#f0fdf4;color:#10b981;">&#x1F465;</div>
                         </div>
                         <div class="stat-value" id="statsCustomerCount">0</div>
@@ -588,7 +588,7 @@
                     <div class="card-header">
                         <div>
                             <h2 class="card-title">Create API Customer</h2>
-                            <p class="card-subtitle">Create a new customer and generate Client ID / Secret</p>
+                            <p class="card-subtitle">Create a new customer with portal access</p>
                         </div>
                     </div>
                     <form id="createCustomerForm">
@@ -625,34 +625,38 @@
                                 <input type="number" class="form-input" id="formRateLimitDaily" value="10000">
                             </div>
                         </div>
+
+                        <div style="margin-bottom:24px;">
+                            <label class="form-label" style="margin-bottom:12px;">Features</label>
+                            <div style="display:flex;gap:24px;flex-wrap:wrap;">
+                                <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
+                                    <input type="checkbox" id="formWebhookEnabled" style="accent-color:var(--primary);width:16px;height:16px;">
+                                    Webhook Enabled
+                                </label>
+                                <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
+                                    <input type="checkbox" id="formBulkOrderEnabled" style="accent-color:var(--primary);width:16px;height:16px;">
+                                    Bulk Order Enabled
+                                </label>
+                            </div>
+                        </div>
+
                         <button type="submit" class="btn btn-primary">+ Create Customer</button>
                     </form>
 
-                    <div id="credentialsResult" class="credentials-box hidden">
-                        <h3>Customer created successfully!</h3>
-                        <p style="color:#991b1b;margin:10px 0;font-size:14px;font-weight:500;">
-                            Client Secret is shown ONLY ONCE. Please copy and store securely!
-                        </p>
-                        <div class="credential-item">
-                            <div class="credential-label">Customer ID:</div>
-                            <div class="credential-value" id="resultCustomerId"></div>
+                    <div id="createSuccessResult" class="hidden" style="margin-top:20px;padding:20px;background:var(--success-light);border:1px solid #a7f3d0;border-radius:8px;">
+                        <div style="font-size:14px;font-weight:600;color:#065f46;margin-bottom:12px;">Customer created successfully!</div>
+                        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#065f46;">
+                            <div>Customer Code: <strong id="resultCustomerCode"></strong></div>
+                            <div style="background:white;border:1px solid #a7f3d0;border-radius:6px;padding:12px;margin-top:4px;">
+                                <div style="font-size:12px;font-weight:600;color:#92400e;margin-bottom:6px;">Portal Password (copy now — shown only once)</div>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <code id="resultPortalPassword" style="font-family:'Courier New',monospace;font-size:15px;font-weight:700;letter-spacing:1px;flex:1;word-break:break-all;"></code>
+                                    <button class="btn btn-sm" id="btnCopyPortalPw" type="button">Copy</button>
+                                </div>
+                            </div>
+                            <p style="font-size:12px;color:var(--text-secondary);margin-top:4px;">API Credentials can be generated from the customer detail page.</p>
                         </div>
-                        <div class="credential-item">
-                            <div class="credential-label">Customer Code:</div>
-                            <div class="credential-value" id="resultCustomerCode"></div>
-                        </div>
-                        <div class="credential-item">
-                            <div class="credential-label">Client ID:</div>
-                            <div class="credential-value" id="resultClientId"></div>
-                        </div>
-                        <div class="credential-item">
-                            <div class="credential-label">Client Secret (ONE TIME ONLY):</div>
-                            <div class="credential-value secret" id="resultClientSecret"></div>
-                        </div>
-                        <div class="credential-item">
-                            <div class="credential-label">Environment:</div>
-                            <div class="credential-value" id="resultEnvironment"></div>
-                        </div>
+                        <a id="resultViewLink" href="#" class="btn btn-sm btn-primary" style="margin-top:12px;">View Customer</a>
                     </div>
                 </div>
             </section>
@@ -735,6 +739,31 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Change Password -->
+                <div class="content-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Change Password</h2>
+                            <p class="card-subtitle">Update your portal login password</p>
+                        </div>
+                    </div>
+                    <div style="max-width:400px;">
+                        <div class="form-group">
+                            <label class="form-label">Current Password</label>
+                            <input type="password" class="form-input" id="changePwCurrent" placeholder="Enter current password">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">New Password</label>
+                            <input type="password" class="form-input" id="changePwNew" placeholder="Min 6 characters">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Confirm New Password</label>
+                            <input type="password" class="form-input" id="changePwConfirm" placeholder="Re-enter new password">
+                        </div>
+                        <button class="btn btn-primary" id="btnChangePassword">Change Password</button>
+                    </div>
+                </div>
             </section>
 
             <!-- Client: API Credentials -->
@@ -747,7 +776,13 @@
                         </div>
                     </div>
 
-                    <div style="padding:4px 0;">
+                    <!-- Feature disabled notice (shown when bulk_order_enabled = false) -->
+                    <div id="credentialsDisabledNotice" class="hidden" style="padding:32px 20px;text-align:center;">
+                        <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">Feature Not Activated</div>
+                        <p style="font-size:14px;color:var(--text-secondary);">API access has not been enabled for your account. Please contact the administrator to activate this feature.</p>
+                    </div>
+
+                    <div id="credentialsContent" style="padding:4px 0;">
                         <div style="background:var(--warning-light);border:1px solid #fbbf24;padding:16px;border-radius:8px;margin-bottom:20px;">
                             <div style="display:flex;align-items:start;gap:12px;">
                                 <div style="font-size:20px;">&#x26A0;</div>
@@ -798,6 +833,13 @@
                         </div>
                         <button class="btn btn-primary" id="btnAddWebhook">+ Add Webhook</button>
                     </div>
+
+                    <!-- Feature disabled notice (shown when webhook_enabled = false) -->
+                    <div id="webhookDisabledNotice" class="hidden" style="padding:32px 20px;text-align:center;">
+                        <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">Feature Not Activated</div>
+                        <p style="font-size:14px;color:var(--text-secondary);">Webhook feature has not been enabled for your account. Please contact the administrator to activate this feature.</p>
+                    </div>
+
                     <div id="webhooksContainer">
                         <div class="loading show">Loading...</div>
                     </div>
@@ -874,6 +916,6 @@
         </div>
     </div>
 
-    <script src="/js/dashboard.js?1920"></script>
+    <script src="/js/dashboard.js?1923"></script>
 </body>
 </html>

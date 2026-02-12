@@ -115,6 +115,10 @@ class ApiCustomerModel {
                 fields.push('webhook_enabled = ?');
                 values.push(updateData.webhookEnabled);
             }
+            if (updateData.bulkOrderEnabled !== undefined) {
+                fields.push('bulk_order_enabled = ?');
+                values.push(updateData.bulkOrderEnabled);
+            }
             if (updateData.metadata !== undefined) {
                 fields.push('metadata = ?');
                 values.push(JSON.stringify(updateData.metadata));

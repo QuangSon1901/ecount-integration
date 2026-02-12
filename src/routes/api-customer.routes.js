@@ -57,6 +57,12 @@ router.post('/:customerId/portal-password',
     apiCustomerController.setPortalPassword.bind(apiCustomerController)
 );
 
+/** POST /api/v1/admin/customers/:customerId/change-password — Customer changes own password */
+router.post('/:customerId/change-password',
+    requireAdminOrOwner('customerId'),
+    apiCustomerController.changePortalPassword.bind(apiCustomerController)
+);
+
 // ════════════════════════════════════════════
 // ADMIN + CUSTOMER (own data only) ROUTES
 // ════════════════════════════════════════════

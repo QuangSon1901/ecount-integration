@@ -49,8 +49,28 @@ function renderCustomerInfo() {
     setText('infoEmail', CUSTOMER.email || '\u2014');
     setText('infoPhone', CUSTOMER.phone || '\u2014');
     setText('infoRate', CUSTOMER.rate_limit_per_hour + ' / ' + CUSTOMER.rate_limit_per_day);
-    setText('infoWebhook', CUSTOMER.webhook_enabled ? 'Enabled' : 'Disabled');
     setText('topbarName', CUSTOMER.customer_name);
+
+    // Webhook status
+    var webhookEl = document.getElementById('infoWebhook');
+    if (webhookEl) {
+        var whEnabled = CUSTOMER.webhook_enabled;
+        webhookEl.innerHTML = '<span class="badge badge-' + (whEnabled ? 'success' : 'danger') + '">' + (whEnabled ? 'Enabled' : 'Disabled') + '</span>';
+    }
+
+    // Bulk Order status
+    var bulkEl = document.getElementById('infoBulkOrder');
+    if (bulkEl) {
+        var boEnabled = CUSTOMER.bulk_order_enabled;
+        bulkEl.innerHTML = '<span class="badge badge-' + (boEnabled ? 'success' : 'danger') + '">' + (boEnabled ? 'Enabled' : 'Disabled') + '</span>';
+    }
+
+    // Portal password status
+    var pwEl = document.getElementById('infoPortalPw');
+    if (pwEl) {
+        var hasPw = !!CUSTOMER.portal_password_hash;
+        pwEl.innerHTML = '<span class="badge badge-' + (hasPw ? 'success' : 'warning') + '">' + (hasPw ? 'Set' : 'Not set') + '</span>';
+    }
 
     // Environment badge
     var envEl = document.getElementById('infoEnv');
@@ -396,6 +416,13 @@ function initButtons() {
         if (e.target === this) closeEditModal();
     });
 
+    // Reset portal password
+    document.getElementById('btnResetPortalPw').addEventListener('click', handleResetPortalPassword);
+    document.getElementById('btnCopyResetPw').addEventListener('click', function () {
+        var pw = document.getElementById('resetPwValue').textContent;
+        if (pw) copyToClipboard(pw, this);
+    });
+
     // Toggle webhook form
     document.getElementById('btnToggleWebhookForm').addEventListener('click', function () {
         var wrap = document.getElementById('webhookFormWrap');
@@ -435,6 +462,7 @@ function openEditModal() {
     document.getElementById('editPhone').value = CUSTOMER.phone || '';
     document.getElementById('editStatus').value = CUSTOMER.status || 'active';
     document.getElementById('editWebhookEnabled').value = CUSTOMER.webhook_enabled ? 'true' : 'false';
+    document.getElementById('editBulkOrderEnabled').value = CUSTOMER.bulk_order_enabled ? 'true' : 'false';
     document.getElementById('editRateHour').value = CUSTOMER.rate_limit_per_hour || 6000;
     document.getElementById('editRateDay').value = CUSTOMER.rate_limit_per_day || 10000;
 
@@ -452,6 +480,7 @@ async function handleSaveEdit() {
         phone:            document.getElementById('editPhone').value.trim() || null,
         status:           document.getElementById('editStatus').value,
         webhookEnabled:   document.getElementById('editWebhookEnabled').value === 'true',
+        bulkOrderEnabled: document.getElementById('editBulkOrderEnabled').value === 'true',
         rateLimitPerHour: parseInt(document.getElementById('editRateHour').value) || 6000,
         rateLimitPerDay:  parseInt(document.getElementById('editRateDay').value) || 10000
     };
@@ -482,6 +511,43 @@ async function handleSaveEdit() {
     } finally {
         btnSave.disabled = false;
         btnSave.textContent = 'Save Changes';
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RESET PORTAL PASSWORD
+// ═══════════════════════════════════════════════════════════════
+async function handleResetPortalPassword() {
+    if (!confirm('Generate a new random password for this customer? The old password will be invalidated immediately.')) return;
+
+    var btn = document.getElementById('btnResetPortalPw');
+    btn.disabled = true;
+    btn.textContent = 'Resetting...';
+
+    try {
+        var res = await fetch(BASE + '/portal-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to reset password');
+
+        // Show the generated password
+        var resultBox = document.getElementById('resetPwResult');
+        var pwValue = document.getElementById('resetPwValue');
+        if (resultBox && pwValue && data.data && data.data.portal_password) {
+            pwValue.textContent = data.data.portal_password;
+            resultBox.style.display = 'block';
+        }
+
+        showAlert('success', 'Portal password has been reset! Copy the new password now.');
+        await fetchCustomerData();
+    } catch (e) {
+        showAlert('error', e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Reset Password';
     }
 }
 

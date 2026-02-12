@@ -65,7 +65,9 @@ async function getCurrentUser(req, res) {
                     email: customer.email,
                     phone: customer.phone,
                     environment: customer.environment,
-                    status: customer.status
+                    status: customer.status,
+                    webhookEnabled: !!customer.webhook_enabled,
+                    bulkOrderEnabled: !!customer.bulk_order_enabled
                 },
                 timestamp: new Date().toISOString()
             });
