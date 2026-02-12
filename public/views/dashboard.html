@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>THG-FULFILL Dashboard</title>
+    <link rel="icon" type="image/png" href="/uploads/logo.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -50,9 +51,8 @@
         }
         .logo-content { display: flex; align-items: center; gap: 12px; }
         .logo-icon {
-            width: 40px; height: 40px; background: var(--primary);
-            border-radius: 10px; display: flex; align-items: center;
-            justify-content: center; color: white; font-weight: 700; font-size: 16px;
+            width: 40px; height: 40px; border-radius: 10px;
+            object-fit: contain;
         }
         .logo-text h2 { font-size: 16px; font-weight: 700; }
         .logo-text p { font-size: 12px; color: var(--text-secondary); }
@@ -334,7 +334,7 @@
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-logo">
                 <div class="logo-content">
-                    <div class="logo-icon">TF</div>
+                    <img class="logo-icon" src="/uploads/logo.png" alt="THG-FULFILL">
                     <div class="logo-text">
                         <h2>THG-FULFILL</h2>
                         <p id="sidebarSubtitle">Dashboard</p>
@@ -376,6 +376,11 @@
                     <div class="nav-section">
                         <div class="nav-section-title">Documentation</div>
                         <ul class="nav-menu">
+                            <li class="nav-item">
+                                <a class="nav-link" href="/extensions/admin-docs" style="text-decoration:none;">
+                                    <span class="nav-icon">&#x1F4DA;</span> System Docs
+                                </a>
+                            </li>
                             <li class="nav-item">
                                 <div class="nav-link" data-section="api-docs">
                                     <span class="nav-icon">&#x1F4D6;</span> Open API Docs
@@ -916,6 +921,6 @@
         </div>
     </div>
 
-    <script src="/js/dashboard.js?1923"></script>
+    <script src="/js/dashboard.js?2000"></script>
 </body>
 </html>

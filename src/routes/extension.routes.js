@@ -51,6 +51,13 @@ router.get('/customer/:customerId', requireAdmin, serveView('customer-detail.htm
 router.get('/bulk-update', requireAdmin, serveView('bulk-update-orders.html'));
 
 /**
+ * @route   GET /extensions/admin-docs
+ * @desc    Admin documentation — system overview, roadmap, extensions, services, API
+ * @access  Private (Admin only)
+ */
+router.get('/admin-docs', requireAdmin, serveView('admin-docs.html'));
+
+/**
  * @route   GET /extensions/tool-express
  * @desc    ECount extension guide
  * @access  Private (Admin only)

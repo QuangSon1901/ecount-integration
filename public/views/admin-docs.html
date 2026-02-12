@@ -1,0 +1,2247 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>THG-FULFILL HUB — Admin Documentation</title>
+    <link rel="icon" type="image/png" href="/uploads/logo.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #eff6ff;
+            --secondary: #64748b;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --border: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --sidebar-width: 280px;
+            --header-height: 64px;
+            --code-bg: #1e293b;
+            --code-text: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.7;
+        }
+
+        .app-container { display: flex; min-height: 100vh; }
+
+        /* ─── Sidebar ─── */
+        .sidebar {
+            position: fixed; left: 0; top: 0;
+            width: var(--sidebar-width); height: 100vh;
+            background: var(--bg-primary);
+            border-right: 1px solid var(--border);
+            overflow-y: auto; z-index: 101;
+            display: flex; flex-direction: column;
+        }
+        .sidebar-logo {
+            padding: 20px; border-bottom: 1px solid var(--border);
+        }
+        .logo-content { display: flex; align-items: center; gap: 12px; }
+        .logo-icon {
+            width: 40px; height: 40px; border-radius: 10px;
+            object-fit: contain;
+        }
+        .logo-text h2 { font-size: 16px; font-weight: 700; }
+        .logo-text p { font-size: 12px; color: var(--text-secondary); }
+
+        .sidebar-nav { padding: 12px 0; flex: 1; }
+        .nav-group { margin-bottom: 20px; }
+        .nav-group-title {
+            padding: 0 20px 6px; font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary);
+        }
+        .nav-menu { list-style: none; }
+        .nav-item { margin: 1px 12px; }
+        .nav-link {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 12px; color: var(--text-secondary);
+            text-decoration: none; border-radius: 8px;
+            font-size: 13px; font-weight: 500;
+            transition: all 0.2s; cursor: pointer;
+        }
+        .nav-link:hover { background: var(--bg-secondary); color: var(--text-primary); }
+        .nav-link.active { background: var(--primary-light); color: var(--primary); }
+        .nav-icon { width: 18px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .nav-badge {
+            margin-left: auto; padding: 1px 7px;
+            background: var(--bg-secondary); border-radius: 10px;
+            font-size: 10px; font-weight: 600; color: var(--text-secondary);
+        }
+        .nav-link.active .nav-badge { background: var(--primary); color: white; }
+
+        .sidebar-footer {
+            padding: 14px 20px; border-top: 1px solid var(--border);
+            font-size: 12px; color: var(--text-secondary);
+        }
+        .sidebar-footer a { color: var(--primary); text-decoration: none; }
+        .sidebar-footer a:hover { text-decoration: underline; }
+
+        /* ─── Header ─── */
+        .header {
+            position: fixed; top: 0; left: var(--sidebar-width); right: 0;
+            height: var(--header-height); background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 32px; z-index: 100;
+        }
+        .header-title h1 { font-size: 20px; font-weight: 600; }
+        .header-title p { font-size: 14px; color: var(--text-secondary); margin-top: 2px; }
+        .header-actions { display: flex; align-items: center; gap: 12px; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 16px; border: 1px solid var(--border);
+            border-radius: 8px; font-size: 13px; font-weight: 500;
+            cursor: pointer; transition: all 0.2s; text-decoration: none;
+            background: var(--bg-primary); color: var(--text-primary);
+        }
+        .btn:hover { background: var(--bg-secondary); }
+        .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-primary:hover { background: var(--primary-dark); }
+
+        /* ─── Main Content ─── */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            margin-top: var(--header-height);
+            padding: 32px;
+            min-height: calc(100vh - var(--header-height));
+            width: calc(100% - var(--sidebar-width));
+            max-width: 960px;
+        }
+
+        .doc-section { display: none; }
+        .doc-section.active { display: block; }
+
+        /* ─── Typography ─── */
+        .doc-section h2 {
+            font-size: 26px; font-weight: 700; margin-bottom: 8px;
+            padding-bottom: 12px; border-bottom: 2px solid var(--primary);
+        }
+        .doc-section h3 {
+            font-size: 20px; font-weight: 600; margin: 28px 0 12px;
+            color: var(--text-primary);
+        }
+        .doc-section h4 {
+            font-size: 16px; font-weight: 600; margin: 20px 0 8px;
+            color: var(--primary-dark);
+        }
+        .doc-section p {
+            margin-bottom: 14px; color: var(--text-primary);
+            font-size: 14px; line-height: 1.8;
+        }
+        .doc-section ul, .doc-section ol {
+            margin: 0 0 16px 24px; font-size: 14px;
+        }
+        .doc-section li { margin-bottom: 6px; line-height: 1.7; }
+        .doc-section strong { font-weight: 600; }
+
+        /* ─── Cards & Boxes ─── */
+        .doc-card {
+            background: var(--bg-primary); border: 1px solid var(--border);
+            border-radius: 12px; padding: 24px; margin-bottom: 24px;
+        }
+        .doc-card-header {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+        }
+        .doc-card-header h3 { margin: 0; font-size: 18px; }
+        .doc-card-icon {
+            width: 36px; height: 36px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; font-size: 18px;
+        }
+
+        .info-box {
+            padding: 14px 18px; border-radius: 8px; margin-bottom: 16px;
+            font-size: 13px; line-height: 1.7;
+        }
+        .info-box.info { background: var(--primary-light); border-left: 4px solid var(--primary); }
+        .info-box.success { background: var(--success-light); border-left: 4px solid var(--success); }
+        .info-box.warning { background: var(--warning-light); border-left: 4px solid var(--warning); }
+        .info-box.danger { background: var(--danger-light); border-left: 4px solid var(--danger); }
+        .info-box strong { font-weight: 600; }
+
+        /* ─── Code ─── */
+        code {
+            background: #f1f5f9; padding: 2px 6px; border-radius: 4px;
+            font-family: 'Fira Code', 'SF Mono', 'Consolas', monospace;
+            font-size: 12.5px; color: #e11d48;
+        }
+        pre {
+            background: var(--code-bg); color: var(--code-text);
+            border-radius: 10px; padding: 18px 20px; margin-bottom: 18px;
+            overflow-x: auto; font-family: 'Fira Code', 'SF Mono', 'Consolas', monospace;
+            font-size: 12.5px; line-height: 1.7;
+        }
+        pre code {
+            background: none; padding: 0; color: inherit; font-size: inherit;
+        }
+        .code-comment { color: #64748b; }
+        .code-keyword { color: #c084fc; }
+        .code-string { color: #34d399; }
+        .code-method { color: #60a5fa; }
+
+        /* ─── Tables ─── */
+        .doc-table {
+            width: 100%; border-collapse: collapse; margin-bottom: 20px;
+            font-size: 13px;
+        }
+        .doc-table th {
+            background: var(--bg-secondary); padding: 10px 14px;
+            text-align: left; font-weight: 600; font-size: 12px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--border);
+        }
+        .doc-table td {
+            padding: 10px 14px; border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+        .doc-table tr:hover td { background: var(--bg-secondary); }
+
+        /* ─── Badges ─── */
+        .badge {
+            display: inline-flex; align-items: center; padding: 2px 10px;
+            border-radius: 20px; font-size: 11px; font-weight: 600;
+        }
+        .badge-blue { background: var(--primary-light); color: var(--primary); }
+        .badge-green { background: var(--success-light); color: #059669; }
+        .badge-orange { background: var(--warning-light); color: #b45309; }
+        .badge-red { background: var(--danger-light); color: #dc2626; }
+        .badge-gray { background: #f1f5f9; color: var(--secondary); }
+        .badge-method {
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 700;
+        }
+        .badge-get { background: #dbeafe; color: #1d4ed8; }
+        .badge-post { background: #d1fae5; color: #047857; }
+        .badge-patch { background: #fef3c7; color: #b45309; }
+        .badge-delete { background: #fee2e2; color: #dc2626; }
+
+        /* ─── Architecture Diagram ─── */
+        .arch-diagram {
+            background: var(--code-bg); border-radius: 10px;
+            padding: 24px; margin-bottom: 20px; overflow-x: auto;
+            font-family: 'Fira Code', 'SF Mono', 'Consolas', monospace;
+            font-size: 12px; line-height: 1.6; color: var(--code-text);
+            white-space: pre;
+        }
+
+        /* ─── Phase Cards ─── */
+        .phase-card {
+            border: 1px solid var(--border); border-radius: 12px;
+            margin-bottom: 16px; overflow: hidden;
+        }
+        .phase-header {
+            display: flex; align-items: center; gap: 12px;
+            padding: 16px 20px; background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border); cursor: pointer;
+        }
+        .phase-header:hover { background: #f1f5f9; }
+        .phase-number {
+            width: 32px; height: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 14px; color: white;
+        }
+        .phase-header h4 { margin: 0; font-size: 15px; flex: 1; }
+        .phase-body { padding: 20px; }
+
+        /* ─── Flow Diagram ─── */
+        .flow-step {
+            display: flex; align-items: flex-start; gap: 16px;
+            margin-bottom: 4px; position: relative;
+        }
+        .flow-icon {
+            width: 32px; height: 32px; min-width: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; color: white; z-index: 1;
+        }
+        .flow-line {
+            position: absolute; left: 15px; top: 32px;
+            width: 2px; height: calc(100% + 4px); background: var(--border);
+        }
+        .flow-content { flex: 1; padding-bottom: 16px; }
+        .flow-content h5 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+        .flow-content p { font-size: 13px; color: var(--text-secondary); margin: 0; }
+
+        /* ─── Feature Grid ─── */
+        .feature-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px; margin-bottom: 20px;
+        }
+        .feature-item {
+            border: 1px solid var(--border); border-radius: 10px;
+            padding: 18px; background: var(--bg-primary);
+            transition: all 0.2s;
+        }
+        .feature-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border-color: var(--primary);
+        }
+        .feature-icon { font-size: 24px; margin-bottom: 10px; }
+        .feature-item h5 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+        .feature-item p { font-size: 13px; color: var(--text-secondary); margin: 0; line-height: 1.6; }
+
+        /* ─── Endpoint Row ─── */
+        .endpoint-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; border: 1px solid var(--border);
+            border-radius: 8px; margin-bottom: 6px;
+            font-size: 13px; transition: all 0.15s;
+        }
+        .endpoint-row:hover { background: var(--bg-secondary); }
+        .endpoint-path {
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 12.5px; flex: 1;
+        }
+        .endpoint-desc { color: var(--text-secondary); font-size: 12px; }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .header { left: 0; }
+            .main-content { margin-left: 0; width: 100%; padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+
+    <!-- ═══════ SIDEBAR ═══════ -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-content">
+                <img class="logo-icon" src="/uploads/logo.png" alt="THG-FULFILL HUB">
+                <div class="logo-text">
+                    <h2>THG-FULFILL HUB</h2>
+                    <p>Admin Documentation</p>
+                </div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <!-- 1. System Overview -->
+            <div class="nav-group">
+                <div class="nav-group-title">System Overview</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <div class="nav-link active" data-section="overview">
+                            <span class="nav-icon">&#x1f3d7;</span> Architecture
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="components">
+                            <span class="nav-icon">&#x2699;</span> Core Components
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="database">
+                            <span class="nav-icon">&#x1f4be;</span> Database Schema
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 2. Roadmap -->
+            <div class="nav-group">
+                <div class="nav-group-title">Roadmap</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="roadmap">
+                            <span class="nav-icon">&#x1f5fa;</span> Development Phases
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 3. Extensions -->
+            <div class="nav-group">
+                <div class="nav-group-title">Extensions</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="extensions">
+                            <span class="nav-icon">&#x1f9e9;</span> Extension List
+                            <span class="nav-badge">2</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- OPS. Operations Guide -->
+            <div class="nav-group">
+                <div class="nav-group-title">Operations Guide</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="ops-create-customer">
+                            <span class="nav-icon">&#x1f4dd;</span> Create Customer
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="ops-customer-detail">
+                            <span class="nav-icon">&#x1f50d;</span> Customer Detail
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="ops-credentials">
+                            <span class="nav-icon">&#x1f511;</span> Credentials &amp; Keys
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="ops-webhooks">
+                            <span class="nav-icon">&#x1f514;</span> Webhooks
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="ops-customer-portal">
+                            <span class="nav-icon">&#x1f464;</span> Customer Portal
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="ops-sandbox">
+                            <span class="nav-icon">&#x1f9ea;</span> Sandbox &amp; Flags
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 4. Services & Features -->
+            <div class="nav-group">
+                <div class="nav-group-title">Services &amp; Features</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="services">
+                            <span class="nav-icon">&#x26a1;</span> Core Services
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="carriers">
+                            <span class="nav-icon">&#x1f69a;</span> Carrier Integration
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="erp">
+                            <span class="nav-icon">&#x1f4ca;</span> ERP Integration
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="jobs">
+                            <span class="nav-icon">&#x23f3;</span> Jobs &amp; Workers
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="webhooks-service">
+                            <span class="nav-icon">&#x1f514;</span> Webhook System
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="customers-service">
+                            <span class="nav-icon">&#x1f465;</span> Customer Mgmt
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 5. Open API -->
+            <div class="nav-group">
+                <div class="nav-group-title">Open API</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="api-overview">
+                            <span class="nav-icon">&#x1f310;</span> API Overview
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="api-auth">
+                            <span class="nav-icon">&#x1f512;</span> Authentication
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="api-endpoints">
+                            <span class="nav-icon">&#x1f4cb;</span> Endpoints
+                            <span class="nav-badge">46+</span>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" data-section="api-integration">
+                            <span class="nav-icon">&#x1f517;</span> Integration Guide
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="/extensions/dashboard">&#x2190; Back to Dashboard</a>
+        </div>
+    </aside>
+
+    <!-- ═══════ HEADER ═══════ -->
+    <header class="header">
+        <div class="header-title">
+            <h1 id="pageTitle">System Architecture</h1>
+            <p id="pageSubtitle">Architecture overview and core components</p>
+        </div>
+        <div class="header-actions">
+            <a href="/extensions/api-docs" class="btn">API Docs (Interactive)</a>
+            <a href="/extensions/dashboard" class="btn btn-primary">&#x2190; Dashboard</a>
+        </div>
+    </header>
+
+    <!-- ═══════ MAIN CONTENT ═══════ -->
+    <main class="main-content">
+
+        <!-- ════════════════════════════════════════════════════════════
+             1. SYSTEM OVERVIEW — ARCHITECTURE
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section active" id="section-overview">
+            <h2>System Architecture</h2>
+            <p>THG-FULFILL HUB is an integrated logistics management platform connecting order management, carrier APIs, ERP automation, and customer portal into a unified system.</p>
+
+            <h3>System Goals</h3>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <div class="feature-icon">&#x1f4e6;</div>
+                    <h5>Order Lifecycle</h5>
+                    <p>Manage the entire order lifecycle from creation through carrier dispatch, tracking, and delivery confirmation.</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">&#x1f504;</div>
+                    <h5>ERP Synchronization</h5>
+                    <p>Automatic 2-way sync with ECount ERP for sales orders, tracking numbers, and delivery statuses.</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">&#x1f310;</div>
+                    <h5>Open API Platform</h5>
+                    <p>OAuth2-secured REST API for third-party integrators with rate limiting, audit trails, and webhooks.</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">&#x1f6e1;</div>
+                    <h5>Real-time Monitoring</h5>
+                    <p>6-stage tracking pipeline with anomaly detection, Telegram alerts, and automated warning escalation.</p>
+                </div>
+            </div>
+
+            <h3>Architecture Diagram</h3>
+            <div class="arch-diagram">                       ┌────────────────────────────────┐
+                       │      Clients / Integrators     │
+                       │  (Browser, API, Chrome Ext.)   │
+                       └───────────────┬────────────────┘
+                                       │
+              ┌────────────────────────┼────────────────────────┐
+              │                Express Server (server.js)       │
+              │  ┌──────────┐  ┌──────────┐  ┌──────────────┐   │
+              │  │ Security │  │  CORS    │  │ Rate Limit   │   │
+              │  │ (Helmet) │  │          │  │ (1000/15min) │   │
+              │  └──────────┘  └──────────┘  └──────────────┘   │
+              └────────────────────────┬────────────────────────┘
+                                       │
+          ┌───────────────┬────────────┼───────────┬──────────────┐
+          │               │            │           │              │
+     ┌────▼────┐   ┌──────▼─────┐  ┌───▼───┐  ┌────▼─────┐  ┌─────▼────┐
+     │Auth     │   │ API v1     │  │Orders │  │Extension │  │ Labels   │
+     │Routes   │   │ Routes     │  │Routes │  │Routes    │  │ Routes   │
+     │(Session)│   │(JWT Token) │  │(Admin)│  │(UI Views)│  │(Public)  │
+     └────┬────┘   └──────┬─────┘  └───┬───┘  └──────────┘  └──────────┘
+          │               │            │
+     ┌────▼───────────────▼────────────▼─────────────────┐
+     │              Controllers (9 files)                │
+     │  Auth │ API-Auth │ API-Customer │ API-Order       │
+     │  API-Webhook │ Order │ Label │ Import │ BulkUpdate│
+     └────────────────────────┬──────────────────────────┘
+                              │
+     ┌────────────────────────▼─────────────────────────┐
+     │              Services Layer (16 files)           │
+     │  ┌──────────┐  ┌──────────┐  ┌───────────────┐   │
+     │  │API:      │  │Carriers: │  │ERP:           │   │
+     │  │Auth,Order│  │YunExpress│  │ECount OAPI,   │   │
+     │  │RateLimit │  │VN, CN    │  │Playwright     │   │
+     │  │Webhook   │  │          │  │               │   │
+     │  └──────────┘  └──────────┘  └───────────────┘   │
+     └──────────┬──────────┬──────────┬─────────────────┘
+                │          │          │
+     ┌──────────▼───┐  ┌───▼───┐  ┌───▼────────────────┐
+     │   MySQL DB   │  │Carrier│  │  ECount ERP        │
+     │  (14 tables) │  │ APIs  │  │  (OAPI + Browser)  │
+     └──────────┬───┘  └───────┘  └────────────────────┘
+                │
+     ┌──────────▼──────────────────────────────────────┐
+     │         Background Worker (worker.js)           │
+     │    ┌──────────────────────────────────────┐     │
+     │    │  Job Manager — 11 workers            │     │
+     │    │  create-order, update-tracking,      │     │
+     │    │  update-status, lookup-docno,        │     │
+     │    │  webhook-delivery, ...               │     │
+     │    └──────────────────────────────────────┘     │
+     │    ┌──────────────────────────────────────┐     │
+     │    │  Cron Jobs — 5 scheduled tasks       │     │
+     │    │  fetch-tracking, update-status,      │     │
+     │    │  sync-orders-ecount, cleanup-sessions│     │
+     │    └──────────────────────────────────────┘     │
+     └─────────────────────────────────────────────────┘</div>
+
+            <h3>Technology Stack</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Runtime</strong></td><td>Node.js + Express 4.18</td><td>Web server and API framework</td></tr>
+                        <tr><td><strong>Database</strong></td><td>MySQL 8.0 (mysql2)</td><td>Persistent storage, job queue</td></tr>
+                        <tr><td><strong>Authentication</strong></td><td>JWT + bcrypt + Session</td><td>API tokens and admin sessions</td></tr>
+                        <tr><td><strong>Validation</strong></td><td>Joi 17</td><td>Request payload validation</td></tr>
+                        <tr><td><strong>Browser Automation</strong></td><td>Playwright</td><td>ECount ERP form automation</td></tr>
+                        <tr><td><strong>HTTP Client</strong></td><td>Axios</td><td>Carrier API calls</td></tr>
+                        <tr><td><strong>Scheduling</strong></td><td>node-cron</td><td>Periodic background tasks</td></tr>
+                        <tr><td><strong>Logging</strong></td><td>Winston</td><td>Structured file + console logging</td></tr>
+                        <tr><td><strong>Security</strong></td><td>Helmet + express-rate-limit</td><td>HTTP headers and DDoS protection</td></tr>
+                        <tr><td><strong>File Processing</strong></td><td>xlsx + multer</td><td>Excel import and file upload</td></tr>
+                        <tr><td><strong>Notifications</strong></td><td>Telegram Bot API</td><td>Error and anomaly alerts</td></tr>
+                        <tr><td><strong>Containerization</strong></td><td>Docker + Docker Compose</td><td>Production deployment</td></tr>
+                        <tr><td><strong>Frontend</strong></td><td>Vanilla JS + CSS</td><td>Dashboard UI (no framework)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Deployment Architecture</h3>
+            <div class="info-box info">
+                <strong>Two separate processes:</strong> The system runs as two independent Node.js processes — <code>server.js</code> (HTTP server) and <code>worker.js</code> (background jobs + cron). Both connect to the same MySQL database.
+            </div>
+            <pre><code><span class="code-comment"># Development</span>
+npm run dev          <span class="code-comment"># Express server with nodemon (port 3000)</span>
+npm run dev:worker   <span class="code-comment"># Worker process with nodemon</span>
+
+<span class="code-comment"># Production</span>
+npm start            <span class="code-comment"># Express server</span>
+npm run worker       <span class="code-comment"># Worker process</span>
+
+<span class="code-comment"># Database</span>
+npm run migrate      <span class="code-comment"># Run pending migrations</span>
+npm run migrate:fresh <span class="code-comment"># Drop all + re-migrate (DANGEROUS)</span>
+
+<span class="code-comment"># Docker</span>
+docker-compose up    <span class="code-comment"># Full stack deployment</span></code></pre>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             1b. CORE COMPONENTS
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-components">
+            <h2>Core Components</h2>
+            <p>The system is organized into clearly separated layers following a Controller → Service → Model pattern.</p>
+
+            <h3>Directory Structure</h3>
+            <pre><code>src/
+├── app.js                     <span class="code-comment"># Express app initialization</span>
+├── controllers/  (9 files)    <span class="code-comment"># Request handlers</span>
+├── routes/       (10 files)   <span class="code-comment"># Endpoint definitions</span>
+├── services/     (16 files)   <span class="code-comment"># Business logic</span>
+│   ├── api/                   <span class="code-comment"># Auth, Order, RateLimit, Webhook</span>
+│   ├── carriers/              <span class="code-comment"># YunExpress VN/CN, Base carrier</span>
+│   ├── erp/                   <span class="code-comment"># ECount OAPI, Playwright</span>
+│   └── queue/                 <span class="code-comment"># Job queue service</span>
+├── models/       (12 files)   <span class="code-comment"># Database models</span>
+├── middlewares/  (10 files)   <span class="code-comment"># Auth, RBAC, RateLimit, Audit, Validation</span>
+├── jobs/                      <span class="code-comment"># Background processing</span>
+│   ├── crons/    (5 files)    <span class="code-comment"># Scheduled tasks</span>
+│   └── workers/  (11 files)   <span class="code-comment"># Job workers</span>
+├── database/     (3 files)    <span class="code-comment"># Connection pool + migrations</span>
+├── config/       (3 files)    <span class="code-comment"># App config, carriers, playwright</span>
+├── utils/        (4 files)    <span class="code-comment"># Logger, response helper, key-gen, telegram</span>
+└── cli/          (2 files)    <span class="code-comment"># CLI scripts (cron, test sync)</span>
+
+public/
+├── views/        (8 files)    <span class="code-comment"># HTML pages</span>
+├── js/           (6 files)    <span class="code-comment"># Frontend scripts</span>
+├── uploads/                   <span class="code-comment"># File uploads</span>
+└── extensions/                <span class="code-comment"># Downloadable extensions (.zip)</span>
+
+scripts/
+└── create-admin.js            <span class="code-comment"># Admin user creation utility</span></code></pre>
+
+            <h3>Middleware Pipeline</h3>
+            <p>Every request passes through a layered middleware chain:</p>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Middleware</th><th>Scope</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>helmet</code></td><td>Global</td><td>Security HTTP headers (XSS, clickjacking, etc.)</td></tr>
+                        <tr><td><code>cors</code></td><td>Global</td><td>CORS policy for allowed origins</td></tr>
+                        <tr><td><code>express-rate-limit</code></td><td><code>/api/</code></td><td>1000 requests per 15 minutes per IP</td></tr>
+                        <tr><td><code>session-auth</code></td><td>UI routes</td><td>Cookie-based session validation for admin/customer</td></tr>
+                        <tr><td><code>api-auth</code></td><td>API v1 routes</td><td>Bearer token (JWT) validation</td></tr>
+                        <tr><td><code>rbac</code></td><td>Admin routes</td><td>Role-based access (admin, customer, owner)</td></tr>
+                        <tr><td><code>api-rate-limit</code></td><td>API v1 routes</td><td>Per-customer hourly/daily rate limits</td></tr>
+                        <tr><td><code>api-audit</code></td><td>API v1 routes</td><td>Request/response logging with unique request ID</td></tr>
+                        <tr><td><code>api-order-validation</code></td><td>Order creation</td><td>Joi schema validation for bulk orders</td></tr>
+                        <tr><td><code>api-webhook-validation</code></td><td>Webhook creation</td><td>Validates webhook URL and event types</td></tr>
+                        <tr><td><code>error</code></td><td>Global</td><td>Centralized error handler with Winston logging</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Controllers</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Controller</th><th>Responsibility</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>auth.controller</code></td><td>Session login/logout, current user info (<code>/me</code>)</td></tr>
+                        <tr><td><code>api-auth.controller</code></td><td>Token generation, refresh, verify, revoke</td></tr>
+                        <tr><td><code>api-customer.controller</code></td><td>Customer CRUD, credentials, webhooks, password management</td></tr>
+                        <tr><td><code>api-order.controller</code></td><td>Bulk order creation via API, order query</td></tr>
+                        <tr><td><code>api-webhook.controller</code></td><td>Webhook registration, listing, deletion</td></tr>
+                        <tr><td><code>order.controller</code></td><td>Order tracking, inquiry, fee details, batch status, label</td></tr>
+                        <tr><td><code>label.controller</code></td><td>Shipping label retrieval by access key</td></tr>
+                        <tr><td><code>import.controller</code></td><td>Order import from ERP codes (Excel)</td></tr>
+                        <tr><td><code>bulk-update.controller</code></td><td>Bulk order status update from file</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             1c. DATABASE SCHEMA
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-database">
+            <h2>Database Schema</h2>
+            <p>MySQL 8.0 with 14 tables managed through 32 versioned migrations. All tables use <code>InnoDB</code> engine with <code>utf8mb4</code> charset.</p>
+
+            <h3>Core Tables</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Table</th><th>Key Columns</th><th>Purpose</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>orders</strong></td>
+                            <td><code>order_number</code>, <code>tracking_number</code>, <code>status</code>, <code>erp_order_code</code></td>
+                            <td>Master order table with 50+ columns tracking complete lifecycle</td>
+                        </tr>
+                        <tr>
+                            <td><strong>jobs</strong></td>
+                            <td><code>job_type</code>, <code>status</code>, <code>payload</code>, <code>attempts</code></td>
+                            <td>Async job queue with retry logic and exponential backoff</td>
+                        </tr>
+                        <tr>
+                            <td><strong>tracking_logs</strong></td>
+                            <td><code>tracking_number</code>, <code>status</code>, <code>event_code</code></td>
+                            <td>Individual tracking event history from carriers</td>
+                        </tr>
+                        <tr>
+                            <td><strong>tracking_checkpoints</strong></td>
+                            <td><code>thg_received_at</code> ... <code>delivered_at</code></td>
+                            <td>6-stage milestone tracking with warning management</td>
+                        </tr>
+                        <tr>
+                            <td><strong>sessions</strong></td>
+                            <td><code>session_key</code>, <code>cookies</code>, <code>expires_at</code></td>
+                            <td>ECount browser automation session cache (30min TTL)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>API Customer Tables</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Table</th><th>Key Columns</th><th>Purpose</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>api_customers</strong></td>
+                            <td><code>customer_code</code>, <code>environment</code>, <code>webhook_enabled</code>, <code>bulk_order_enabled</code></td>
+                            <td>API customer accounts with feature flags and rate limits</td>
+                        </tr>
+                        <tr>
+                            <td><strong>api_credentials</strong></td>
+                            <td><code>client_id</code>, <code>client_secret_hash</code>, <code>environment</code></td>
+                            <td>OAuth-style credentials (bcrypt hashed secrets)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>api_access_tokens</strong></td>
+                            <td><code>access_token</code>, <code>refresh_token</code>, <code>expires_at</code></td>
+                            <td>JWT access and refresh tokens with expiration</td>
+                        </tr>
+                        <tr>
+                            <td><strong>api_rate_limits</strong></td>
+                            <td><code>window_type</code>, <code>request_count</code>, <code>limit_exceeded</code></td>
+                            <td>Per-customer hourly/daily rate limit tracking</td>
+                        </tr>
+                        <tr>
+                            <td><strong>api_audit_logs</strong></td>
+                            <td><code>request_id</code>, <code>method</code>, <code>endpoint</code>, <code>duration_ms</code></td>
+                            <td>Complete API request audit trail</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Webhook Tables</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Table</th><th>Key Columns</th><th>Purpose</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>webhook_registrations</strong></td>
+                            <td><code>customer_id</code>, <code>url</code>, <code>events</code>, <code>secret</code></td>
+                            <td>Customer webhook endpoints with HMAC signing secrets</td>
+                        </tr>
+                        <tr>
+                            <td><strong>webhook_delivery_logs</strong></td>
+                            <td><code>webhook_id</code>, <code>event</code>, <code>status</code>, <code>http_status</code></td>
+                            <td>Delivery history with retry queue</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Other Tables</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Table</th><th>Purpose</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>admin_users</strong></td><td>Admin accounts for dashboard login (bcrypt passwords)</td></tr>
+                        <tr><td><strong>carrier_labels</strong></td><td>Shipping label files (PDF/PNG/base64)</td></tr>
+                        <tr><td><strong>api_logs</strong></td><td>External API call logs (carrier API requests)</td></tr>
+                        <tr><td><strong>cron_logs</strong></td><td>Cron job execution history and statistics</td></tr>
+                        <tr><td><strong>migrations</strong></td><td>Migration version tracking</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Order Status Machine</h3>
+            <pre><code>pending → created → in_transit → out_for_delivery → delivered
+                  ↘ exception → returned
+                  ↘ cancelled
+                  ↘ failed
+
+<span class="code-comment">ERP Status Codes:</span>
+T = Processing  │ C = Cancelled  │ S = Shipped  │ R = Received
+D = Delivered   │ F = Failed     │ Q = Pending  │ P = Packing  │ V = Verified</code></pre>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             2. ROADMAP
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-roadmap">
+            <h2>Development Roadmap</h2>
+            <p>The system has been developed in iterative phases. Below is the completed and planned development timeline.</p>
+
+            <div class="phase-card">
+                <div class="phase-header">
+                    <div class="phase-number" style="background: var(--success);">1</div>
+                    <h4>Phase 1 — Core Infrastructure</h4>
+                    <span class="badge badge-green">Completed</span>
+                </div>
+                <div class="phase-body">
+                    <ul>
+                        <li><strong>Database foundation</strong> — MySQL schema, migrations system, connection pooling</li>
+                        <li><strong>Express server</strong> — App setup, security middleware (Helmet, CORS, rate-limit)</li>
+                        <li><strong>Order management</strong> — Orders table with 50+ fields, status tracking</li>
+                        <li><strong>Carrier integration</strong> — YunExpress VN/CN with base carrier abstraction</li>
+                        <li><strong>ECount ERP</strong> — OAPI for bulk sales order creation, Playwright for form automation</li>
+                        <li><strong>Job queue system</strong> — MySQL-based async queue with exponential backoff retry</li>
+                        <li><strong>Logging</strong> — Winston with file rotation, Telegram alerts for errors</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="phase-card">
+                <div class="phase-header">
+                    <div class="phase-number" style="background: var(--success);">2</div>
+                    <h4>Phase 2 — Background Processing &amp; Tracking</h4>
+                    <span class="badge badge-green">Completed</span>
+                </div>
+                <div class="phase-body">
+                    <ul>
+                        <li><strong>Worker Manager</strong> — 11 specialized workers with configurable concurrency</li>
+                        <li><strong>Cron jobs</strong> — Tracking fetch (1min), status sync, ERP sync, session cleanup</li>
+                        <li><strong>6-stage tracking pipeline</strong> — THG → Carrier → Customs → Clearance → USPS → Delivered</li>
+                        <li><strong>Anomaly detection</strong> — Customs exceptions, package loss, delivery failures</li>
+                        <li><strong>Telegram notifications</strong> — Real-time alerts for tracking anomalies</li>
+                        <li><strong>ECount DOC_NO lookup</strong> — Playwright browser automation for document retrieval</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="phase-card">
+                <div class="phase-header">
+                    <div class="phase-number" style="background: var(--success);">3</div>
+                    <h4>Phase 3 — Open API Platform</h4>
+                    <span class="badge badge-green">Completed</span>
+                </div>
+                <div class="phase-body">
+                    <ul>
+                        <li><strong>OAuth2 authentication</strong> — Client credentials flow, JWT access/refresh tokens</li>
+                        <li><strong>Customer management</strong> — CRUD, credentials, environment separation (production/sandbox)</li>
+                        <li><strong>Bulk order API</strong> — Create up to 100 orders per request</li>
+                        <li><strong>Rate limiting</strong> — Per-customer hourly/daily limits, consecutive error blocking</li>
+                        <li><strong>Audit logging</strong> — Complete request/response audit trail with request IDs</li>
+                        <li><strong>Request signature</strong> — Optional HMAC-SHA256 request signing</li>
+                        <li><strong>API documentation</strong> — Interactive docs page with code examples</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="phase-card">
+                <div class="phase-header">
+                    <div class="phase-number" style="background: var(--success);">4</div>
+                    <h4>Phase 4 — Webhook &amp; Customer Portal</h4>
+                    <span class="badge badge-green">Completed</span>
+                </div>
+                <div class="phase-body">
+                    <ul>
+                        <li><strong>Webhook system</strong> — Event dispatch, async delivery, HMAC-SHA256 signature</li>
+                        <li><strong>Customer portal</strong> — Login, overview, credential management, webhook config</li>
+                        <li><strong>Feature flags</strong> — <code>webhook_enabled</code>, <code>bulk_order_enabled</code> per customer</li>
+                        <li><strong>Password management</strong> — Random password generation, admin reset, customer self-service change</li>
+                        <li><strong>Sandbox environment</strong> — Separate credentials with visible secret keys for testing</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="phase-card">
+                <div class="phase-header">
+                    <div class="phase-number" style="background: var(--primary);">5</div>
+                    <h4>Phase 5 — Admin Dashboard &amp; Tools</h4>
+                    <span class="badge badge-green">Completed</span>
+                </div>
+                <div class="phase-body">
+                    <ul>
+                        <li><strong>Dashboard UI</strong> — Responsive sidebar layout with role-based visibility</li>
+                        <li><strong>Customer management UI</strong> — Create, list, detail, edit, credentials lifecycle</li>
+                        <li><strong>Bulk operations</strong> — Excel import, bulk status update, batch validation</li>
+                        <li><strong>Chrome extensions</strong> — ECount helper tool, label management tool</li>
+                        <li><strong>Admin documentation</strong> — System documentation page (this page)</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             3. EXTENSIONS
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-extensions">
+            <h2>Extensions</h2>
+            <p>Chrome browser extensions that enhance the admin workflow by providing tools directly inside the ECount ERP interface.</p>
+
+            <div class="doc-card">
+                <div class="doc-card-header">
+                    <div class="doc-card-icon" style="background: var(--primary-light);">&#x1f9e9;</div>
+                    <div>
+                        <h3>ECount Extension Tool</h3>
+                        <p style="font-size:13px; color:var(--text-secondary); margin:0;">Chrome extension for ERP workflow automation</p>
+                    </div>
+                    <span class="badge badge-blue">Admin Only</span>
+                </div>
+                <p><strong>Purpose:</strong> Streamlines order management within the ECount ERP web interface. Provides quick actions and data extraction directly from ECount pages.</p>
+                <h4>Key Features</h4>
+                <ul>
+                    <li>Quick order lookup from within ECount interface</li>
+                    <li>Bulk data extraction from ERP forms</li>
+                    <li>Integration with THG-FULFILL HUB for real-time sync</li>
+                    <li>Keyboard shortcuts for common ERP operations</li>
+                </ul>
+                <h4>Installation</h4>
+                <ol>
+                    <li>Download from: <code>GET /extensions/download/tool-express</code> (admin auth required)</li>
+                    <li>Unzip the downloaded file</li>
+                    <li>Open Chrome → <code>chrome://extensions</code> → Enable "Developer mode"</li>
+                    <li>Click "Load unpacked" → Select the unzipped folder</li>
+                </ol>
+                <div class="info-box warning">
+                    <strong>Access Restriction:</strong> This extension is only available to admin users. The download endpoint requires admin authentication.
+                </div>
+            </div>
+
+            <div class="doc-card">
+                <div class="doc-card-header">
+                    <div class="doc-card-icon" style="background: var(--success-light);">&#x1f3f7;</div>
+                    <div>
+                        <h3>Label Extension Tool</h3>
+                        <p style="font-size:13px; color:var(--text-secondary); margin:0;">Shipping label management helper</p>
+                    </div>
+                    <span class="badge badge-green">Public</span>
+                </div>
+                <p><strong>Purpose:</strong> Simplifies shipping label access and printing. Provides quick access to label PDFs via persistent access keys.</p>
+                <h4>Key Features</h4>
+                <ul>
+                    <li>One-click label retrieval by order number</li>
+                    <li>Batch label download and printing</li>
+                    <li>Persistent access key system — labels accessible via permanent URLs</li>
+                    <li>Label format support: PDF, PNG, ZPL</li>
+                </ul>
+                <h4>Label Access</h4>
+                <pre><code><span class="code-comment"># Access any label via permanent URL:</span>
+GET /api/labels/{accessKey}
+
+<span class="code-comment"># Example:</span>
+https://express.thgfulfill.com/api/labels/abc123def456</code></pre>
+                <div class="info-box info">
+                    <strong>Public Access:</strong> Labels are accessible without authentication using the unique access key. The extension can be installed by anyone.
+                </div>
+            </div>
+
+            <h3>Extension Architecture</h3>
+            <div class="arch-diagram">  ┌─────────────────────────────────────┐
+  │        Chrome Browser               │
+  │  ┌──────────────┐ ┌──────────────┐  │
+  │  │ ECount Tool  │ │ Label Tool   │  │
+  │  │ Extension    │ │ Extension    │  │
+  │  └──────┬───────┘ └──────┬───────┘  │
+  └─────────┼────────────────┼──────────┘
+            │                │
+            ▼                ▼
+  ┌─────────────────────────────────────┐
+  │   THG-FULFILL HUB Server            │
+  │  ┌──────────────────────────────┐   │
+  │  │ /extensions/  (UI pages)     │   │
+  │  │ /api/labels/  (label access) │   │
+  │  │ /api/orders/  (order data)   │   │
+  │  └──────────────────────────────┘   │
+  └─────────────────────────────────────┘</div>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             4a. CORE SERVICES
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-services">
+            <h2>Core Services</h2>
+            <p>The service layer contains all business logic. Each service encapsulates a specific domain and is used by controllers and workers.</p>
+
+            <h3>Service Architecture</h3>
+            <div class="arch-diagram">  Services (16 files)
+  │
+  ├── api/
+  │   ├── auth.service         <span style="color:#64748b">→ Credentials, JWT tokens, rate limits</span>
+  │   ├── order.service        <span style="color:#64748b">→ Bulk order creation via ECount OAPI</span>
+  │   ├── rate-limit.service   <span style="color:#64748b">→ Per-customer hourly/daily limits</span>
+  │   └── webhook.service      <span style="color:#64748b">→ Event dispatch, HMAC delivery</span>
+  │
+  ├── carriers/
+  │   ├── base.carrier         <span style="color:#64748b">→ Abstract interface (createOrder, track, getLabel)</span>
+  │   ├── yunexpress.service   <span style="color:#64748b">→ YunExpress Vietnam implementation</span>
+  │   └── yunexpress_cn.service<span style="color:#64748b">→ YunExpress China implementation</span>
+  │
+  ├── erp/
+  │   ├── ecount-order.service <span style="color:#64748b">→ OAPI REST integration</span>
+  │   ├── ecount-docno-lookup  <span style="color:#64748b">→ Playwright DOC_NO retrieval</span>
+  │   └── ecount-session.mgr   <span style="color:#64748b">→ Session cache (30min TTL)</span>
+  │
+  ├── queue/
+  │   └── job.service          <span style="color:#64748b">→ Job creation helper</span>
+  │
+  ├── order.service            <span style="color:#64748b">→ Core order orchestration</span>
+  └── tracking-checkpoint.svc  <span style="color:#64748b">→ 6-stage tracking + anomaly detection</span></div>
+
+            <h3>Order Service</h3>
+            <div class="doc-card">
+                <p><strong>File:</strong> <code>src/services/order.service.js</code> (1,143 lines)</p>
+                <p>The central orchestrator for order processing. Manages the complete order lifecycle from queue to delivery.</p>
+                <h4>Key Methods</h4>
+                <table class="doc-table">
+                    <thead><tr><th>Method</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>processOrderMulti()</code></td><td>Batch process orders with carrier validation, duplicate detection, staggered queuing (2s apart)</td></tr>
+                        <tr><td><code>getPendingOrders()</code></td><td>Query orders by state: waiting_creation, waiting_tracking, in_transit, failed, etc.</td></tr>
+                        <tr><td><code>getStatusBatch()</code></td><td>Determine order state by checking DB status + associated job statuses</td></tr>
+                        <tr><td><code>trackByTrackingNumber()</code></td><td>Query carrier API for real-time tracking data</td></tr>
+                        <tr><td><code>getProducts()</code></td><td>List available shipping products per carrier and destination</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Tracking Checkpoint Service</h3>
+            <div class="doc-card">
+                <p><strong>File:</strong> <code>src/services/tracking-checkpoint.service.js</code> (862 lines)</p>
+                <p>Real-time shipment milestone tracking with anomaly detection and automated alerting.</p>
+                <h4>6-Stage Tracking Pipeline</h4>
+                <table class="doc-table">
+                    <thead><tr><th>Stage</th><th>Checkpoint</th><th>Threshold</th></tr></thead>
+                    <tbody>
+                        <tr><td>1</td><td>THG → Carrier received</td><td>48 hours</td></tr>
+                        <tr><td>2</td><td>Carrier → Shipped</td><td>24 hours</td></tr>
+                        <tr><td>3</td><td>Customs processing</td><td>72 hours</td></tr>
+                        <tr><td>4</td><td>Clearance → USPS</td><td>96 hours</td></tr>
+                        <tr><td>5</td><td>USPS → Out for delivery</td><td>168 hours (7 days)</td></tr>
+                        <tr><td>6</td><td>Delivered → ERP updated</td><td>—</td></tr>
+                    </tbody>
+                </table>
+                <h4>Anomaly Categories</h4>
+                <ul>
+                    <li><code>CUSTOMS_EXCEPTION</code> — Customs hold or inspection issue</li>
+                    <li><code>CUSTOMS_HOLD</code> — Package held at customs</li>
+                    <li><code>PACKAGE_LOST</code> — Package lost in transit</li>
+                    <li><code>DELIVERY_FAILURE</code> — Delivery attempt failed</li>
+                    <li><code>RETURNED</code> — Package returned to sender</li>
+                </ul>
+                <div class="info-box warning">
+                    <strong>Telegram Alerts:</strong> Anomalies trigger immediate Telegram notifications to the admin chat with Vietnamese labels and customer tagging.
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             4b. CARRIER INTEGRATION
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-carriers">
+            <h2>Carrier Integration</h2>
+            <p>The system uses an abstract carrier pattern allowing easy addition of new shipping providers.</p>
+
+            <h3>Base Carrier Interface</h3>
+            <pre><code><span class="code-keyword">class</span> BaseCarrier {
+    <span class="code-method">createOrder</span>(orderData)      <span class="code-comment">// Create shipment → returns waybill + tracking</span>
+    <span class="code-method">getLabel</span>(trackingNumber)     <span class="code-comment">// Get shipping label PDF/PNG</span>
+    <span class="code-method">trackOrder</span>(trackingNumber)    <span class="code-comment">// Get current tracking status</span>
+    <span class="code-method">validateOrderData</span>(data)      <span class="code-comment">// Validate before submission</span>
+}</code></pre>
+
+            <h3>Available Carriers</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Carrier</th><th>Code</th><th>Service Products</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>YunExpress Vietnam</strong></td>
+                            <td><code>YUNEXPRESS</code></td>
+                            <td>VN-YTYCPREC, VNTHZXR, VNBKZXR, VNMUZXR, S1002</td>
+                        </tr>
+                        <tr>
+                            <td><strong>YunExpress China</strong></td>
+                            <td><code>YUNEXPRESS_CN</code></td>
+                            <td>YTYCPREG, YTYCPREC, FZZXR, BKPHR, THPHR, THZXR, BKZXR, MUZXR, ZBZXRPH</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Available Warehouses</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Code</th><th>Location</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>CNEXP</code></td><td>China Express</td></tr>
+                        <tr><td><code>CNFFM</code></td><td>China FFM</td></tr>
+                        <tr><td><code>USDRO</code></td><td>US Drop-off</td></tr>
+                        <tr><td><code>VNHCM</code></td><td>Vietnam Ho Chi Minh</td></tr>
+                        <tr><td><code>VNHN</code></td><td>Vietnam Ha Noi</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Order Creation Flow</h3>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">1</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>API Request</h5>
+                    <p>Client sends <code>POST /api/v1/orders/bulk</code> with order data array</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">2</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>ECount OAPI</h5>
+                    <p>Orders are transformed and sent to ECount <code>Sale/SaveSale</code> API for ERP record creation</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">3</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Save + Queue</h5>
+                    <p>Orders saved to local DB, <code>lookup_docno</code> job queued (30s delay) to retrieve DOC_NO</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">4</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Carrier Dispatch</h5>
+                    <p>Create-order worker sends to carrier API → receives waybill number + tracking number</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--success);">5</div>
+                <div class="flow-content">
+                    <h5>Tracking & Webhooks</h5>
+                    <p>Cron fetches tracking updates → checkpoints updated → webhooks dispatched to customers</p>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             4c. ERP INTEGRATION
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-erp">
+            <h2>ERP Integration (ECount)</h2>
+            <p>The system integrates with ECount ERP through two approaches: REST API (OAPI) for data operations and browser automation (Playwright) for UI-only features.</p>
+
+            <h3>Integration Methods</h3>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <div class="feature-icon">&#x1f310;</div>
+                    <h5>OAPI (REST API)</h5>
+                    <p>Used for bulk sales order creation. Authenticates via <code>OAPILogin</code>, creates orders via <code>Sale/SaveSale</code>. Cached session (25min TTL).</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">&#x1f3ad;</div>
+                    <h5>Playwright (Browser)</h5>
+                    <p>Used specifically for DOC_NO lookup. Lightweight alternative to Puppeteer for search + data extraction.</p>
+                </div>
+            </div>
+
+            <h3>OAPI Endpoints Used</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>POST /OAPI/V2/OAPILogin</code></td><td>Authenticate and get SESSION_ID</td></tr>
+                        <tr><td><code>POST /OAPI/V2/Sale/SaveSale</code></td><td>Create bulk sales orders (up to 100)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Browser Automation Features</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Operation</th><th>Engine</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td>Update tracking number</td><td>Playwright</td><td>Navigate to order form → search → fill tracking field → F8 save</td></tr>
+                        <tr><td>Update order status</td><td>Playwright</td><td>Navigate to order form → search → change status dropdown → save</td></tr>
+                        <tr><td>Read order info</td><td>Playwright</td><td>Navigate → search → extract receiver, items, dimensions</td></tr>
+                        <tr><td>DOC_NO lookup</td><td>Playwright</td><td>Open search form → query by SlipNo date → extract DOC_NO from results table</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Environment Variables</h3>
+            <pre><code><span class="code-comment"># ECount API</span>
+ECOUNT_COMPANY_CODE=...    <span class="code-comment"># Company identifier</span>
+ECOUNT_ID=...              <span class="code-comment"># API user ID</span>
+ECOUNT_PASSWORD=...        <span class="code-comment"># Web login password</span>
+ECOUNT_API_CERT_KEY=...    <span class="code-comment"># OAPI certificate key</span>
+ECOUNT_BASE_URL=...        <span class="code-comment"># Web interface URL</span>
+ECOUNT_OAPI_BASE_URL=...   <span class="code-comment"># API base (https://oapi.ecount.com)</span>
+ECOUNT_ZONE=...            <span class="code-comment"># Geographic zone</span>
+ECOUNT_HASH_LINK=...       <span class="code-comment"># Deep link hash for forms</span>
+
+<span class="code-comment"># Playwright</span>
+PLAYWRIGHT_HEADLESS=true
+PLAYWRIGHT_TIMEOUT=60000
+PLAYWRIGHT_CONCURRENT_BROWSERS=2</code></pre>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             4d. JOBS & WORKERS
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-jobs">
+            <h2>Jobs &amp; Workers</h2>
+            <p>Background processing runs in a separate <code>worker.js</code> process. The job queue uses MySQL with <code>SELECT ... FOR UPDATE SKIP LOCKED</code> for safe concurrent processing.</p>
+
+            <h3>Worker Architecture</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Worker</th><th>Job Type</th><th>Concurrency</th><th>Poll</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Create Order</strong></td><td><code>create_order</code></td><td>5</td><td>3s</td><td>Create orders with carrier API → get waybill + tracking</td></tr>
+                        <tr><td><strong>Update Tracking Batch</strong></td><td><code>update_tracking_batch</code></td><td>2</td><td>5s</td><td>Batch update tracking data from carriers</td></tr>
+                        <tr><td><strong>Update Status Batch</strong></td><td><code>update_status_batch</code></td><td>2</td><td>5s</td><td>Batch update order statuses</td></tr>
+                        <tr><td><strong>Lookup DocNo</strong></td><td><code>lookup_docno</code></td><td>2</td><td>5s</td><td>Retrieve ECount DOC_NO via Playwright</td></tr>
+                        <tr><td><strong>Track Other Order</strong></td><td><code>track_other_order</code></td><td>2</td><td>5s</td><td>Track non-YunExpress orders</td></tr>
+                        <tr><td><strong>Update Warning</strong></td><td><code>update_warning_ecount</code></td><td>2</td><td>5s</td><td>Sync tracking warnings to ERP</td></tr>
+                        <tr><td><strong>Webhook Delivery</strong></td><td><code>webhook_delivery</code></td><td>5</td><td>3s</td><td>HTTP POST webhook with HMAC signature</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Retry Logic</h3>
+            <div class="info-box info">
+                <strong>Exponential Backoff:</strong> Failed jobs are retried with increasing delays. Default max attempts: 6.
+            </div>
+            <pre><code>Attempt  1 → retry after   5s
+Attempt  2 → retry after  10s
+Attempt  3 → retry after  20s
+Attempt  4 → retry after  40s
+Attempt  5 → retry after  80s
+Attempt  6 → retry after 160s  (max, then marked failed)</code></pre>
+
+            <h3>Cron Jobs</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Cron</th><th>Schedule</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Fetch Tracking</strong></td><td>Every 1 minute</td><td>Query carriers for tracking updates, process through checkpoint service</td></tr>
+                        <tr><td><strong>Update Status</strong></td><td>Configurable</td><td>Sync order statuses to database</td></tr>
+                        <tr><td><strong>Sync Orders ECount</strong></td><td>Configurable</td><td>Synchronize orders with ERP system</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Stuck Job Recovery</h3>
+            <p>Every 60 seconds, the base worker checks for jobs stuck in <code>processing</code> state for more than 5 minutes and resets them to <code>pending</code> for retry.</p>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             4e. WEBHOOK SYSTEM
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-webhooks-service">
+            <h2>Webhook System</h2>
+            <p>Real-time event notifications to API customers via HTTP POST callbacks with HMAC-SHA256 signature verification.</p>
+
+            <h3>Supported Events</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Event</th><th>Trigger</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>tracking.updated</code></td><td>Tracking status or checkpoint changes</td></tr>
+                        <tr><td><code>order.status</code></td><td>Order status transitions (shipped, delivered, etc.)</td></tr>
+                        <tr><td><code>order.exception</code></td><td>Anomaly detected (customs hold, delivery failure, etc.)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Delivery Flow</h3>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">1</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Event Occurs</h5>
+                    <p>Tracking update, status change, or exception detected by cron/worker</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">2</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Dispatch</h5>
+                    <p><code>webhookService.dispatch()</code> finds matching webhooks by customer + event, creates delivery jobs</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">3</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Validation</h5>
+                    <p>Worker checks: webhook active? customer webhook_enabled? If not, skip without retry</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">4</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>HTTP POST</h5>
+                    <p>Send payload to webhook URL with <code>X-Webhook-Signature: HMAC-SHA256(body, secret)</code></p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--success);">5</div>
+                <div class="flow-content">
+                    <h5>Result</h5>
+                    <p>Success → log delivery. Failure → retry with exponential backoff (max 6 attempts)</p>
+                </div>
+            </div>
+
+            <h3>Signature Verification (Client Side)</h3>
+            <pre><code><span class="code-keyword">const</span> crypto = require(<span class="code-string">'crypto'</span>);
+
+<span class="code-keyword">function</span> <span class="code-method">verifySignature</span>(body, signature, secret) {
+    <span class="code-keyword">const</span> expected = crypto
+        .createHmac(<span class="code-string">'sha256'</span>, secret)
+        .update(JSON.stringify(body))
+        .digest(<span class="code-string">'hex'</span>);
+    <span class="code-keyword">return</span> signature === expected;
+}</code></pre>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             4f. CUSTOMER MANAGEMENT
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-customers-service">
+            <h2>Customer Management</h2>
+            <p>Comprehensive lifecycle management for API customers including credentials, feature flags, rate limits, and portal access.</p>
+
+            <h3>Customer Lifecycle</h3>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">1</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Create Customer</h5>
+                    <p>Admin creates customer with code, name, email, environment. System generates random portal password (shown once).</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">2</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Generate Credentials</h5>
+                    <p>Admin generates <code>client_id</code> + <code>client_secret</code>. Secret is shown once (bcrypt hashed in DB). Sandbox secrets remain visible.</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">3</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Configure Features</h5>
+                    <p>Enable/disable <code>webhook_enabled</code>, <code>bulk_order_enabled</code>. Set rate limits and max bulk orders.</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--success);">4</div>
+                <div class="flow-content">
+                    <h5>Customer Portal</h5>
+                    <p>Customer logs in with code + password. Views credentials, manages webhooks, changes password.</p>
+                </div>
+            </div>
+
+            <h3>Feature Flags</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Flag</th><th>Default</th><th>Effect when Disabled</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td><code>webhook_enabled</code></td>
+                            <td><span class="badge badge-green">true</span></td>
+                            <td>Webhook section hidden in portal. Delivery worker skips this customer.</td>
+                        </tr>
+                        <tr>
+                            <td><code>bulk_order_enabled</code></td>
+                            <td><span class="badge badge-green">true</span></td>
+                            <td>API Credentials section hidden in portal. Bulk order API returns 403.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Credential Lifecycle</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Action</th><th>Endpoint</th><th>Who</th></tr></thead>
+                    <tbody>
+                        <tr><td>Generate</td><td><code>POST /:id/credentials</code></td><td>Admin only</td></tr>
+                        <tr><td>View</td><td><code>GET /:id/credentials</code></td><td>Admin or Owner</td></tr>
+                        <tr><td>Refresh</td><td><code>POST /:id/credentials/refresh</code></td><td>Admin or Owner</td></tr>
+                        <tr><td>Revoke</td><td><code>POST /:id/credentials/:cid/revoke</code></td><td>Admin only</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Rate Limits</h3>
+            <pre><code><span class="code-comment"># Default per-customer limits (configurable)</span>
+rate_limit_per_hour:    6,000 requests
+rate_limit_per_day:    10,000 requests
+max_consecutive_errors:    30 (then blocked)
+
+<span class="code-comment"># Global IP rate limit</span>
+1,000 requests per 15 minutes per IP</code></pre>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             5a. API OVERVIEW
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-api-overview">
+            <h2>Open API Overview</h2>
+            <p>THG-FULFILL HUB exposes a RESTful API for third-party integrations. The API follows OAuth2 client credentials flow with JWT tokens.</p>
+
+            <h3>Base URL</h3>
+            <pre><code>https://express.thgfulfill.com/api/v1</code></pre>
+
+            <h3>Standard Response Format</h3>
+            <pre><code>{
+    <span class="code-string">"success"</span>: true,
+    <span class="code-string">"message"</span>: <span class="code-string">"Operation completed"</span>,
+    <span class="code-string">"data"</span>: { ... },
+    <span class="code-string">"timestamp"</span>: <span class="code-string">"2026-02-12T10:30:00.000Z"</span>
+}</code></pre>
+
+            <h3>Error Response Format</h3>
+            <pre><code>{
+    <span class="code-string">"success"</span>: false,
+    <span class="code-string">"error"</span>: {
+        <span class="code-string">"code"</span>: <span class="code-string">"RATE_LIMIT_EXCEEDED"</span>,
+        <span class="code-string">"message"</span>: <span class="code-string">"Hourly rate limit exceeded"</span>
+    },
+    <span class="code-string">"timestamp"</span>: <span class="code-string">"2026-02-12T10:30:00.000Z"</span>
+}</code></pre>
+
+            <h3>HTTP Status Codes</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>200</code></td><td>Success</td></tr>
+                        <tr><td><code>201</code></td><td>Created (all orders succeeded)</td></tr>
+                        <tr><td><code>207</code></td><td>Multi-Status (partial success in bulk operations)</td></tr>
+                        <tr><td><code>400</code></td><td>Bad Request (validation error)</td></tr>
+                        <tr><td><code>401</code></td><td>Unauthorized (missing or invalid token)</td></tr>
+                        <tr><td><code>403</code></td><td>Forbidden (insufficient permissions or feature disabled)</td></tr>
+                        <tr><td><code>404</code></td><td>Not Found</td></tr>
+                        <tr><td><code>429</code></td><td>Rate Limit Exceeded</td></tr>
+                        <tr><td><code>500</code></td><td>Internal Server Error</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Security Layers</h3>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <div class="feature-icon">&#x1f512;</div>
+                    <h5>OAuth2 + JWT</h5>
+                    <p>Client credentials grant. Access tokens (1h) + refresh tokens (30d).</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">&#x1f6e1;</div>
+                    <h5>Rate Limiting</h5>
+                    <p>Per-customer hourly/daily limits + global IP rate limit.</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">&#x1f4dd;</div>
+                    <h5>Audit Trail</h5>
+                    <p>Every API call logged with request ID, duration, response status.</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">&#x270d;</div>
+                    <h5>HMAC Signatures</h5>
+                    <p>Optional request signing + webhook payload signatures.</p>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             5b. AUTHENTICATION
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-api-auth">
+            <h2>API Authentication</h2>
+            <p>Two authentication systems are used: session-based for the web dashboard, and OAuth2 JWT for API access.</p>
+
+            <h3>1. Session Authentication (Dashboard)</h3>
+            <div class="doc-card">
+                <p>Used by admin users and customer portal. Cookie-based with HMAC-SHA256 session signature.</p>
+                <pre><code><span class="code-comment"># Login</span>
+POST /login
+Content-Type: application/json
+
+{
+    <span class="code-string">"username"</span>: <span class="code-string">"admin_user"</span>,       <span class="code-comment">// or customer_code</span>
+    <span class="code-string">"password"</span>: <span class="code-string">"your_password"</span>,
+}</code></pre>
+            </div>
+
+            <h3>2. OAuth2 Token Authentication (API)</h3>
+            <div class="doc-card">
+                <h4>Step 1: Get Access Token</h4>
+                <pre><code>POST /api/v1/auth/token
+Content-Type: application/json
+
+{
+    <span class="code-string">"client_id"</span>: <span class="code-string">"CID_abc123..."</span>,
+    <span class="code-string">"client_secret"</span>: <span class="code-string">"SECRET_xyz789..."</span>,
+}</code></pre>
+
+                <h4>Response</h4>
+                <pre><code>{
+    <span class="code-string">"success"</span>: true,
+    <span class="code-string">"data"</span>: {
+        <span class="code-string">"access_token"</span>: <span class="code-string">"eyJhbGc..."</span>,
+        <span class="code-string">"refresh_token"</span>: <span class="code-string">"eyJhbGc..."</span>,
+        <span class="code-string">"token_type"</span>: <span class="code-string">"Bearer"</span>,
+        <span class="code-string">"expires_in"</span>: 3600,
+        <span class="code-string">"environment"</span>: <span class="code-string">"production"</span>
+    }
+}</code></pre>
+
+                <h4>Step 2: Use Token in Requests</h4>
+                <pre><code>GET /api/v1/orders/ORD-001
+Authorization: Bearer eyJhbGc...</code></pre>
+
+                <h4>Step 3: Refresh Token (when expired)</h4>
+                <pre><code>POST /api/v1/auth/refresh
+Content-Type: application/json
+
+{
+    <span class="code-string">"refresh_token"</span>: <span class="code-string">"eyJhbGc..."</span>
+}</code></pre>
+            </div>
+
+            <h3>RBAC Roles</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Role</th><th>Access Scope</th></tr></thead>
+                    <tbody>
+                        <tr><td><span class="badge badge-red">admin</span></td><td>Full system access — all customers, all operations, UI dashboard</td></tr>
+                        <tr><td><span class="badge badge-blue">customer</span></td><td>Own data only — own credentials, webhooks, orders, portal</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             5c. ENDPOINTS
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-api-endpoints">
+            <h2>API Endpoints</h2>
+            <p>Complete list of all 46+ endpoints organized by feature module.</p>
+
+            <h3>Authentication</h3>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/v1/auth/token</span><span class="endpoint-desc">Generate access + refresh tokens</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/v1/auth/refresh</span><span class="endpoint-desc">Refresh expired access token</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/v1/auth/verify</span><span class="endpoint-desc">Verify current token validity</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/v1/auth/revoke</span><span class="endpoint-desc">Revoke current access token</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/v1/auth/me</span><span class="endpoint-desc">Get authenticated customer info</span></div>
+
+            <h3>Reference Data</h3>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/v1/health</span><span class="endpoint-desc">API health check (no auth)</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/v1/services</span><span class="endpoint-desc">List available shipping services</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/v1/add-services</span><span class="endpoint-desc">List additional services (G0, G1, V0, V1)</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/v1/warehouses</span><span class="endpoint-desc">List available warehouses</span></div>
+
+            <h3>Orders</h3>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/v1/orders/bulk</span><span class="endpoint-desc">Create bulk orders (up to 100)</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/v1/orders/:referenceCode</span><span class="endpoint-desc">Get order by reference code</span></div>
+
+            <h3>Webhooks (Customer API)</h3>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/v1/webhooks</span><span class="endpoint-desc">Register webhook endpoint</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/v1/webhooks</span><span class="endpoint-desc">List registered webhooks</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-delete">DELETE</span><span class="endpoint-path">/api/v1/webhooks/:webhook_id</span><span class="endpoint-desc">Delete webhook</span></div>
+
+            <h3>Customer Management (Admin)</h3>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/v1/admin/customers</span><span class="endpoint-desc">Create new API customer</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/v1/admin/customers</span><span class="endpoint-desc">List all customers</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/v1/admin/customers/:id</span><span class="endpoint-desc">Get customer details</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-patch">PATCH</span><span class="endpoint-path">/api/v1/admin/customers/:id</span><span class="endpoint-desc">Update customer settings</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/v1/admin/customers/:id/credentials</span><span class="endpoint-desc">Generate API credentials</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/v1/admin/customers/:id/credentials</span><span class="endpoint-desc">Get active credentials</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/v1/admin/customers/:id/credentials/refresh</span><span class="endpoint-desc">Refresh credentials</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/v1/admin/customers/:id/credentials/:cid/revoke</span><span class="endpoint-desc">Revoke credential</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/v1/admin/customers/:id/rate-limits</span><span class="endpoint-desc">Get rate limit statistics</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/v1/admin/customers/:id/portal-password</span><span class="endpoint-desc">Reset portal password (random)</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/v1/admin/customers/:id/change-password</span><span class="endpoint-desc">Customer change own password</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/v1/admin/customers/:id/webhooks</span><span class="endpoint-desc">List customer webhooks</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/v1/admin/customers/:id/webhooks</span><span class="endpoint-desc">Register webhook for customer</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-delete">DELETE</span><span class="endpoint-path">/api/v1/admin/customers/:id/webhooks/:wid</span><span class="endpoint-desc">Delete customer webhook</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/v1/admin/customers/:id/webhook-logs</span><span class="endpoint-desc">Get webhook delivery logs</span></div>
+
+            <h3>Admin Order Operations</h3>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/orders/bulk-check</span><span class="endpoint-desc">Validate orders from Excel file</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/orders/bulk-update-status</span><span class="endpoint-desc">Bulk update order statuses</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/orders/tracking/:trackingNumber</span><span class="endpoint-desc">Track by tracking number</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/orders/inquiry/:orderNumber</span><span class="endpoint-desc">Inquiry order details</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/orders/fee-details/:orderNumber</span><span class="endpoint-desc">Get fee breakdown</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/orders/label/:orderNumber</span><span class="endpoint-desc">Get shipping label</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/orders/status/batch</span><span class="endpoint-desc">Batch status query</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/orders/import</span><span class="endpoint-desc">Import orders from ERP codes</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/orders/pending/summary</span><span class="endpoint-desc">Pending orders summary</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/orders/pending</span><span class="endpoint-desc">List pending orders</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-post">POST</span><span class="endpoint-path">/api/orders/labels/purchase</span><span class="endpoint-desc">Create orders (labels)</span></div>
+
+            <h3>Labels</h3>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/api/labels/:accessKey</span><span class="endpoint-desc">Get label by access key (public)</span></div>
+
+            <h3>Dashboard UI</h3>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/extensions/dashboard</span><span class="endpoint-desc">Main dashboard</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/extensions/api-docs</span><span class="endpoint-desc">Interactive API docs</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/extensions/customer/:id</span><span class="endpoint-desc">Customer detail page</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/extensions/admin-docs</span><span class="endpoint-desc">System documentation (this page)</span></div>
+            <div class="endpoint-row"><span class="badge badge-method badge-get">GET</span><span class="endpoint-path">/extensions/bulk-update</span><span class="endpoint-desc">Bulk update tool</span></div>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             5d. INTEGRATION GUIDE
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-api-integration">
+            <h2>Integration Guide</h2>
+            <p>Step-by-step guide for clients to integrate with the THG-FULFILL HUB API.</p>
+
+            <h3>Quick Start</h3>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">1</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Get Credentials</h5>
+                    <p>Admin creates your customer account and provides <code>client_id</code> + <code>client_secret</code>. Store these securely.</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">2</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Authenticate</h5>
+                    <p>Exchange credentials for an access token via <code>POST /api/v1/auth/token</code>. Cache the token until it expires.</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">3</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Create Orders</h5>
+                    <p>Send order data to <code>POST /api/v1/orders/bulk</code>. Include receiver info, package details, and customs declarations.</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">4</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Register Webhooks</h5>
+                    <p>Subscribe to events at <code>POST /api/v1/webhooks</code> to receive real-time tracking updates and order status changes.</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--success);">5</div>
+                <div class="flow-content">
+                    <h5>Monitor</h5>
+                    <p>Use <code>GET /api/v1/orders/:ref</code> to check order status. Process incoming webhook events for real-time updates.</p>
+                </div>
+            </div>
+
+            <h3>Sandbox Testing</h3>
+            <div class="info-box info">
+                <strong>Sandbox Environment:</strong> Customers with <code>environment: sandbox</code> have visible secret keys and relaxed restrictions. Use sandbox credentials to test your integration before going live.
+            </div>
+            <ul>
+                <li>Sandbox credentials have visible secret keys (not masked)</li>
+                <li>Secret key reset is disabled for sandbox (admin must regenerate)</li>
+                <li>All API endpoints work the same in sandbox and production</li>
+                <li>Webhook deliveries work normally in sandbox</li>
+            </ul>
+
+            <h3>Best Practices</h3>
+            <div class="doc-card">
+                <h4>Token Management</h4>
+                <ul>
+                    <li>Cache access tokens and reuse until expired (1 hour default)</li>
+                    <li>Use refresh tokens to get new access tokens without re-authenticating</li>
+                    <li>Handle 401 responses by refreshing the token automatically</li>
+                </ul>
+
+                <h4>Error Handling</h4>
+                <ul>
+                    <li>Always check the <code>success</code> field in responses</li>
+                    <li>Handle 207 Multi-Status for bulk operations (partial success)</li>
+                    <li>Implement exponential backoff for 429 (rate limited) responses</li>
+                    <li>Log <code>request_id</code> from error responses for support tickets</li>
+                </ul>
+
+                <h4>Webhook Processing</h4>
+                <ul>
+                    <li><strong>Always verify signatures</strong> using HMAC-SHA256 before processing</li>
+                    <li>Return HTTP 200 quickly — process payloads asynchronously</li>
+                    <li>Implement idempotency — the same event may be delivered multiple times</li>
+                    <li>Failed deliveries are retried up to 6 times with exponential backoff</li>
+                </ul>
+            </div>
+
+            <h3>Environment Variables for Clients</h3>
+            <pre><code><span class="code-comment"># Your .env file</span>
+THG_API_BASE_URL=https://express.thgfulfill.com/api/v1
+THG_CLIENT_ID=CID_your_client_id
+THG_CLIENT_SECRET=SECRET_your_client_secret
+THG_WEBHOOK_SECRET=your_webhook_signing_secret</code></pre>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             OPS-1. CREATE CUSTOMER
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-ops-create-customer">
+            <h2>Tạo Customer mới</h2>
+            <p>Hướng dẫn từng bước tạo tài khoản khách hàng API mới trên hệ thống.</p>
+
+            <h3>Truy cập</h3>
+            <p><strong>Dashboard</strong> &rarr; sidebar <strong>"Create Customer"</strong> (hoặc click thẻ "Create Customer" trên trang Overview).</p>
+
+            <h3>Các trường nhập liệu</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Trường</th><th>Bắt buộc</th><th>Mặc định</th><th>Ghi chú</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Customer Code</strong></td><td><span class="badge badge-red">Bắt buộc</span></td><td>—</td><td>Mã khách hàng, phải duy nhất và đồng bộ với ECount (VD: <code>CUS0001</code>)</td></tr>
+                        <tr><td><strong>Customer Name</strong></td><td><span class="badge badge-red">Bắt buộc</span></td><td>—</td><td>Tên hiển thị của khách hàng</td></tr>
+                        <tr><td><strong>Email</strong></td><td>Tùy chọn</td><td>—</td><td>Email liên hệ</td></tr>
+                        <tr><td><strong>Phone</strong></td><td>Tùy chọn</td><td>—</td><td>Số điện thoại</td></tr>
+                        <tr><td><strong>Environment</strong></td><td><span class="badge badge-red">Bắt buộc</span></td><td>production</td><td><code>production</code> = thật, <code>sandbox</code> = test</td></tr>
+                        <tr><td><strong>Rate Limit (Hour)</strong></td><td>Tùy chọn</td><td>6000</td><td>Giới hạn request/giờ</td></tr>
+                        <tr><td><strong>Rate Limit (Day)</strong></td><td>Tùy chọn</td><td>10000</td><td>Giới hạn request/ngày</td></tr>
+                        <tr><td><strong>Webhook Enabled</strong></td><td>—</td><td>&#x2705; Bật</td><td>Bật = customer có thể dùng Webhook</td></tr>
+                        <tr><td><strong>Bulk Order Enabled</strong></td><td>—</td><td>&#x2705; Bật</td><td>Bật = customer có thể dùng API tạo đơn &amp; xem credentials</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Quy trình từng bước</h3>
+
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">1</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Điền form</h5>
+                    <p>Nhập Customer Code, Customer Name, chọn Environment, cấu hình rate limit và feature flags.</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">2</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Click "+ Create Customer"</h5>
+                    <p>Hệ thống tự động tạo <strong>mật khẩu portal ngẫu nhiên 12 ký tự</strong> (chữ + số), hash bằng bcrypt rồi lưu vào DB.</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--success);">3</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Kết quả hiển thị</h5>
+                    <p>Hộp xanh hiện lên gồm <strong>Customer Code</strong> và <strong>Portal Password</strong> kèm nút <strong>Copy</strong>.</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--warning);">!</div>
+                <div class="flow-content">
+                    <h5>Copy mật khẩu ngay</h5>
+                    <p>Mật khẩu <strong>chỉ hiển thị duy nhất lần này</strong>. Sau khi tải lại trang sẽ không thể xem lại. Copy và gửi cho khách hàng.</p>
+                </div>
+            </div>
+
+            <div class="info-box warning">
+                <strong>Lưu ý quan trọng:</strong> Khi tạo customer, hệ thống <strong>không</strong> tự động tạo API credentials (client_id + secret). Admin phải vào trang Chi tiết Customer để tạo credentials sau.
+            </div>
+
+            <h3>Sau khi tạo xong</h3>
+            <p>Admin cần gửi cho khách hàng các thông tin sau để họ đăng nhập vào Customer Portal:</p>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Thông tin</th><th>Giá trị</th></tr></thead>
+                    <tbody>
+                        <tr><td>URL đăng nhập</td><td><code>https://express.thgfulfill.com</code></td></tr>
+                        <tr><td>Customer Code</td><td>Mã vừa tạo (VD: <code>CUS0001</code>)</td></tr>
+                        <tr><td>Password</td><td>Mật khẩu đã copy ở bước trên</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             OPS-2. CUSTOMER DETAIL
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-ops-customer-detail">
+            <h2>Quản lý chi tiết Customer</h2>
+            <p>Trang Admin xem và chỉnh sửa thông tin customer, quản lý credentials, webhooks và mật khẩu portal.</p>
+
+            <h3>Truy cập</h3>
+            <p><strong>Dashboard</strong> &rarr; <strong>Customers</strong> &rarr; click <strong>"View"</strong> trên dòng customer muốn xem.</p>
+
+            <h3>Thông tin hiển thị</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Dòng</th><th>Nội dung</th></tr></thead>
+                    <tbody>
+                        <tr><td>Customer Code</td><td>Mã khách hàng</td></tr>
+                        <tr><td>Status</td><td>Badge: <span class="badge badge-green">active</span> / <span class="badge badge-orange">suspended</span></td></tr>
+                        <tr><td>Email / Phone</td><td>Thông tin liên hệ</td></tr>
+                        <tr><td>Environment</td><td>Badge: <span class="badge badge-blue">production</span> / <span class="badge badge-orange">sandbox</span></td></tr>
+                        <tr><td>Rate Limit</td><td>VD: 6000/h &mdash; 10000/d</td></tr>
+                        <tr><td>Webhook</td><td>Badge: <span class="badge badge-green">Enabled</span> / <span class="badge badge-red">Disabled</span></td></tr>
+                        <tr><td>Bulk Order API</td><td>Badge: <span class="badge badge-green">Enabled</span> / <span class="badge badge-red">Disabled</span></td></tr>
+                        <tr><td>Portal Password</td><td>Badge: <span class="badge badge-green">Set</span> / <span class="badge badge-gray">Not set</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Chỉnh sửa Customer</h3>
+            <p>Click nút <strong>"Edit"</strong> trên card info &rarr; Modal mở ra với các trường có thể sửa:</p>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Trường</th><th>Kiểu</th><th>Ghi chú</th></tr></thead>
+                    <tbody>
+                        <tr><td>Customer Name</td><td>Text</td><td>Tên hiển thị</td></tr>
+                        <tr><td>Email</td><td>Email</td><td>Thông tin liên hệ</td></tr>
+                        <tr><td>Phone</td><td>Text</td><td>Số điện thoại</td></tr>
+                        <tr><td>Status</td><td>Dropdown</td><td>active / suspended</td></tr>
+                        <tr><td>Webhook Enabled</td><td>Dropdown</td><td>true / false &mdash; ảnh hưởng trực tiếp portal khách</td></tr>
+                        <tr><td>Bulk Order API</td><td>Dropdown</td><td>true / false &mdash; ảnh hưởng trực tiếp portal khách</td></tr>
+                        <tr><td>Rate Limit / Hour</td><td>Number</td><td>Giới hạn request mỗi giờ</td></tr>
+                        <tr><td>Rate Limit / Day</td><td>Number</td><td>Giới hạn request mỗi ngày</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p>Click <strong>"Save Changes"</strong> &rarr; dữ liệu cập nhật ngay, trang tự refresh hiển thị mới.</p>
+
+            <h3>Reset mật khẩu Portal</h3>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">1</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Click "Reset Password"</h5>
+                    <p>Trong phần Portal Password, click nút <strong>"Reset Password"</strong>.</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">2</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Xác nhận</h5>
+                    <p>Hộp thoại hiện lên: <em>"Generate a new random password?"</em> &rarr; click OK.</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--success);">3</div>
+                <div class="flow-content">
+                    <h5>Copy mật khẩu mới</h5>
+                    <p>Hệ thống tạo mật khẩu ngẫu nhiên 12 ký tự, hiển thị trong hộp xanh kèm nút <strong>Copy</strong>. Gửi cho khách hàng. <strong>Chỉ hiển thị 1 lần.</strong></p>
+                </div>
+            </div>
+            <div class="info-box info">
+                <strong>Mật khẩu cũ bị vô hiệu ngay lập tức.</strong> Khách hàng sẽ không thể đăng nhập bằng mật khẩu cũ sau khi reset.
+            </div>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             OPS-3. CREDENTIALS & KEYS
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-ops-credentials">
+            <h2>Quản lý Credentials &amp; API Keys</h2>
+            <p>Hướng dẫn tạo, làm mới và thu hồi API credentials cho khách hàng.</p>
+
+            <div class="info-box warning">
+                <strong>Nhắc lại:</strong> Hệ thống <strong>không</strong> tự tạo credentials khi tạo customer. Admin phải vào trang Chi tiết để tạo thủ công.
+            </div>
+
+            <h3>Tạo Credentials lần đầu</h3>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">1</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Vào trang Chi tiết Customer</h5>
+                    <p>Dashboard &rarr; Customers &rarr; View &rarr; Kéo xuống phần <strong>"API Credentials"</strong>.</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--primary);">2</div>
+                <div class="flow-line"></div>
+                <div class="flow-content">
+                    <h5>Click "Generate Credentials"</h5>
+                    <p>Xác nhận hộp thoại. Hệ thống tạo cặp <code>client_id</code> + <code>client_secret</code>.</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon" style="background: var(--success);">3</div>
+                <div class="flow-content">
+                    <h5>Copy Secret Key</h5>
+                    <p>Hộp xanh hiện ra chứa <strong>Secret Key mới</strong> kèm nút Copy. <strong>Chỉ hiển thị duy nhất lần này</strong> (production). Lưu lại cẩn thận.</p>
+                </div>
+            </div>
+
+            <h3>Sau khi tạo credentials</h3>
+            <p>Khách hàng sẽ thấy tại portal của họ (nếu <code>bulk_order_enabled = true</code>):</p>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Thông tin</th><th>Production</th><th>Sandbox</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Client ID</strong></td><td>Luôn hiển thị, có nút Copy</td><td>Luôn hiển thị, có nút Copy</td></tr>
+                        <tr><td><strong>Secret Key</strong></td><td>Ẩn (****), không xem lại được</td><td><strong>Hiển thị rõ</strong>, có nút Copy</td></tr>
+                        <tr><td><strong>Reset Secret</strong></td><td>Khách tự reset được</td><td><strong>Bị khóa</strong> — chỉ Admin reset</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Refresh Credentials (làm mới)</h3>
+            <p>Khi khách hàng bị lộ secret hoặc cần đổi key mới:</p>
+            <ol>
+                <li>Vào trang Chi tiết Customer &rarr; phần API Credentials</li>
+                <li>Click nút <strong>"Refresh"</strong> trên credential card</li>
+                <li>Xác nhận &mdash; credential cũ bị <strong>thu hồi ngay lập tức</strong></li>
+                <li>Credential mới được tạo với <code>client_id</code> mới + <code>client_secret</code> mới</li>
+                <li>Copy secret key từ hộp xanh hiện ra</li>
+            </ol>
+            <div class="info-box danger">
+                <strong>Credential cũ mất hiệu lực ngay!</strong> Mọi token đang dùng từ credential cũ sẽ không còn hợp lệ. Khách hàng cần cập nhật credentials mới trong hệ thống của họ.
+            </div>
+
+            <h3>Revoke Credentials (thu hồi)</h3>
+            <p>Khi cần vô hiệu hóa hoàn toàn API access của khách:</p>
+            <ol>
+                <li>Vào trang Chi tiết Customer &rarr; phần API Credentials</li>
+                <li>Click nút <strong>"Revoke"</strong> trên credential card</li>
+                <li>Xác nhận &mdash; credential bị đánh dấu <code>revoked</code>, biến mất khỏi danh sách</li>
+                <li>Khách hàng <strong>không thể</strong> tạo token mới từ credential này</li>
+            </ol>
+            <p>Để cấp lại access: click <strong>"Generate Credentials"</strong> để tạo cặp credentials hoàn toàn mới.</p>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             OPS-4. WEBHOOKS
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-ops-webhooks">
+            <h2>Quản lý Webhooks</h2>
+            <p>Webhooks cho phép hệ thống gửi thông báo real-time đến endpoint của khách hàng khi có sự kiện xảy ra.</p>
+
+            <h3>Điều kiện hoạt động</h3>
+            <div class="info-box info">
+                <strong>Feature flag:</strong> Customer phải có <code>webhook_enabled = true</code> thì mới có thể quản lý và nhận webhook. Nếu tắt, mục Webhooks trên portal sẽ hiện thông báo <em>"Tính năng chưa được kích hoạt"</em>, và worker sẽ <strong>bỏ qua</strong> delivery cho customer đó.
+            </div>
+
+            <h3>Các sự kiện webhook</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Event</th><th>Mô tả</th><th>Khi nào gửi</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>tracking.updated</code></td><td>Cập nhật tracking</td><td>Khi trạng thái tracking thay đổi (shipped, customs, delivered...)</td></tr>
+                        <tr><td><code>order.status</code></td><td>Thay đổi trạng thái đơn</td><td>Khi order chuyển sang status mới</td></tr>
+                        <tr><td><code>order.exception</code></td><td>Phát hiện bất thường</td><td>Customs hold, giao thất bại, thất lạc hàng...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Thêm Webhook (Admin)</h3>
+            <p>Vào trang Chi tiết Customer &rarr; phần <strong>"Webhooks"</strong>:</p>
+            <ol>
+                <li>Click <strong>"+ Add Webhook"</strong></li>
+                <li>Nhập <strong>Webhook URL</strong> &mdash; endpoint sẽ nhận POST request (VD: <code>https://api.khachhang.com/webhooks/thg</code>)</li>
+                <li>Nhập <strong>Secret</strong> (tối thiểu 8 ký tự) &mdash; dùng để ký payload bằng HMAC-SHA256</li>
+                <li>Chọn <strong>Events</strong> muốn nhận (tick checkbox)</li>
+                <li>Click <strong>"Save"</strong></li>
+            </ol>
+            <p>Webhook được kích hoạt ngay lập tức. Mỗi khi sự kiện xảy ra, hệ thống sẽ gửi HTTP POST đến URL đã đăng ký.</p>
+
+            <h3>Xóa Webhook</h3>
+            <p>Click nút <strong>"Delete"</strong> trên dòng webhook &rarr; xác nhận &rarr; webhook bị xóa và ngừng nhận event.</p>
+
+            <h3>Xem Delivery Logs</h3>
+            <p>Phần <strong>"Webhook Delivery Logs"</strong> bên dưới hiển thị lịch sử gửi webhook:</p>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Cột</th><th>Ý nghĩa</th></tr></thead>
+                    <tbody>
+                        <tr><td>Time</td><td>Thời gian gửi</td></tr>
+                        <tr><td>Event</td><td>Loại sự kiện</td></tr>
+                        <tr><td>URL</td><td>Endpoint đã gửi tới</td></tr>
+                        <tr><td>Status</td><td><span class="badge badge-green">success</span> / <span class="badge badge-red">failed</span> / <span class="badge badge-orange">pending</span></td></tr>
+                        <tr><td>HTTP</td><td>Mã HTTP response từ endpoint khách (200 = thành công)</td></tr>
+                        <tr><td>Attempts</td><td>Số lần thử gửi (tối đa 6 lần, backoff tăng dần)</td></tr>
+                        <tr><td>Error</td><td>Thông báo lỗi nếu thất bại (timeout, connection refused...)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p>Dùng bộ lọc <strong>Event</strong> và <strong>Status</strong> để tìm nhanh. Nút <strong>"Reload"</strong> để refresh dữ liệu.</p>
+
+            <div class="info-box warning">
+                <strong>Retry tự động:</strong> Nếu gửi thất bại, worker sẽ retry tự động với backoff tăng dần (5s → 10s → 20s → 40s → 80s → 160s). Sau 6 lần thất bại liên tiếp, job bị đánh dấu failed.
+            </div>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             OPS-5. CUSTOMER PORTAL
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-ops-customer-portal">
+            <h2>Customer Portal (góc nhìn khách hàng)</h2>
+            <p>Mô tả những gì khách hàng thấy và có thể làm sau khi đăng nhập vào hệ thống.</p>
+
+            <h3>Đăng nhập</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Trường</th><th>Giá trị</th></tr></thead>
+                    <tbody>
+                        <tr><td>Customer Code</td><td>Mã do Admin cấp (VD: <code>CUS0001</code>)</td></tr>
+                        <tr><td>Password</td><td>Mật khẩu do Admin cung cấp khi tạo / reset</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Tab 1: Account Overview</h3>
+            <p>Thông tin tài khoản <strong>(chỉ đọc)</strong>: Customer Code, Name, Email, Phone, Environment, Status.</p>
+            <p>Bên dưới có card <strong>"Change Password"</strong>:</p>
+            <ol>
+                <li>Nhập mật khẩu hiện tại</li>
+                <li>Nhập mật khẩu mới (tối thiểu 6 ký tự)</li>
+                <li>Xác nhận mật khẩu mới</li>
+                <li>Click <strong>"Change Password"</strong></li>
+            </ol>
+
+            <h3>Tab 2: API Credentials</h3>
+            <div class="info-box warning">
+                <strong>Điều kiện:</strong> Chỉ hiển thị khi <code>bulk_order_enabled = true</code>. Nếu tắt, tab này sẽ hiện thông báo: <em>"Tính năng này chưa được kích hoạt. Vui lòng liên hệ quản trị viên."</em>
+            </div>
+            <p>Khi được bật, khách hàng thấy:</p>
+            <ul>
+                <li><strong>Client ID</strong> &mdash; hiển thị rõ, có nút Copy</li>
+                <li><strong>Secret Key</strong> &mdash; hiển thị tùy theo environment:
+                    <ul>
+                        <li><strong>Production:</strong> Ẩn (<code>****</code>), không xem lại được. Chỉ hiện khi mới tạo/refresh.</li>
+                        <li><strong>Sandbox:</strong> Hiện rõ luôn, có nút Copy.</li>
+                    </ul>
+                </li>
+                <li><strong>Reset Secret Key</strong> (chỉ Production) &mdash; tạo secret mới, secret cũ mất hiệu lực ngay.</li>
+            </ul>
+
+            <h3>Tab 3: Webhooks</h3>
+            <div class="info-box warning">
+                <strong>Điều kiện:</strong> Chỉ hiển thị khi <code>webhook_enabled = true</code>. Nếu tắt, tab này sẽ hiện thông báo tương tự.
+            </div>
+            <p>Khi được bật, khách hàng có thể:</p>
+            <ul>
+                <li><strong>Xem danh sách</strong> webhooks đã đăng ký (URL, Events, Status, Fail count)</li>
+                <li><strong>Thêm webhook</strong> mới &mdash; nhập URL, Secret, chọn Events</li>
+                <li><strong>Xóa webhook</strong> &mdash; click Delete trên dòng webhook</li>
+            </ul>
+
+            <h3>Tab 4: API Documentation</h3>
+            <p>Trang tài liệu API tương tác (cùng nội dung với <code>/extensions/api-docs</code>), cho phép khách hàng tìm hiểu cách tích hợp API.</p>
+        </div>
+
+
+        <!-- ════════════════════════════════════════════════════════════
+             OPS-6. SANDBOX & FLAGS
+             ════════════════════════════════════════════════════════════ -->
+        <div class="doc-section" id="section-ops-sandbox">
+            <h2>Sandbox &amp; Feature Flags</h2>
+            <p>Hướng dẫn cách hoạt động của Environment và Feature Flags, giúp admin cấu hình đúng cho từng khách hàng.</p>
+
+            <h3>Environment: Production vs Sandbox</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>Đặc điểm</th><th>Production</th><th>Sandbox</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Mục đích</strong></td><td>Dùng cho vận hành thực tế</td><td>Dùng để test tích hợp</td></tr>
+                        <tr><td><strong>Secret Key</strong></td><td>Hash bcrypt, không xem lại được</td><td>Lưu plaintext, luôn hiển thị trên portal</td></tr>
+                        <tr><td><strong>Khách Reset Secret</strong></td><td>&#x2705; Được phép</td><td>&#x274c; Bị khóa — chỉ Admin thao tác</td></tr>
+                        <tr><td><strong>API hoạt động</strong></td><td>Đầy đủ</td><td>Đầy đủ (giống production)</td></tr>
+                        <tr><td><strong>Webhooks</strong></td><td>Gửi bình thường</td><td>Gửi bình thường</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="info-box info">
+                <strong>Quy trình đề xuất:</strong> Tạo customer sandbox trước để khách hàng test tích hợp. Khi đã sẵn sàng, tạo customer production mới với credentials riêng.
+            </div>
+
+            <h3>Feature Flags</h3>
+            <p>Hai feature flag kiểm soát quyền truy cập tính năng trên Customer Portal:</p>
+
+            <div class="doc-card">
+                <div class="doc-card-header">
+                    <div class="doc-card-icon" style="background: var(--success-light);">&#x1f4e6;</div>
+                    <div>
+                        <h3>bulk_order_enabled</h3>
+                        <p style="font-size:13px; color:var(--text-secondary); margin:0;">Kiểm soát truy cập API Credentials &amp; Bulk Order API</p>
+                    </div>
+                </div>
+                <table class="doc-table">
+                    <thead><tr><th>Trạng thái</th><th>Ảnh hưởng</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge badge-green">true (Bật)</span></td>
+                            <td>
+                                <ul style="margin:0; padding-left:16px;">
+                                    <li>Portal: tab API Credentials hiển thị bình thường</li>
+                                    <li>Khách xem được client_id, secret key</li>
+                                    <li>API <code>POST /orders/bulk</code> hoạt động</li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-red">false (Tắt)</span></td>
+                            <td>
+                                <ul style="margin:0; padding-left:16px;">
+                                    <li>Portal: tab API Credentials hiện <strong>"Tính năng chưa được kích hoạt"</strong></li>
+                                    <li>Khách không thấy client_id và secret</li>
+                                    <li>Hệ thống không gọi <code>loadCredentials()</code></li>
+                                </ul>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="doc-card">
+                <div class="doc-card-header">
+                    <div class="doc-card-icon" style="background: var(--primary-light);">&#x1f514;</div>
+                    <div>
+                        <h3>webhook_enabled</h3>
+                        <p style="font-size:13px; color:var(--text-secondary); margin:0;">Kiểm soát truy cập Webhook và delivery</p>
+                    </div>
+                </div>
+                <table class="doc-table">
+                    <thead><tr><th>Trạng thái</th><th>Ảnh hưởng</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge badge-green">true (Bật)</span></td>
+                            <td>
+                                <ul style="margin:0; padding-left:16px;">
+                                    <li>Portal: tab Webhooks hiển thị bình thường</li>
+                                    <li>Khách đăng ký, xóa webhooks</li>
+                                    <li>Worker gửi webhook delivery khi có event</li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-red">false (Tắt)</span></td>
+                            <td>
+                                <ul style="margin:0; padding-left:16px;">
+                                    <li>Portal: tab Webhooks hiện <strong>"Tính năng chưa được kích hoạt"</strong></li>
+                                    <li>Nút Add Webhook bị ẩn</li>
+                                    <li>Worker kiểm tra flag &rarr; <strong>bỏ qua delivery</strong> cho customer này</li>
+                                </ul>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Cách thay đổi Feature Flags</h3>
+            <ol>
+                <li>Vào <strong>Chi tiết Customer</strong> &rarr; click <strong>"Edit"</strong></li>
+                <li>Thay đổi dropdown <strong>Webhook Enabled</strong> hoặc <strong>Bulk Order API</strong></li>
+                <li>Click <strong>"Save Changes"</strong></li>
+                <li>Thay đổi có hiệu lực <strong>ngay lập tức</strong> khi khách refresh portal</li>
+            </ol>
+
+            <h3>Checklist triển khai cho khách hàng mới</h3>
+            <div class="doc-card">
+                <table class="doc-table">
+                    <thead><tr><th>#</th><th>Bước</th><th>Nơi thao tác</th><th>Ghi chú</th></tr></thead>
+                    <tbody>
+                        <tr><td>1</td><td>Tạo Customer</td><td>Dashboard &rarr; Create Customer</td><td>Copy portal password</td></tr>
+                        <tr><td>2</td><td>Bật/tắt features</td><td>Form tạo hoặc Edit sau</td><td>Mặc định cả hai đều bật</td></tr>
+                        <tr><td>3</td><td>Tạo API Credentials</td><td>Chi tiết Customer &rarr; Generate</td><td>Copy secret key</td></tr>
+                        <tr><td>4</td><td>Gửi thông tin cho khách</td><td>Email / Chat</td><td>Code, Password, Client ID, Secret</td></tr>
+                        <tr><td>5</td><td>Khách đăng nhập Portal</td><td>Trang login</td><td>Login Type = Customer</td></tr>
+                        <tr><td>6</td><td>Khách lấy token</td><td>API: <code>POST /auth/token</code></td><td>Dùng client_id + secret</td></tr>
+                        <tr><td>7</td><td>Khách đăng ký webhook</td><td>Portal hoặc API</td><td>Nếu cần nhận notification</td></tr>
+                        <tr><td>8</td><td>Khách tạo đơn</td><td>API: <code>POST /orders/bulk</code></td><td>Sử dụng access token</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script src="/js/admin-docs.js?v=2000"></script>
+</body>
+</html>
