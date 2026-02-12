@@ -525,6 +525,43 @@ class ApiCustomerController {
     }
 
     /**
+     * POST /api/v1/admin/customers/:customerId/webhooks/:webhookId/test
+     * Body: { event: 'tracking.updated' | 'order.status' | 'order.exception' }
+     * Gửi test webhook đồng bộ — bắt buộc chọn event type
+     */
+    async testWebhook(req, res, next) {
+        try {
+            const { customerId, webhookId } = req.params;
+            const { event } = req.body || {};
+
+            if (!event) {
+                return errorResponse(res, 'Event type is required', 400);
+            }
+
+            const customer = await ApiCustomerModel.findById(customerId);
+            if (!customer) {
+                return errorResponse(res, 'Customer not found', 404);
+            }
+
+            const webhook = await WebhookModel.findById(parseInt(webhookId), parseInt(customerId));
+            if (!webhook) {
+                return errorResponse(res, 'Webhook not found', 404);
+            }
+
+            const webhookService = require('../services/api/webhook.service');
+            const result = await webhookService.testDeliver(webhook, event);
+
+            return successResponse(res, result, result.success
+                ? `Test webhook [${event}] sent successfully (HTTP ${result.httpStatus})`
+                : `Test webhook [${event}] failed: ${result.error}`
+            );
+
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
      * POST /api/v1/admin/customers/:customerId/webhooks
      * Register webhook (từ detail page)
      */

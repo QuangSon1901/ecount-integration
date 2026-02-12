@@ -149,6 +149,115 @@ class WebhookService {
         return { httpStatus: response.status };
     }
 
+    // ─── Test Delivery ──────────────────────────────────────────────
+
+    /**
+     * Sample payloads cho từng event type — dùng khi test webhook
+     */
+    getSamplePayload(event) {
+        const samples = {
+            'tracking.updated': {
+                order_number: 'TEST-ORD-001',
+                tracking_number: 'TEST1234567890',
+                carrier: 'YUNEXPRESS',
+                tracking_status: 'InTransit',
+                tracking_description: 'Package arrived at sorting facility',
+                location: 'Ho Chi Minh City, VN',
+                estimated_delivery: '2025-01-20',
+                updated_at: new Date().toISOString()
+            },
+            'order.status': {
+                order_number: 'TEST-ORD-001',
+                tracking_number: 'TEST1234567890',
+                previous_status: 'processing',
+                status: 'delivered',
+                carrier: 'YUNEXPRESS',
+                delivered_at: new Date().toISOString()
+            },
+            'order.exception': {
+                order_number: 'TEST-ORD-001',
+                tracking_number: 'TEST1234567890',
+                carrier: 'YUNEXPRESS',
+                exception_type: 'delivery_failed',
+                exception_message: 'Recipient not available — package held at local office',
+                occurred_at: new Date().toISOString()
+            }
+        };
+        return samples[event] || null;
+    }
+
+    /**
+     * Gửi test webhook đồng bộ (không qua job queue).
+     * BẮT BUỘC chọn event type hợp lệ (tracking.updated | order.status | order.exception).
+     * Ghi delivery log với event = tên event thật + đánh dấu _test: true trong payload.
+     * KHÔNG ảnh hưởng fail_count.
+     *
+     * @param {object} webhook - row từ webhook_registrations
+     * @param {string} testEvent - event type bắt buộc
+     * @returns {{ success, httpStatus, responseBody?, error? }}
+     */
+    async testDeliver(webhook, testEvent) {
+        if (!testEvent || !VALID_EVENTS.includes(testEvent)) {
+            throw new Error(`Event is required. Allowed: ${VALID_EVENTS.join(', ')}`);
+        }
+
+        const event = testEvent;
+        const sampleData = this.getSamplePayload(event);
+        const payload = {
+            _test: true,
+            ...sampleData
+        };
+
+        const body = {
+            event,
+            data: payload,
+            timestamp: new Date().toISOString()
+        };
+
+        const signature = this.sign(webhook.secret, JSON.stringify(body));
+
+        try {
+            const response = await axios.post(webhook.url, body, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Webhook-Event': event,
+                    'X-Webhook-Signature': signature
+                },
+                timeout: REQUEST_TIMEOUT_MS
+            });
+
+            // Log success — không touch fail_count
+            await WebhookModel.createDeliveryLog({
+                webhookId: webhook.id,
+                customerId: webhook.customer_id,
+                event,
+                orderId: null,
+                payload,
+                status: 'success',
+                httpStatus: response.status,
+                responseBody: JSON.stringify(response.data) || ''
+            });
+
+            return { success: true, httpStatus: response.status, responseBody: response.data };
+        } catch (err) {
+            const httpStatus = err.response?.status || null;
+
+            // Log failure — không touch fail_count
+            await WebhookModel.createDeliveryLog({
+                webhookId: webhook.id,
+                customerId: webhook.customer_id,
+                event,
+                orderId: null,
+                payload,
+                status: 'failed',
+                httpStatus,
+                errorMessage: err.message
+            });
+
+            return { success: false, httpStatus, error: err.message };
+        }
+    }
+
     // ─── Helpers ───────────────────────────────────────────────────
 
     /**

@@ -7,7 +7,7 @@ var CUSTOMER = null;
 
 // ─── Pagination state ──────────────────────────────────────────
 var logsPage = 0;
-var LOGS_PER = 30;
+var LOGS_PER = 10;
 
 // ═══════════════════════════════════════════════════════════════
 // INIT
@@ -255,23 +255,32 @@ function renderWebhooks(webhooks) {
         return;
     }
 
+    // Store webhooks data for test popup
+    _webhooksData = webhooks;
+
     var rows = webhooks.map(function (w) {
         var eventBadges = w.events.map(function (ev) {
             return '<span class="badge badge-info" style="margin-right:4px">' + esc(ev) + '</span>';
         }).join('');
+
         return '<tr>' +
             '<td class="td-url">' + esc(w.url) + '</td>' +
             '<td>' + eventBadges + '</td>' +
             '<td><span class="badge badge-' + (w.status === 'active' ? 'success' : 'danger') + '">' + esc(w.status) + '</span></td>' +
             '<td>' + w.fail_count + '</td>' +
             '<td>' + fmtDate(w.created_at) + '</td>' +
-            '<td><button class="btn btn-sm btn-danger btn-del-webhook" data-wh-id="' + w.id + '">Delete</button></td>' +
+            '<td style="white-space:nowrap;">' +
+                '<div style="display:inline-flex;align-items:center;gap:6px;">' +
+                '<button class="btn btn-sm btn-test-webhook" data-wh-id="' + w.id + '" style="background:#6366f1;color:#fff;border-color:#6366f1;">Test</button>' +
+                '<button class="btn btn-sm btn-danger btn-del-webhook" data-wh-id="' + w.id + '">Delete</button>' +
+                '</div>' +
+            '</td>' +
             '</tr>';
     }).join('');
 
     setHtml('webhooksTable',
         '<table class="data-table"><thead><tr>' +
-        '<th>URL</th><th>Events</th><th>Status</th><th>Fails</th><th>Created</th><th></th>' +
+        '<th>URL</th><th>Events</th><th>Status</th><th>Fails</th><th>Created</th><th>Actions</th>' +
         '</tr></thead><tbody>' + rows + '</tbody></table>');
 
     var delBtns = document.querySelectorAll('.btn-del-webhook');
@@ -279,6 +288,59 @@ function renderWebhooks(webhooks) {
         (function (btn) {
             btn.addEventListener('click', function () { handleDeleteWebhook(btn.dataset.whId); });
         })(delBtns[i]);
+    }
+    var testBtns = document.querySelectorAll('.btn-test-webhook');
+    for (var j = 0; j < testBtns.length; j++) {
+        (function (btn) {
+            btn.addEventListener('click', function () { showTestEventPicker(btn); });
+        })(testBtns[j]);
+    }
+}
+
+// Store webhooks for event lookup
+var _webhooksData = [];
+
+function showTestEventPicker(btn) {
+    var webhookId = btn.dataset.whId;
+
+    // Find this webhook's subscribed events
+    var webhook = null;
+    for (var i = 0; i < _webhooksData.length; i++) {
+        if (String(_webhooksData[i].id) === String(webhookId)) {
+            webhook = _webhooksData[i];
+            break;
+        }
+    }
+    if (!webhook) return;
+
+    var events = webhook.events || [];
+
+    // Build event buttons
+    var eventBtns = events.map(function (ev) {
+        return '<button class="btn btn-sm btn-pick-event" data-event="' + esc(ev) + '" ' +
+            'style="background:var(--primary);color:#fff;border-color:var(--primary);">' + esc(ev) + '</button>';
+    }).join('');
+
+    var html =
+        '<div style="margin-bottom:12px;color:var(--text-secondary);font-size:14px;">' +
+            'Chọn event để gửi test webhook tới:<br>' +
+            '<code style="font-size:12px;color:var(--primary);">' + esc(webhook.url) + '</code>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + eventBtns + '</div>';
+
+    document.getElementById('testEventPickerContent').innerHTML = html;
+    document.getElementById('testEventPickerModal').dataset.whId = webhookId;
+    document.getElementById('testEventPickerModal').classList.add('show');
+
+    // Attach event pick handlers
+    var pickBtns = document.querySelectorAll('.btn-pick-event');
+    for (var j = 0; j < pickBtns.length; j++) {
+        (function (pb) {
+            pb.addEventListener('click', function () {
+                document.getElementById('testEventPickerModal').classList.remove('show');
+                handleTestWebhook(webhookId, pb.dataset.event);
+            });
+        })(pickBtns[j]);
     }
 }
 
@@ -327,6 +389,34 @@ async function handleDeleteWebhook(webhookId) {
     }
 }
 
+async function handleTestWebhook(webhookId, event) {
+    // Disable the Test button for this webhook while sending
+    var testBtn = document.querySelector('.btn-test-webhook[data-wh-id="' + webhookId + '"]');
+    if (testBtn) { testBtn.disabled = true; testBtn.textContent = 'Sending...'; }
+
+    try {
+        var res = await fetch(BASE + '/webhooks/' + webhookId + '/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event: event })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+
+        if (data.data && data.data.success) {
+            showAlert('success', 'Test [' + event + '] sent! HTTP ' + data.data.httpStatus);
+        } else {
+            showAlert('error', 'Test [' + event + '] failed: ' + (data.data && data.data.error ? data.data.error : 'Unknown error'));
+        }
+        // Refresh delivery logs
+        loadLogs(0);
+    } catch (e) {
+        showAlert('error', e.message);
+    } finally {
+        if (testBtn) { testBtn.disabled = false; testBtn.textContent = 'Test'; }
+    }
+}
+
 function toggleWebhookForm(show) {
     document.getElementById('webhookFormWrap').style.display = show ? 'block' : 'none';
     document.getElementById('btnToggleWebhookForm').textContent = show ? 'Cancel' : '+ Add Webhook';
@@ -356,7 +446,12 @@ async function loadLogs(page) {
     }
 }
 
+// Store logs data for detail view
+var _currentLogs = [];
+
 function renderLogs(logs, total) {
+    _currentLogs = logs;
+
     if (logs.length === 0) {
         setHtml('logsTable',
             '<div class="empty-state">' +
@@ -367,27 +462,116 @@ function renderLogs(logs, total) {
         return;
     }
 
-    var rows = logs.map(function (l) {
+    var rows = logs.map(function (l, idx) {
         var statusCls = l.status === 'success' ? 'log-success' : l.status === 'failed' ? 'log-failed' : 'log-pending';
-        return '<tr>' +
+
+        // Detect test delivery: payload contains _test: true
+        var isTest = false;
+        try {
+            var p = typeof l.payload === 'string' ? JSON.parse(l.payload) : l.payload;
+            if (p && p._test) isTest = true;
+        } catch (e) {}
+
+        var testTag = isTest ? ' <span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;vertical-align:middle;">TEST</span>' : '';
+
+        return '<tr' + (isTest ? ' style="background:#fffbeb;"' : '') + '>' +
             '<td>' + fmtDatetime(l.created_at) + '</td>' +
-            '<td>' + esc(l.event) + '</td>' +
+            '<td><span class="badge badge-info" style="font-size:11px;">' + esc(l.event) + '</span>' + testTag + '</td>' +
             '<td class="td-url">' + esc(l.webhook_url || '\u2014') + '</td>' +
             '<td>' + (l.order_id || '\u2014') + '</td>' +
             '<td class="' + statusCls + '">' + esc(l.status) + '</td>' +
             '<td>' + (l.http_status || '\u2014') + '</td>' +
             '<td>' + l.attempts + '</td>' +
-            '<td style="max-width:180px;font-size:12px;color:var(--text-secondary);word-break:break-all">' + esc(l.error_message || '\u2014') + '</td>' +
+            '<td style="white-space:nowrap;">' +
+                '<button class="btn btn-sm btn-view-log" data-log-idx="' + idx + '" style="font-size:12px;padding:4px 10px;">Detail</button>' +
+            '</td>' +
             '</tr>';
     }).join('');
 
     setHtml('logsTable',
         '<table class="data-table"><thead><tr>' +
         '<th>Time</th><th>Event</th><th>Webhook URL</th><th>Order</th>' +
-        '<th>Status</th><th>HTTP</th><th>Attempts</th><th>Error</th>' +
+        '<th>Status</th><th>HTTP</th><th>Attempts</th><th></th>' +
         '</tr></thead><tbody>' + rows + '</tbody></table>');
 
+    // Attach detail buttons
+    var detailBtns = document.querySelectorAll('.btn-view-log');
+    for (var i = 0; i < detailBtns.length; i++) {
+        (function (btn) {
+            btn.addEventListener('click', function () {
+                var idx = parseInt(btn.dataset.logIdx);
+                showLogDetail(_currentLogs[idx]);
+            });
+        })(detailBtns[i]);
+    }
+
     updatePagination(total);
+}
+
+function formatJson(val) {
+    if (!val) return '—';
+    try {
+        var obj = typeof val === 'string' ? JSON.parse(val) : val;
+        return JSON.stringify(obj, null, 2);
+    } catch (e) {
+        return String(val);
+    }
+}
+
+function showLogDetail(log) {
+    if (!log) return;
+
+    var statusCls = log.status === 'success' ? 'log-success' : log.status === 'failed' ? 'log-failed' : 'log-pending';
+
+    // Detect test delivery
+    var isTest = false;
+    try {
+        var p = typeof log.payload === 'string' ? JSON.parse(log.payload) : log.payload;
+        if (p && p._test) isTest = true;
+    } catch (e) {}
+
+    var testTag = isTest ? ' <span style="background:#f59e0b;color:#fff;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700;">TEST</span>' : '';
+
+    var html =
+        (isTest ? '<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#92400e;font-weight:600;">This is a test delivery — sample data, does not affect fail count.</div>' : '') +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">' +
+            '<div class="info-box" style="padding:12px 16px;">' +
+                '<div class="info-row"><span class="info-label">Time</span><span class="info-value">' + fmtDatetime(log.created_at) + '</span></div>' +
+                '<div class="info-row"><span class="info-label">Event</span><span class="info-value"><span class="badge badge-info">' + esc(log.event) + '</span>' + testTag + '</span></div>' +
+                '<div class="info-row"><span class="info-label">Status</span><span class="info-value ' + statusCls + '">' + esc(log.status) + '</span></div>' +
+                '<div class="info-row"><span class="info-label">HTTP Status</span><span class="info-value">' + (log.http_status || '—') + '</span></div>' +
+            '</div>' +
+            '<div class="info-box" style="padding:12px 16px;">' +
+                '<div class="info-row"><span class="info-label">Webhook URL</span><span class="info-value td-url" style="font-size:12px;">' + esc(log.webhook_url || '—') + '</span></div>' +
+                '<div class="info-row"><span class="info-label">Order ID</span><span class="info-value">' + (log.order_id || '—') + '</span></div>' +
+                '<div class="info-row"><span class="info-label">Attempts</span><span class="info-value">' + log.attempts + '</span></div>' +
+                '<div class="info-row"><span class="info-label">Delivered At</span><span class="info-value">' + (log.delivered_at ? fmtDatetime(log.delivered_at) : '—') + '</span></div>' +
+            '</div>' +
+        '</div>';
+
+    // Error message
+    if (log.error_message) {
+        html += '<div style="margin-bottom:16px;">' +
+            '<label style="display:block;font-size:13px;font-weight:600;color:var(--danger);margin-bottom:6px;">Error Message</label>' +
+            '<div style="background:var(--danger-light);border:1px solid var(--danger);border-radius:8px;padding:12px;font-size:13px;word-break:break-all;">' + esc(log.error_message) + '</div>' +
+            '</div>';
+    }
+
+    // Payload
+    html += '<div style="margin-bottom:16px;">' +
+        '<label style="display:block;font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">Request Payload</label>' +
+        '<pre style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;font-family:\'Courier New\',monospace;overflow-x:auto;max-height:300px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;margin:0;">' + esc(formatJson(log.payload)) + '</pre>' +
+        '</div>';
+
+    // Response body
+    html += '<div style="margin-bottom:0;">' +
+        '<label style="display:block;font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">Response Body</label>' +
+        '<pre style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;font-family:\'Courier New\',monospace;overflow-x:auto;max-height:300px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;margin:0;">' + esc(formatJson(log.response_body)) + '</pre>' +
+        '</div>';
+
+    // Show in modal
+    document.getElementById('logDetailContent').innerHTML = html;
+    document.getElementById('logDetailModal').classList.add('show');
 }
 
 function updatePagination(total) {
@@ -439,6 +623,22 @@ function initButtons() {
     // Copy new secret
     document.getElementById('btnCopyNewSecret').addEventListener('click', function () {
         copyToClipboard(document.getElementById('newSecretValue').textContent);
+    });
+
+    // Test event picker modal
+    document.getElementById('btnCloseTestPicker').addEventListener('click', function () {
+        document.getElementById('testEventPickerModal').classList.remove('show');
+    });
+    document.getElementById('testEventPickerModal').addEventListener('click', function (e) {
+        if (e.target === this) this.classList.remove('show');
+    });
+
+    // Log detail modal
+    document.getElementById('btnCloseLogDetail').addEventListener('click', function () {
+        document.getElementById('logDetailModal').classList.remove('show');
+    });
+    document.getElementById('logDetailModal').addEventListener('click', function (e) {
+        if (e.target === this) this.classList.remove('show');
     });
 
     // Log filters

@@ -104,6 +104,12 @@ router.delete('/:customerId/webhooks/:webhookId',
     apiCustomerController.deleteWebhook.bind(apiCustomerController)
 );
 
+/** POST /api/v1/admin/customers/:customerId/webhooks/:webhookId/test — Send test webhook */
+router.post('/:customerId/webhooks/:webhookId/test',
+    requireAdminOrOwner('customerId'),
+    apiCustomerController.testWebhook.bind(apiCustomerController)
+);
+
 /** GET /api/v1/admin/customers/:customerId/webhook-logs — Webhook delivery logs */
 router.get('/:customerId/webhook-logs',
     requireAdminOrOwner('customerId'),

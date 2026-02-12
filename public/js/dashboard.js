@@ -236,6 +236,17 @@ function initEventListeners() {
             if (e.target === overlay) overlay.classList.remove('show');
         });
     }
+
+    // Test event picker modal
+    addClick('btnCancelTestPicker', function () {
+        document.getElementById('testEventPickerModal').classList.remove('show');
+    });
+    var testPickerOverlay = document.getElementById('testEventPickerModal');
+    if (testPickerOverlay) {
+        testPickerOverlay.addEventListener('click', function (e) {
+            if (e.target === testPickerOverlay) testPickerOverlay.classList.remove('show');
+        });
+    }
 }
 
 function addClick(id, fn) {
@@ -578,24 +589,41 @@ function renderWebhooks(webhooks) {
         '<th>URL</th><th>Events</th><th>Status</th><th>Fails</th><th>Actions</th>' +
         '</tr></thead><tbody>';
 
+    // Store webhooks data for event picker
+    _portalWebhooks = webhooks;
+
     for (var i = 0; i < webhooks.length; i++) {
         var wh = webhooks[i];
-        var events = Array.isArray(wh.events) ? wh.events.join(', ') : wh.events;
+        var evArr = Array.isArray(wh.events) ? wh.events : (typeof wh.events === 'string' ? wh.events.split(',') : []);
+        var eventsStr = evArr.join(', ');
         var badge = wh.status === 'active'
             ? '<span class="badge badge-success">Active</span>'
             : '<span class="badge badge-danger">Inactive</span>';
 
         html += '<tr>' +
             '<td class="mono" style="font-size:13px;max-width:300px;overflow:hidden;text-overflow:ellipsis;">' + esc(wh.url) + '</td>' +
-            '<td style="font-size:12px;">' + esc(events) + '</td>' +
+            '<td style="font-size:12px;">' + esc(eventsStr) + '</td>' +
             '<td>' + badge + '</td>' +
             '<td style="text-align:center;">' + (wh.fail_count || 0) + '</td>' +
-            '<td><button class="btn btn-danger btn-sm del-wh-btn" data-wh-id="' + wh.id + '">Delete</button></td>' +
+            '<td style="white-space:nowrap;">' +
+                '<button class="btn btn-sm test-wh-btn" style="background:#6366f1;color:#fff;margin-right:6px;border-color:#6366f1;" data-wh-id="' + wh.id + '">Test</button>' +
+                '<button class="btn btn-danger btn-sm del-wh-btn" data-wh-id="' + wh.id + '">Delete</button>' +
+            '</td>' +
             '</tr>';
     }
 
     html += '</tbody></table></div>';
     container.innerHTML = html;
+
+    // Attach test handlers — open event picker
+    var testBtns = container.querySelectorAll('.test-wh-btn');
+    for (var t = 0; t < testBtns.length; t++) {
+        (function (btn) {
+            btn.addEventListener('click', function () {
+                showTestEventPicker(btn);
+            });
+        })(testBtns[t]);
+    }
 
     // Attach delete handlers
     var btns = container.querySelectorAll('.del-wh-btn');
@@ -604,6 +632,50 @@ function renderWebhooks(webhooks) {
             var whId = parseInt(this.getAttribute('data-wh-id'), 10);
             if (whId) deleteWebhook(whId);
         });
+    }
+}
+
+var _portalWebhooks = [];
+
+function showTestEventPicker(btn) {
+    var webhookId = btn.getAttribute('data-wh-id');
+    var webhook = null;
+    for (var i = 0; i < _portalWebhooks.length; i++) {
+        if (String(_portalWebhooks[i].id) === String(webhookId)) {
+            webhook = _portalWebhooks[i];
+            break;
+        }
+    }
+    if (!webhook) return;
+
+    var evArr = Array.isArray(webhook.events) ? webhook.events : (typeof webhook.events === 'string' ? webhook.events.split(',') : []);
+    var eventBtns = '';
+    for (var e = 0; e < evArr.length; e++) {
+        var ev = evArr[e].trim();
+        if (ev) eventBtns += '<button class="btn btn-sm pick-ev-btn" data-event="' + esc(ev) + '" style="background:#2563eb;color:#fff;border-color:#2563eb;">' + esc(ev) + '</button> ';
+    }
+
+    var contentEl = document.getElementById('testEventPickerContent');
+    contentEl.innerHTML =
+        '<div style="margin-bottom:12px;color:#64748b;font-size:14px;">' +
+            'Chọn event để gửi test webhook tới:<br>' +
+            '<code style="font-size:12px;color:#2563eb;">' + esc(webhook.url) + '</code>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + eventBtns + '</div>';
+
+    var modal = document.getElementById('testEventPickerModal');
+    modal.dataset.whId = webhookId;
+    modal.classList.add('show');
+
+    // Attach pick handlers
+    var pickBtns = contentEl.querySelectorAll('.pick-ev-btn');
+    for (var p = 0; p < pickBtns.length; p++) {
+        (function (pb) {
+            pb.addEventListener('click', function () {
+                modal.classList.remove('show');
+                testWebhook(webhookId, pb.getAttribute('data-event'));
+            });
+        })(pickBtns[p]);
     }
 }
 
@@ -643,6 +715,33 @@ function handleAddWebhook(e) {
         }
     })
     .catch(function () { showAlert('Server error', 'error'); });
+}
+
+function testWebhook(webhookId, event) {
+    if (!currentUser) return;
+
+    // Disable button while sending
+    var testBtn = document.querySelector('.test-wh-btn[data-wh-id="' + webhookId + '"]');
+    if (testBtn) { testBtn.disabled = true; testBtn.textContent = 'Sending...'; }
+
+    fetch(API + '/admin/customers/' + currentUser.id + '/webhooks/' + webhookId + '/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: event })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        if (!data.success) throw new Error(data.message || 'Request failed');
+        if (data.data && data.data.success) {
+            showAlert('Test [' + event + '] sent! HTTP ' + data.data.httpStatus, 'success');
+        } else {
+            showAlert('Test [' + event + '] failed: ' + (data.data && data.data.error ? data.data.error : 'Unknown error'), 'error');
+        }
+    })
+    .catch(function (e) { showAlert(e.message || 'Server error', 'error'); })
+    .finally(function () {
+        if (testBtn) { testBtn.disabled = false; testBtn.textContent = 'Test'; }
+    });
 }
 
 function deleteWebhook(whId) {

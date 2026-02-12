@@ -39,7 +39,7 @@ body {
 .topbar-right { display:flex; align-items:center; gap:12px; }
 
 /* ─── Page ─── */
-.page { max-width:960px; margin:32px auto; padding:0 24px; }
+.page { max-width:1024px; margin:32px auto; padding:0 24px; }
 
 /* ─── Content Card (matches dashboard) ─── */
 .content-card {
@@ -500,4 +500,26 @@ body {
     </div>
 </div>
 
-<script src="/js/customer-detail.js?v=2000"></script>
+<!-- Test Event Picker Modal -->
+<div id="testEventPickerModal" class="modal-overlay" data-wh-id="">
+    <div class="modal" style="max-width:420px;">
+        <button class="modal-close" id="btnCloseTestPicker">&times;</button>
+        <h3>Test Webhook</h3>
+        <div id="testEventPickerContent">
+            <p style="color:var(--text-secondary)">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Log Detail Modal -->
+<div id="logDetailModal" class="modal-overlay">
+    <div class="modal" style="max-width:720px;">
+        <button class="modal-close" id="btnCloseLogDetail">&times;</button>
+        <h3>Webhook Delivery Detail</h3>
+        <div id="logDetailContent">
+            <p style="color:var(--text-secondary)">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<script src="/js/customer-detail.js?v=2006"></script>
