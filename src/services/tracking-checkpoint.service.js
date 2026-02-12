@@ -3,6 +3,7 @@ const db = require('../database/connection');
 const telegram = require('../utils/telegram');
 const logger = require('../utils/logger');
 const jobService = require('./queue/job.service');
+const ApiCustomerModel = require('../models/api-customer.model');
 
 class TrackingCheckpointService {
     constructor() {
@@ -52,33 +53,36 @@ class TrackingCheckpointService {
             'RETURNED_BACK': 'Đơn hàng đang trên đường trả về',
         };
 
-        this.TAGNAME_TELEGRAM = {
-            'CUS0082': '@hynana686',
-            'CUS0401': '@myhanhtrann',
-            'CUS0088': '@vtung_49',
-            'CUS0288': '@hynana686',
-            'CUS0270': '@myhanhtrann',
-            'CUS0132': '@minmin_164',
-            'CUS0325': '@myhanhtrann',
-            'CUS0112': '@myhanhtrann',
-            'CUS0421': '@hynana686',
-            'CUS0313': '@Moonzzz03',
-            'CUS0324': '@hynana686',
-            'CUS0419': '@myhanhtrann',
-            'CUS0306': '@hynana686',
-            'CUS0322': '@myhanhtrann',
-            'Onos': '@ngoc_huyen_le',
-            'CUS0314': '@myhanhtrann',
-            'Vinh_Pati': '@ngoc_huyen_le',
-            'PrintPoss': '@ngoc_huyen_le',
-            'CUS0267': '@Moonzzz03',
-            'CUS0342': '@hynana686',
-            'CUS0257': '@hynana686',
-            'CUS0237': '@myhanhtrann',
-            'CUS0079': '@hynana686',
-            'CUS0157': '@Moonzzz03',
-            'CUS0432': '@myhanhtrann',
+    }
+
+    // ─── Dynamic Telegram Config ──────────────────────────────────
+    /**
+     * Lấy thông tin Telegram config từ api_customers theo partner_id (customer_code).
+     * Trả về { responsibles: '@u1, @u2', groupIds: ['-100xxx', ...] }
+     */
+    async getTelegramConfig(partnerId) {
+        try {
+            const customer = await ApiCustomerModel.findByCode(partnerId);
+            if (!customer) return { responsibles: null, groupIds: [] };
+
+            const responsibles = customer.telegram_responsibles || null;
+            const groupIds = customer.telegram_group_ids
+                ? customer.telegram_group_ids.split(',').map(g => g.trim()).filter(Boolean)
+                : [];
+
+            return { responsibles, groupIds };
+        } catch (err) {
+            logger.error(`getTelegramConfig failed for ${partnerId}:`, err);
+            return { responsibles: null, groupIds: [] };
         }
+    }
+
+    /**
+     * Format chuỗi tag người phụ trách từ telegram_responsibles
+     */
+    formatResponsibles(responsiblesStr) {
+        if (!responsiblesStr) return 'Chưa cấu hình';
+        return responsiblesStr.split(',').map(t => t.trim()).filter(Boolean).join('  ');
     }
 
     /**
@@ -249,6 +253,10 @@ class TrackingCheckpointService {
         const nodeCode = event.track_node_code || '';
         const nodeName = event.node_labels?.[0]?.label_name_en || event?.process_content || this.NODE_CODE_MESSAGES[nodeCode] || 'Có vấn đề bất thường';
 
+        // Dynamic Telegram config
+        const tgConfig = await this.getTelegramConfig(order.partner_id);
+
+        // ── Message cho group THG (có phần Phụ trách + tag) ──
         let msg = `<b>CẢNH BÁO: ĐƠN HÀNG BẤT THƯỜNG</b>\n\n`;
         msg += `- <b>ERP Code:</b> <code>${order.erp_order_code}</code>\n`;
         msg += `- <b>Tracking:</b> <code>${order.tracking_number}</code>\n`;
@@ -262,14 +270,12 @@ class TrackingCheckpointService {
         msg += `└ <b>Vấn đề:</b> ${nodeName}\n`;
         msg += `└ <b>Mô tả:</b> ${event.process_content}\n`;
 
-        // Location info
         if (event.process_location) {
             msg += `└ <b>Địa điểm:</b> ${event.process_location}\n`;
         }
 
         msg += `└ <b>Thời gian xảy ra:</b> ${this.formatDateTime(event.process_time)}\n`;
 
-        // ✨ Node Labels (chi tiết lỗi)
         if (nodeLabels && nodeLabels.length > 0) {
             msg += `\n<b>Chi tiết lỗi:</b>\n`;
             nodeLabels.forEach((label, index) => {
@@ -283,19 +289,18 @@ class TrackingCheckpointService {
         msg += `\n<b>Phụ trách:</b>\n`;
         msg += `└ <b>ID KH/NCC:</b> <code>${order.partner_id}</code>\n`;
         msg += `└ <b>Tên KH/NCC:</b> <code>${order.partner_name}</code>\n`;
-        msg += `└ <b>Người phụ trách:</b> ${this.TAGNAME_TELEGRAM[order.partner_id] || 'Chưa có'}\n`;
-
-
-        // Action suggestion
-        // msg += `\n<b>Hành động cần thực hiện:</b>\n`;
-        // msg += this.getAbnormalActionSuggestion(nodeCode);
+        msg += `└ <b>Người phụ trách:</b> ${this.formatResponsibles(tgConfig.responsibles)}\n`;
 
         msg += `\n====================================================`;
 
+        // Gửi vào group THG
         await telegram.sendMessage(msg, {
             chatId: process.env.TELEGRAM_CHAT_ID_ERROR,
             parseMode: 'HTML'
         });
+
+        // ── Gửi vào group riêng của customer (KHÔNG có phần Phụ trách) ──
+        await this.sendToCustomerGroups(tgConfig.groupIds, order, nodeCode, nodeName, event, nodeLabels, 'abnormal');
 
         let warningDetails = {
             code_thg: order.erp_order_code,
@@ -322,7 +327,8 @@ class TrackingCheckpointService {
 
         logger.warn(`Sent abnormal warning for order ${order.id}`, {
             nodeCode,
-            erpOrderCode: order.erp_order_code
+            erpOrderCode: order.erp_order_code,
+            customerGroups: tgConfig.groupIds.length
         });
     }
 
@@ -333,6 +339,10 @@ class TrackingCheckpointService {
         const nodeCode = event.track_node_code || '';
         const nodeName = event.node_labels?.[0]?.label_name_en || event?.process_content || this.NODE_CODE_MESSAGES[nodeCode] || 'Đơn hàng đang được trả về';
 
+        // Dynamic Telegram config
+        const tgConfig = await this.getTelegramConfig(order.partner_id);
+
+        // ── Message cho group THG (có phần Phụ trách + tag) ──
         let msg = `<b>THÔNG BÁO: ĐƠN HÀNG BỊ TRẢ LẠI</b>\n\n`;
         msg += `- <b>ERP Code:</b> <code>${order.erp_order_code}</code>\n`;
         msg += `- <b>Tracking:</b> <code>${order.tracking_number}</code>\n`;
@@ -346,14 +356,12 @@ class TrackingCheckpointService {
         msg += `└ <b>Tình trạng:</b> ${nodeName}\n`;
         msg += `└ <b>Mô tả:</b> ${event.process_content}\n`;
 
-        // Location info
         if (event.process_location) {
             msg += `└ <b>Địa điểm:</b> ${event.process_location}\n`;
         }
 
         msg += `└ <b>Thời gian xảy ra:</b> ${this.formatDateTime(event.process_time)}\n`;
 
-        // ✨ Node Labels (lý do trả hàng)
         if (nodeLabels && nodeLabels.length > 0) {
             msg += `\n<b>Lý do trả hàng:</b>\n`;
             nodeLabels.forEach((label, index) => {
@@ -367,18 +375,18 @@ class TrackingCheckpointService {
         msg += `\n<b>Phụ trách:</b>\n`;
         msg += `└ <b>ID KH/NCC:</b> <code>${order.partner_id}</code>\n`;
         msg += `└ <b>Tên KH/NCC:</b> <code>${order.partner_name}</code>\n`;
-        msg += `└ <b>Người phụ trách:</b> ${this.TAGNAME_TELEGRAM[order.partner_id] || 'Chưa có'}\n`;
-
-        // Action suggestion
-        // msg += `\n<b>Hành động cần thực hiện:</b>\n`;
-        // msg += this.getReturnActionSuggestion(nodeCode);
+        msg += `└ <b>Người phụ trách:</b> ${this.formatResponsibles(tgConfig.responsibles)}\n`;
 
         msg += `\n====================================================`;
 
+        // Gửi vào group THG
         await telegram.sendMessage(msg, {
             chatId: process.env.TELEGRAM_CHAT_ID_ERROR,
             parseMode: 'HTML'
         });
+
+        // ── Gửi vào group riêng của customer (KHÔNG có phần Phụ trách) ──
+        await this.sendToCustomerGroups(tgConfig.groupIds, order, nodeCode, nodeName, event, nodeLabels, 'return');
 
         let warningDetails = {
             code_thg: order.erp_order_code,
@@ -405,8 +413,68 @@ class TrackingCheckpointService {
 
         logger.warn(`Sent return warning for order ${order.id}`, {
             nodeCode,
-            erpOrderCode: order.erp_order_code
+            erpOrderCode: order.erp_order_code,
+            customerGroups: tgConfig.groupIds.length
         });
+    }
+
+    /**
+     * Gửi warning vào các group Telegram riêng của customer
+     * Message KHÔNG chứa phần "Phụ trách" — chỉ nội dung warning thuần
+     */
+    async sendToCustomerGroups(groupIds, order, nodeCode, nodeName, event, nodeLabels, type) {
+        if (!groupIds || groupIds.length === 0) return;
+
+        const title = type === 'return'
+            ? '<b>THÔNG BÁO: ĐƠN HÀNG BỊ TRẢ LẠI</b>'
+            : '<b>CẢNH BÁO: ĐƠN HÀNG BẤT THƯỜNG</b>';
+
+        const statusLabel = type === 'return' ? 'Trạng thái trả hàng' : 'Trạng thái bất thường';
+        const detailLabel = type === 'return' ? 'Lý do trả hàng' : 'Chi tiết lỗi';
+
+        let msg = `${title}\n\n`;
+        msg += `- <b>ERP Code:</b> <code>${order.erp_order_code}</code>\n`;
+        msg += `- <b>Tracking:</b> <code>${order.tracking_number}</code>\n`;
+
+        if (order.waybill_number) {
+            msg += `- <b>Waybill:</b> <code>${order.waybill_number}</code>\n`;
+        }
+
+        msg += `\n<b>${statusLabel}:</b>\n`;
+        msg += `└ <b>Node Code:</b> <code>${nodeCode}</code>\n`;
+        msg += `└ <b>${type === 'return' ? 'Tình trạng' : 'Vấn đề'}:</b> ${nodeName}\n`;
+        msg += `└ <b>Mô tả:</b> ${event.process_content}\n`;
+
+        if (event.process_location) {
+            msg += `└ <b>Địa điểm:</b> ${event.process_location}\n`;
+        }
+
+        msg += `└ <b>Thời gian xảy ra:</b> ${this.formatDateTime(event.process_time)}\n`;
+
+        if (nodeLabels && nodeLabels.length > 0) {
+            msg += `\n<b>${detailLabel}:</b>\n`;
+            nodeLabels.forEach((label, index) => {
+                msg += `${index + 1}. <b>${label.label_name}</b>\n`;
+                if (label.label_name_en && label.label_name_en !== label.label_name) {
+                    msg += `   └ <i>${label.label_name_en}</i>\n`;
+                }
+            });
+        }
+
+        // KHÔNG có phần "Phụ trách"
+        msg += `\n====================================================`;
+
+        for (const groupId of groupIds) {
+            try {
+                await telegram.sendMessage(msg, {
+                    chatId: groupId,
+                    parseMode: 'HTML'
+                });
+                logger.info(`Sent ${type} warning to customer group ${groupId} for order ${order.id}`);
+            } catch (err) {
+                logger.error(`Failed to send ${type} warning to customer group ${groupId}:`, err);
+            }
+        }
     }
 
     /**
@@ -716,12 +784,31 @@ class TrackingCheckpointService {
      * Send warning to Telegram (cho 6 giai đoạn)
      */
     async sendWarning(checkpoint, stage, warningData) {
-        const message = this.formatWarningMessage(checkpoint, warningData);
+        // Dynamic Telegram config
+        const tgConfig = await this.getTelegramConfig(checkpoint.partner_id);
 
+        const message = this.formatWarningMessage(checkpoint, warningData, tgConfig);
+
+        // Gửi vào group THG
         await telegram.sendMessage(message, {
             chatId: process.env.TELEGRAM_CHAT_ID_ERROR,
             parseMode: 'HTML'
         });
+
+        // Gửi vào group riêng customer (không có phần Phụ trách)
+        if (tgConfig.groupIds.length > 0) {
+            const customerMsg = this.formatWarningMessage(checkpoint, warningData, null);
+            for (const groupId of tgConfig.groupIds) {
+                try {
+                    await telegram.sendMessage(customerMsg, {
+                        chatId: groupId,
+                        parseMode: 'HTML'
+                    });
+                } catch (err) {
+                    logger.error(`Failed to send stage warning to customer group ${groupId}:`, err);
+                }
+            }
+        }
 
         await jobService.addUpdateWarningJob(
             checkpoint.order_id,
@@ -738,8 +825,11 @@ class TrackingCheckpointService {
 
     /**
      * Format warning message (cho 6 giai đoạn)
+     * @param {object} checkpoint
+     * @param {object} data
+     * @param {object|null} tgConfig - null = bỏ phần Phụ trách (cho group customer)
      */
-    formatWarningMessage(checkpoint, data) {
+    formatWarningMessage(checkpoint, data, tgConfig) {
         let msg = `${data.title}\n\n`;
         msg += `- <b>ERP Code:</b> <code>${checkpoint.erp_order_code}</code>\n`;
         msg += `- <b>Tracking:</b> <code>${checkpoint.tracking_number}</code>\n`;
@@ -771,10 +861,13 @@ class TrackingCheckpointService {
             msg += `└ USPS Received: ${this.formatDateTime(checkpoint.usps_received_at)}\n`;
         }
 
-        msg += `\n<b>Phụ trách:</b>\n`;
-        msg += `└ <b>ID KH/NCC:</b> <code>${checkpoint.partner_id}</code>\n`;
-        msg += `└ <b>Tên KH/NCC:</b> <code>${checkpoint.partner_name}</code>\n`;
-        msg += `└ <b>Người phụ trách:</b> ${this.TAGNAME_TELEGRAM[checkpoint.partner_id] || 'Chưa có'}\n`;
+        // Chỉ hiện Phụ trách khi tgConfig !== null (group THG)
+        if (tgConfig !== null) {
+            msg += `\n<b>Phụ trách:</b>\n`;
+            msg += `└ <b>ID KH/NCC:</b> <code>${checkpoint.partner_id}</code>\n`;
+            msg += `└ <b>Tên KH/NCC:</b> <code>${checkpoint.partner_name}</code>\n`;
+            msg += `└ <b>Người phụ trách:</b> ${this.formatResponsibles(tgConfig ? tgConfig.responsibles : null)}\n`;
+        }
 
         msg += `\n====================================================`;
 
