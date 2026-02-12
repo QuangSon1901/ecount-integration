@@ -118,6 +118,10 @@ app.use((req, res, next) => {
 // });
 
 // Routes
+app.get('/', (req, res) => {
+    res.redirect(302, '/extensions/dashboard');
+});
+
 app.use('/', authRoutes); // Login/logout routes (no prefix)
 
 app.use('/api/v1', apiV1Routes);
