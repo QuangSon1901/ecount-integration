@@ -155,7 +155,8 @@ class ApiCustomerController {
             const {
                 customerName, email, phone, status,
                 rateLimitPerHour, rateLimitPerDay,
-                webhookEnabled, bulkOrderEnabled, metadata
+                webhookEnabled, bulkOrderEnabled, metadata,
+                telegramResponsibles, telegramGroupIds
             } = req.body;
 
             const customer = await ApiCustomerModel.findById(customerId);
@@ -185,6 +186,8 @@ class ApiCustomerController {
             if (webhookEnabled !== undefined) updateData.webhookEnabled = webhookEnabled;
             if (bulkOrderEnabled !== undefined) updateData.bulkOrderEnabled = bulkOrderEnabled;
             if (metadata !== undefined) updateData.metadata = metadata;
+            if (telegramResponsibles !== undefined) updateData.telegramResponsibles = telegramResponsibles ? telegramResponsibles.trim() : null;
+            if (telegramGroupIds !== undefined) updateData.telegramGroupIds = telegramGroupIds ? telegramGroupIds.trim() : null;
 
             if (Object.keys(updateData).length === 0) {
                 return errorResponse(res, 'No valid fields to update', 400);

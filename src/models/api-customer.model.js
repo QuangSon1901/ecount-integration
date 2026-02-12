@@ -123,6 +123,14 @@ class ApiCustomerModel {
                 fields.push('metadata = ?');
                 values.push(JSON.stringify(updateData.metadata));
             }
+            if (updateData.telegramResponsibles !== undefined) {
+                fields.push('telegram_responsibles = ?');
+                values.push(updateData.telegramResponsibles || null);
+            }
+            if (updateData.telegramGroupIds !== undefined) {
+                fields.push('telegram_group_ids = ?');
+                values.push(updateData.telegramGroupIds || null);
+            }
 
             if (fields.length === 0) return false;
 

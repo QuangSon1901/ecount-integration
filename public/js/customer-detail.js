@@ -93,6 +93,34 @@ function renderCustomerInfo() {
         setText('roleTag', 'Customer');
         document.getElementById('roleTag').className = 'badge badge-warning';
     }
+
+    // Telegram Responsibles
+    var tgRespEl = document.getElementById('infoTelegramResp');
+    if (tgRespEl) {
+        var tgResp = CUSTOMER.telegram_responsibles;
+        if (tgResp) {
+            var tags = tgResp.split(',').map(function (t) {
+                return '<span class="badge badge-info" style="margin-right:4px;font-size:11px;">' + esc(t.trim()) + '</span>';
+            }).join('');
+            tgRespEl.innerHTML = tags;
+        } else {
+            tgRespEl.innerHTML = '<span style="color:var(--text-secondary);font-size:13px;">Chưa cấu hình</span>';
+        }
+    }
+
+    // Telegram Groups
+    var tgGroupEl = document.getElementById('infoTelegramGroups');
+    if (tgGroupEl) {
+        var tgGroups = CUSTOMER.telegram_group_ids;
+        if (tgGroups) {
+            var gids = tgGroups.split(',').map(function (g) {
+                return '<code style="font-size:11px;margin-right:4px;">' + esc(g.trim()) + '</code>';
+            }).join('');
+            tgGroupEl.innerHTML = gids;
+        } else {
+            tgGroupEl.innerHTML = '<span style="color:var(--text-secondary);font-size:13px;">Chưa cấu hình</span>';
+        }
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -665,6 +693,8 @@ function openEditModal() {
     document.getElementById('editBulkOrderEnabled').value = CUSTOMER.bulk_order_enabled ? 'true' : 'false';
     document.getElementById('editRateHour').value = CUSTOMER.rate_limit_per_hour || 6000;
     document.getElementById('editRateDay').value = CUSTOMER.rate_limit_per_day || 10000;
+    document.getElementById('editTelegramResp').value = CUSTOMER.telegram_responsibles || '';
+    document.getElementById('editTelegramGroups').value = CUSTOMER.telegram_group_ids || '';
 
     document.getElementById('editModal').classList.add('show');
 }
@@ -675,14 +705,16 @@ function closeEditModal() {
 
 async function handleSaveEdit() {
     var payload = {
-        customerName:     document.getElementById('editName').value.trim(),
-        email:            document.getElementById('editEmail').value.trim() || null,
-        phone:            document.getElementById('editPhone').value.trim() || null,
-        status:           document.getElementById('editStatus').value,
-        webhookEnabled:   document.getElementById('editWebhookEnabled').value === 'true',
-        bulkOrderEnabled: document.getElementById('editBulkOrderEnabled').value === 'true',
-        rateLimitPerHour: parseInt(document.getElementById('editRateHour').value) || 6000,
-        rateLimitPerDay:  parseInt(document.getElementById('editRateDay').value) || 10000
+        customerName:        document.getElementById('editName').value.trim(),
+        email:               document.getElementById('editEmail').value.trim() || null,
+        phone:               document.getElementById('editPhone').value.trim() || null,
+        status:              document.getElementById('editStatus').value,
+        webhookEnabled:      document.getElementById('editWebhookEnabled').value === 'true',
+        bulkOrderEnabled:    document.getElementById('editBulkOrderEnabled').value === 'true',
+        rateLimitPerHour:    parseInt(document.getElementById('editRateHour').value) || 6000,
+        rateLimitPerDay:     parseInt(document.getElementById('editRateDay').value) || 10000,
+        telegramResponsibles: document.getElementById('editTelegramResp').value.trim() || null,
+        telegramGroupIds:    document.getElementById('editTelegramGroups').value.trim() || null
     };
 
     if (!payload.customerName) {

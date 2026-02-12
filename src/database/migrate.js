@@ -847,6 +847,19 @@ const migrations = [
                 COMMENT 'Plaintext secret — chỉ lưu cho sandbox environment, production luôn NULL'
                 AFTER client_secret_hash;
         `
+    },
+    {
+        version: 33,
+        name: 'add_telegram_config_to_api_customers',
+        up: `
+            ALTER TABLE api_customers
+            ADD COLUMN telegram_responsibles VARCHAR(500) NULL
+                COMMENT 'Danh sách Telegram tag người phụ trách, phân cách bởi dấu phẩy. VD: @user1,@user2'
+                AFTER metadata,
+            ADD COLUMN telegram_group_ids VARCHAR(500) NULL
+                COMMENT 'Danh sách Telegram group chat ID riêng của customer, phân cách bởi dấu phẩy. VD: -100123456,-100789012'
+                AFTER telegram_responsibles;
+        `
     }
 
 ];

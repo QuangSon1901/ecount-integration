@@ -314,6 +314,14 @@ body {
                 <span class="info-label">Portal Password</span>
                 <span class="info-value" id="infoPortalPw">&#x2014;</span>
             </div>
+            <div class="info-row">
+                <span class="info-label">Telegram Responsibles</span>
+                <span class="info-value" id="infoTelegramResp" style="font-size:13px;">&#x2014;</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Telegram Groups</span>
+                <span class="info-value" id="infoTelegramGroups" style="font-size:13px;">&#x2014;</span>
+            </div>
         </div>
     </div>
 
@@ -493,6 +501,20 @@ body {
             <div class="form-group"></div>
         </div>
 
+        <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px;">
+            <p style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:12px;">Telegram Notification</p>
+            <div class="form-group">
+                <label class="form-label">Telegram Responsibles</label>
+                <input type="text" class="form-input" id="editTelegramResp" placeholder="@user1,@user2,@user3">
+                <p style="margin-top:4px;font-size:12px;color:var(--text-secondary);">Người phụ trách sẽ được tag trong group THG khi có cảnh báo. Phân cách bởi dấu phẩy.</p>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Telegram Group IDs</label>
+                <input type="text" class="form-input" id="editTelegramGroups" placeholder="-100123456789,-100987654321">
+                <p style="margin-top:4px;font-size:12px;color:var(--text-secondary);">Group Telegram riêng của khách hàng, cảnh báo sẽ được gửi vào cả các group này. Phân cách bởi dấu phẩy.</p>
+            </div>
+        </div>
+
         <div class="modal-actions">
             <button class="btn" id="btnCancelEdit">Cancel</button>
             <button class="btn btn-primary" id="btnSaveEdit">Save Changes</button>
@@ -522,4 +544,4 @@ body {
     </div>
 </div>
 
-<script src="/js/customer-detail.js?v=2006"></script>
+<script src="/js/customer-detail.js?v=2007"></script>
