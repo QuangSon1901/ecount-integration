@@ -19,11 +19,11 @@ class WorkerManager {
         logger.info('Starting all workers...');
 
         this.workers = [
-            // new CreateOrderWorker(),           // 5 concurrent
+            new CreateOrderWorker(),           // 5 concurrent
             new UpdateTrackingBatchWorker(),  // 2 concurrent
-            // new UpdateStatusBatchWorker(),     // 2 concurrent
-            // new TrackOtherOrderWorker(),
-            // new UpdateWarningBatchWorker(),
+            new UpdateStatusBatchWorker(),     // 2 concurrent
+            new TrackOtherOrderWorker(),
+            new UpdateWarningBatchWorker(),
             new LookupDocNoWorker(),
             new WebhookDeliveryWorker(),          // 5 concurrent — gửi webhook async
         ];
