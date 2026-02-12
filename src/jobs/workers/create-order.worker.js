@@ -77,17 +77,7 @@ class CreateOrderWorker extends BaseWorker {
             declaredValue: declaredValue,
             declaredCurrency: orderData.declarationInfo?.[0]?.currency || 'USD',
             itemsCount: orderData.declarationInfo?.length || 0,
-            declarationItems: orderData.declaredValue.map(item => {
-                return {
-                    "nameEn": item.name_en || "",
-                    "nameCN": item.name_local || "",
-                    "quantity": item.quantity || "",
-                    "unitWeight": item.unit_weight || "",
-                    "unitPrice": item.unit_price || "",
-                    "sellingPrice": item.selling_price || "",
-                    "currency": item.currency || "",
-                };
-            }),
+            declarationItems: null,
             status: carrierResult.trackingNumber ? 'created' : 'pending',
             trackType: carrierResult.trackType || null,
             remoteArea: carrierResult.remoteArea || null,
