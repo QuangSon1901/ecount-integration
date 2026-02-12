@@ -272,7 +272,7 @@ function loadCustomers() {
                 var customers = result.data.customers;
                 updateStats(customers);
                 if (customers.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:#64748b;">No customers yet</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-secondary);">No customers yet</td></tr>';
                 } else {
                     renderCustomerRows(customers, tbody);
                 }
@@ -292,10 +292,10 @@ function renderCustomerRows(customers, tbody) {
             '<td>' + c.id + '</td>' +
             '<td><strong>' + esc(c.customer_code) + '</strong></td>' +
             '<td>' + esc(c.customer_name) + '</td>' +
-            '<td>' + (c.email ? esc(c.email) : '-') + '</td>' +
             '<td><span class="badge badge-' + (c.environment === 'production' ? 'success' : 'warning') + '">' + c.environment + '</span></td>' +
             '<td><span class="badge badge-' + statusBadge(c.status) + '">' + c.status + '</span></td>' +
-            '<td>' + c.rate_limit_per_hour + ' / ' + c.rate_limit_per_day + '</td>' +
+            '<td>' + formatTelegramTags(c.telegram_responsibles) + '</td>' +
+            '<td>' + formatTelegramGroups(c.telegram_group_ids) + '</td>' +
             '<td>' + fmtDate(c.created_at) + '</td>' +
             '<td><button class="btn btn-sm view-btn" data-id="' + c.id + '" data-code="' + esc(c.customer_code) + '">View</button></td>';
         tbody.appendChild(tr);
@@ -792,6 +792,20 @@ function fmtDate(str) {
 
 function statusBadge(s) {
     return s === 'active' ? 'success' : s === 'suspended' ? 'warning' : 'danger';
+}
+
+function formatTelegramTags(str) {
+    if (!str) return '<span style="color:var(--text-secondary);font-size:12px;">—</span>';
+    var tags = str.split(',').map(function (t) { return t.trim(); }).filter(Boolean);
+    return tags.map(function (tag) {
+        return '<span style="display:inline-block;background:#e0f2fe;color:#0369a1;padding:1px 6px;border-radius:4px;font-size:11px;margin:1px 2px;">' + esc(tag) + '</span>';
+    }).join('');
+}
+
+function formatTelegramGroups(str) {
+    if (!str) return '<span style="color:var(--text-secondary);font-size:12px;">—</span>';
+    var groups = str.split(',').map(function (g) { return g.trim(); }).filter(Boolean);
+    return '<span style="color:var(--text-secondary);font-size:11px;">' + groups.length + ' group' + (groups.length > 1 ? 's' : '') + '</span>';
 }
 
 function setText(id, v) {

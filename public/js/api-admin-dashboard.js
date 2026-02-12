@@ -87,14 +87,16 @@ async function loadCustomers() {
             } else {
                 customers.forEach(customer => {
                     const row = document.createElement('tr');
+                    const tgTags = formatTgTags(customer.telegram_responsibles);
+                    const tgGroups = formatTgGroups(customer.telegram_group_ids);
                     row.innerHTML = `
                                 <td>${customer.id}</td>
                                 <td><strong>${customer.customer_code}</strong></td>
                                 <td>${customer.customer_name}</td>
-                                <td>${customer.email || '-'}</td>
                                 <td>${customer.environment}</td>
                                 <td><span class="status-badge status-${customer.status}">${customer.status}</span></td>
-                                <td>${customer.rate_limit_per_hour} / ${customer.rate_limit_per_day}</td>
+                                <td>${tgTags}</td>
+                                <td>${tgGroups}</td>
                                 <td>${new Date(customer.created_at).toLocaleDateString('vi-VN')}</td>
                             `;
                     tableBody.appendChild(row);
@@ -109,6 +111,25 @@ async function loadCustomers() {
     } finally {
         loadingEl.classList.add('hidden');
     }
+}
+
+function escHtml(text) {
+    if (!text) return '';
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
+function formatTgTags(str) {
+    if (!str) return '<span style="color:#94a3b8;font-size:12px;">—</span>';
+    return str.split(',').map(t => t.trim()).filter(Boolean)
+        .map(tag => `<span style="display:inline-block;background:#e0f2fe;color:#0369a1;padding:1px 6px;border-radius:4px;font-size:11px;margin:1px 2px;">${escHtml(tag)}</span>`)
+        .join('');
+}
+
+function formatTgGroups(str) {
+    if (!str) return '<span style="color:#94a3b8;font-size:12px;">—</span>';
+    const groups = str.split(',').map(g => g.trim()).filter(Boolean);
+    return `<span style="color:#64748b;font-size:11px;">${groups.length} group${groups.length > 1 ? 's' : ''}</span>`;
 }
 
 // Load customers on page load
