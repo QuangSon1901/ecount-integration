@@ -48,7 +48,7 @@ class ApiOrderController {
         try {
             const { referenceCode } = req.params;
 
-            const order = await OrderModel.findByReferenceCode(referenceCode);
+            let order = await OrderModel.findByReferenceCode(referenceCode);
 
             if (!order) {
                 return errorResponse(res, 'Order not found', 404);
@@ -57,6 +57,14 @@ class ApiOrderController {
             // Verify ownership
             if (order.partner_id !== req.auth.customer_code) {
                 return errorResponse(res, 'Order not found!', 404);
+            }
+
+            // If order has erp_order_code, find the latest order with that erp_order_code
+            if (order.erp_order_code) {
+                const latestOrder = await OrderModel.findLatestByErpOrderCode(order.erp_order_code);
+                if (latestOrder && latestOrder.partner_id === req.auth.customer_code) {
+                    order = latestOrder;
+                }
             }
 
             return successResponse(res, apiOrderService.formatOrderResponse(order));

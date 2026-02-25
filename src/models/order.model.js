@@ -181,13 +181,28 @@ class OrderModel {
 
     static async findByReferenceCode(referenceCode) {
         const connection = await db.getConnection();
-        
+
         try {
             const [rows] = await connection.query(
                 'SELECT * FROM orders WHERE order_number = ?',
                 [referenceCode]
             );
-            
+
+            return rows[0] || null;
+        } finally {
+            connection.release();
+        }
+    }
+
+    static async findLatestByErpOrderCode(erpOrderCode) {
+        const connection = await db.getConnection();
+
+        try {
+            const [rows] = await connection.query(
+                'SELECT * FROM orders WHERE erp_order_code = ? ORDER BY created_at DESC LIMIT 1',
+                [erpOrderCode]
+            );
+
             return rows[0] || null;
         } finally {
             connection.release();
