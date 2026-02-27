@@ -253,7 +253,7 @@ class TelegramNotifier {
                     const botName = process.env.TELEGRAM_BOT_NAME || 'THG Robot';
                     const message =
                         `Xin chào, Tôi là <b>${botName}</b>, tôi sẽ gửi thông báo khi có trạng thái mới hoặc cảnh báo phát sinh\n` +
-                        `Telegram Group ID là: <b>${chat.id}</b>\n` +
+                        `Telegram Group ID là: <code>${chat.id}</code>\n` +
                         `Hãy thêm ID trên vào phần cấu hình Thông báo Telegram nhé!`;
 
                     await this.sendMessage(message, { chatId: chat.id });
@@ -273,7 +273,7 @@ class TelegramNotifier {
                     const botName = process.env.TELEGRAM_BOT_NAME || 'THG Express Robot';
                     const message =
                         `Xin chào, Tôi là <b>${botName}</b>, tôi sẽ gửi thông báo khi có trạng thái mới hoặc cảnh báo phát sinh\n` +
-                        `Telegram Group ID là: <b>${chat.id}</b>\n` +
+                        `Telegram Group ID là: <code>${chat.id}</code>\n` +
                         `Hãy thêm ID trên vào phần cấu hình Thông báo Telegram nhé!`;
 
                     await this.sendMessage(message, { chatId: chat.id });
