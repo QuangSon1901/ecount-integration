@@ -21,24 +21,24 @@ router.post('/webhook', async (req, res) => {
  * POST /api/telegram/set-webhook
  * Đăng ký webhook URL với Telegram (gọi 1 lần khi setup)
  */
-router.post('/set-webhook', async (req, res) => {
-    const baseUrl = process.env.BASE_URL;
-    if (!baseUrl) {
-        return res.status(400).json({ success: false, message: 'BASE_URL not configured' });
-    }
+// router.post('/set-webhook', async (req, res) => {
+//     const baseUrl = process.env.BASE_URL;
+//     if (!baseUrl) {
+//         return res.status(400).json({ success: false, message: 'BASE_URL not configured' });
+//     }
 
-    const webhookUrl = `${baseUrl}/api/telegram/webhook`;
-    const result = await telegram.setWebhook(webhookUrl);
-    res.json(result);
-});
+//     const webhookUrl = `${baseUrl}/api/telegram/webhook`;
+//     const result = await telegram.setWebhook(webhookUrl);
+//     res.json(result);
+// });
 
 /**
  * POST /api/telegram/delete-webhook
  * Xóa webhook (reset)
  */
-router.post('/delete-webhook', async (req, res) => {
-    const result = await telegram.deleteWebhook();
-    res.json(result);
-});
+// router.post('/delete-webhook', async (req, res) => {
+//     const result = await telegram.deleteWebhook();
+//     res.json(result);
+// });
 
 module.exports = router;
