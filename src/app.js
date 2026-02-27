@@ -10,6 +10,7 @@ const ecountRoutes = require('./routes/ecount.routes');
 const labelRoutes = require('./routes/label.routes');
 const extensionRoutes = require('./routes/extension.routes');
 const authRoutes = require('./routes/auth.routes');
+const telegramRoutes = require('./routes/telegram.routes');
 
 const apiV1Routes = require('./routes/api-v1.routes');
 
@@ -129,6 +130,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/ecount', ecountRoutes);
 app.use('/api/labels', labelRoutes);
 app.use('/extensions', extensionRoutes);
+app.use('/api/telegram', telegramRoutes);
 
 // 404 handler
 app.use((req, res) => {

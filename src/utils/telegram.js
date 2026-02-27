@@ -233,6 +233,98 @@ class TelegramNotifier {
     }
 
     /**
+     * Handle Telegram webhook update - gửi lời chào khi bot được thêm vào group
+     */
+    async handleUpdate(update) {
+        try {
+            // Xử lý khi bot được thêm vào group (my_chat_member event)
+            if (update.my_chat_member) {
+                const chatMember = update.my_chat_member;
+                const chat = chatMember.chat;
+                const newStatus = chatMember.new_chat_member?.status;
+                const oldStatus = chatMember.old_chat_member?.status;
+
+                // Bot vừa được thêm vào group (từ left/kicked -> member/administrator)
+                if (
+                    (chat.type === 'group' || chat.type === 'supergroup') &&
+                    (oldStatus === 'left' || oldStatus === 'kicked') &&
+                    (newStatus === 'member' || newStatus === 'administrator')
+                ) {
+                    const botName = process.env.TELEGRAM_BOT_NAME || 'THG Robot';
+                    const message =
+                        `Xin chào, Tôi là <b>${botName}</b>, tôi sẽ hỗ trợ thông báo khi phát sinh giao dịch cho bạn.\n\n` +
+                        `Telegram Group ID là: <b>${chat.id}</b>\n\n` +
+                        `Hãy thêm ID trên vào phần cấu hình Thông báo Telegram nhé!`;
+
+                    await this.sendMessage(message, { chatId: chat.id });
+                    logger.info('Sent welcome message to group', { chatId: chat.id, chatTitle: chat.title });
+                }
+            }
+
+            // Xử lý lệnh /start trong group (fallback nếu ai đó gõ /start)
+            if (update.message) {
+                const msg = update.message;
+                const chat = msg.chat;
+
+                if (
+                    msg.text === '/start' &&
+                    (chat.type === 'group' || chat.type === 'supergroup')
+                ) {
+                    const botName = process.env.TELEGRAM_BOT_NAME || 'THG Express Robot';
+                    const message =
+                        `Xin chào, Tôi là <b>${botName}</b>, tôi sẽ hỗ trợ thông báo khi phát sinh giao dịch cho bạn.\n\n` +
+                        `Telegram Group ID là: <b>${chat.id}</b>\n\n` +
+                        `Hãy thêm ID trên vào phần cấu hình Thông báo Telegram nhé!`;
+
+                    await this.sendMessage(message, { chatId: chat.id });
+                    logger.info('Sent welcome message via /start command', { chatId: chat.id, chatTitle: chat.title });
+                }
+            }
+
+            return { success: true };
+        } catch (error) {
+            logger.error('Error handling Telegram update:', { error: error.message });
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Đăng ký webhook URL với Telegram API
+     */
+    async setWebhook(webhookUrl) {
+        try {
+            const response = await axios.post(
+                `${this.baseUrl}/setWebhook`,
+                { url: webhookUrl },
+                { timeout: 10000 }
+            );
+            logger.info('Telegram webhook set successfully', { url: webhookUrl, result: response.data });
+            return { success: true, data: response.data };
+        } catch (error) {
+            logger.error('Failed to set Telegram webhook:', { error: error.message });
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Xóa webhook (dùng khi cần reset)
+     */
+    async deleteWebhook() {
+        try {
+            const response = await axios.post(
+                `${this.baseUrl}/deleteWebhook`,
+                {},
+                { timeout: 10000 }
+            );
+            logger.info('Telegram webhook deleted', { result: response.data });
+            return { success: true, data: response.data };
+        } catch (error) {
+            logger.error('Failed to delete Telegram webhook:', { error: error.message });
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
      * Gửi batch job notification
      */
     async notifyBatchJob(jobName, stats) {
