@@ -796,19 +796,19 @@ class TrackingCheckpointService {
         });
 
         // Gửi vào group riêng customer (không có phần Phụ trách)
-        if (tgConfig.groupIds.length > 0) {
-            const customerMsg = this.formatWarningMessage(checkpoint, warningData, null);
-            for (const groupId of tgConfig.groupIds) {
-                try {
-                    await telegram.sendMessage(customerMsg, {
-                        chatId: groupId,
-                        parseMode: 'HTML'
-                    });
-                } catch (err) {
-                    logger.error(`Failed to send stage warning to customer group ${groupId}:`, err);
-                }
-            }
-        }
+        // if (tgConfig.groupIds.length > 0) {
+        //     const customerMsg = this.formatWarningMessage(checkpoint, warningData, null);
+        //     for (const groupId of tgConfig.groupIds) {
+        //         try {
+        //             await telegram.sendMessage(customerMsg, {
+        //                 chatId: groupId,
+        //                 parseMode: 'HTML'
+        //             });
+        //         } catch (err) {
+        //             logger.error(`Failed to send stage warning to customer group ${groupId}:`, err);
+        //         }
+        //     }
+        // }
 
         await jobService.addUpdateWarningJob(
             checkpoint.order_id,
