@@ -8,6 +8,7 @@ const fetchTrackingCron = require('./src/jobs/fetch-tracking.cron');
 const updateStatusCron = require('./src/jobs/update-status.cron');
 const cleanupSessionsCron = require('./src/jobs/cleanup-sessions.cron');
 const syncOrdersCron = require('./src/jobs/sync-orders-ecount.cron');
+const podFetchTrackingCron = require('./src/jobs/pod-fetch-tracking.cron');
 
 db.testConnection()
     .then(() => {
@@ -16,6 +17,7 @@ db.testConnection()
         updateStatusCron.start();
         cleanupSessionsCron.start();
         syncOrdersCron.start();
+        podFetchTrackingCron.start();
         logger.info('Worker started successfully');
     })
     .catch(err => {

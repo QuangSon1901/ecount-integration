@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const { errorResponse } = require('../utils/response');
+const podWarehousesConfig = require('../config/pod-warehouses.config');
 
 // Schema cho receiver
 const receiverSchema = Joi.object({
@@ -256,7 +257,11 @@ const paymentSchema = Joi.object({
     pay_transaction: Joi.string().allow('')
 });
 
-// Schema chính cho order
+// Lấy danh sách POD warehouse codes
+const podWarehouseCodes = Object.keys(podWarehousesConfig);
+const allCarrierCodes = ['YUNEXPRESS', 'YUNEXPRESS_CN', ...podWarehouseCodes];
+
+// Schema chính cho order (Express)
 const orderSchema = Joi.object({
     carrier: Joi.string().valid('YUNEXPRESS', 'YUNEXPRESS_CN').default('YUNEXPRESS'),
     productCode: Joi.string().min(1).max(50).required()
@@ -379,6 +384,76 @@ const orderSchema = Joi.object({
     ecountLink: Joi.string().required('')
 });
 
+// Schema cho POD order - không yêu cầu packages, declarationInfo
+const podReceiverSchema = Joi.object({
+    firstName: Joi.string().min(1).max(100).required(),
+    lastName: Joi.string().max(100).allow(''),
+    name: Joi.string().max(200).allow(''),
+    company: Joi.string().max(100).allow(''),
+    countryCode: Joi.string().length(2).required(),
+    province: Joi.string().max(100).allow(''),
+    city: Joi.string().max(100).allow(''),
+    addressLines: Joi.array().items(Joi.string()),
+    address1: Joi.string().max(500).allow(''),
+    address2: Joi.string().max(500).allow(''),
+    postalCode: Joi.string().max(20).allow(''),
+    phoneNumber: Joi.string().max(50).allow(''),
+    email: Joi.string().email().max(100).allow('')
+});
+
+const podItemSchema = Joi.object({
+    sku: Joi.string().max(100).allow(''),
+    product_id: Joi.alternatives().try(Joi.string(), Joi.number()).allow('', null),
+    product_variant_id: Joi.alternatives().try(Joi.string(), Joi.number()).allow('', null),
+    name: Joi.string().max(500).allow(''),
+    quantity: Joi.number().integer().min(1).default(1),
+    price: Joi.number().min(0).allow(null),
+    size_id: Joi.alternatives().try(Joi.string(), Joi.number()).allow('', null),
+    color_id: Joi.alternatives().try(Joi.string(), Joi.number()).allow('', null),
+    print_areas: Joi.array().allow('', null),
+    design_urls: Joi.array().allow('', null),
+    design_image_url: Joi.string().uri().allow('', null),
+    product_design: Joi.any()
+}).unknown(true);
+
+const podOrderSchema = Joi.object({
+    carrier: Joi.string().valid(...podWarehouseCodes).required()
+        .messages({
+            'any.only': `carrier must be one of: ${podWarehouseCodes.join(', ')}`,
+            'any.required': 'carrier is required'
+        }),
+    productCode: Joi.string().max(50).allow('', null),
+    customerOrderNumber: Joi.string().max(50).allow(''),
+    platformOrderNumber: Joi.string().max(50).allow(''),
+    trackingNumber: Joi.string().max(50).allow(''),
+
+    partnerID: Joi.string().min(1).max(100).required(),
+    partnerName: Joi.string().min(1).max(255).required(),
+
+    receiver: podReceiverSchema.required(),
+
+    // POD items
+    items: Joi.array().items(podItemSchema).min(1).required()
+        .messages({
+            'array.min': 'items must have at least 1 item',
+            'any.required': 'items is required for POD orders'
+        }),
+
+    // POD specific
+    podWarehouse: Joi.string().max(50).allow(''),
+    podShippingMethod: Joi.string().max(100).allow('', null),
+    shippingMethod: Joi.string().max(100).allow('', null),
+    podItems: Joi.array().items(podItemSchema),
+
+    weightUnit: Joi.string().valid('KG', 'kg', 'G', 'g', 'LBS', 'lbs').default('KG'),
+    sizeUnit: Joi.string().valid('CM', 'cm', 'INCH').default('CM'),
+
+    // ERP fields
+    erpOrderCode: Joi.string().required(),
+    erpStatus: Joi.string().default('Đang xử lý'),
+    ecountLink: Joi.string().required()
+}).unknown(true);
+
 // Schema cho ERP update
 const erpUpdateSchema = Joi.object({
     erpOrderCode: Joi.string().required(),
@@ -435,14 +510,18 @@ const validateOrderMulti = (req, res, next) => {
         return errorResponse(res, 'Maximum 100 orders per request', 400);
     }
 
-    // Validate từng order
+    // Validate từng order - detect POD vs Express by carrier
     const validationErrors = [];
     const validatedOrders = [];
 
     orders.forEach((order, index) => {
-        const { error, value } = orderSchema.validate(order, {
+        const carrier = (order.carrier || '').toUpperCase();
+        const isPod = podWarehouseCodes.includes(carrier);
+        const schema = isPod ? podOrderSchema : orderSchema;
+
+        const { error, value } = schema.validate(order, {
             abortEarly: false,
-            stripUnknown: true
+            stripUnknown: !isPod // POD schema has unknown(true)
         });
 
         if (error) {
@@ -450,27 +529,32 @@ const validateOrderMulti = (req, res, next) => {
                 field: detail.path.join('.'),
                 message: detail.message
             }));
-            
+
             validationErrors.push({
                 orderIndex: index,
                 customerOrderNumber: order.customerOrderNumber || `Order ${index + 1}`,
                 erpOrderCode: order.erpOrderCode,
+                orderType: isPod ? 'pod' : 'express',
                 errors: errors
             });
         } else {
-            const declarationInfo = value.declaration_info || value.declarationInfo || [];
-            const skuErrors = validateSkuCode(declarationInfo);
-            
-            if (skuErrors.length > 0) {
-                validationErrors.push({
-                    orderIndex: index,
-                    customerOrderNumber: order.customerOrderNumber || order.customer_order_number || `Order ${index + 1}`,
-                    erpOrderCode: order.erpOrderCode || order.erp_order_code,
-                    errors: skuErrors
-                });
-            } else {
-                validatedOrders.push(value);
+            if (!isPod) {
+                // Express: validate SKU codes
+                const declarationInfo = value.declaration_info || value.declarationInfo || [];
+                const skuErrors = validateSkuCode(declarationInfo);
+
+                if (skuErrors.length > 0) {
+                    validationErrors.push({
+                        orderIndex: index,
+                        customerOrderNumber: order.customerOrderNumber || order.customer_order_number || `Order ${index + 1}`,
+                        erpOrderCode: order.erpOrderCode || order.erp_order_code,
+                        orderType: 'express',
+                        errors: skuErrors
+                    });
+                    return;
+                }
             }
+            validatedOrders.push(value);
         }
     });
 
@@ -552,5 +636,6 @@ const validateSkuCode = (declarationInfo) => {
 module.exports = {
     validateOrder,
     validateErpUpdate,
-    validateOrderMulti
+    validateOrderMulti,
+    podOrderSchema
 };

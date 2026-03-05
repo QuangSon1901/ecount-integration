@@ -147,7 +147,40 @@ class OrderModel {
                 fields.push('error_info = ?');
                 values.push(JSON.stringify(updateData.errorInfo));
             }
-            
+            // POD fields
+            if (updateData.orderType !== undefined) {
+                fields.push('order_type = ?');
+                values.push(updateData.orderType);
+            }
+            if (updateData.podWarehouse !== undefined) {
+                fields.push('pod_warehouse = ?');
+                values.push(updateData.podWarehouse);
+            }
+            if (updateData.podWarehouseOrderId !== undefined) {
+                fields.push('pod_warehouse_order_id = ?');
+                values.push(updateData.podWarehouseOrderId);
+            }
+            if (updateData.podStatus !== undefined) {
+                fields.push('pod_status = ?');
+                values.push(updateData.podStatus);
+            }
+            if (updateData.podProductionStatus !== undefined) {
+                fields.push('pod_production_status = ?');
+                values.push(updateData.podProductionStatus);
+            }
+            if (updateData.podItems !== undefined) {
+                fields.push('pod_items = ?');
+                values.push(JSON.stringify(updateData.podItems));
+            }
+            if (updateData.podShippingMethod !== undefined) {
+                fields.push('pod_shipping_method = ?');
+                values.push(updateData.podShippingMethod);
+            }
+            if (updateData.podWarehouseResponse !== undefined) {
+                fields.push('pod_warehouse_response = ?');
+                values.push(JSON.stringify(updateData.podWarehouseResponse));
+            }
+
             values.push(id);
             
             const [result] = await connection.query(
@@ -526,6 +559,91 @@ class OrderModel {
             const [rows] = await connection.query(query, params);
             return rows;
 
+        } finally {
+            connection.release();
+        }
+    }
+    // ========== POD Methods ==========
+
+    /**
+     * Tìm POD orders cần fetch tracking (cho cron polling S2BDIY/Printposs)
+     */
+    static async findPodOrdersNeedTracking(limit = 20) {
+        const connection = await db.getConnection();
+
+        try {
+            const [rows] = await connection.query(
+                `SELECT * FROM orders
+                WHERE order_type = 'pod'
+                AND pod_warehouse IN ('S2BDIY', 'PRINTPOSS')
+                AND status IN ('pod_pending', 'pod_in_production')
+                AND pod_warehouse_order_id IS NOT NULL
+                AND (
+                    last_tracking_check_at IS NULL
+                    OR last_tracking_check_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+                )
+                ORDER BY
+                    CASE WHEN last_tracking_check_at IS NULL THEN 0 ELSE 1 END,
+                    last_tracking_check_at ASC,
+                    created_at ASC
+                LIMIT ?`,
+                [limit]
+            );
+
+            return rows;
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
+     * Tìm order theo POD warehouse order ID (cho webhook lookup)
+     */
+    static async findByPodWarehouseOrderId(warehouseOrderId) {
+        const connection = await db.getConnection();
+
+        try {
+            const [rows] = await connection.query(
+                `SELECT * FROM orders
+                WHERE pod_warehouse_order_id = ?
+                LIMIT 1`,
+                [warehouseOrderId]
+            );
+
+            return rows[0] || null;
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
+     * Update POD status + optional tracking (atomic)
+     */
+    static async updatePodStatus(id, podStatus, podProductionStatus = null, trackingNumber = null) {
+        const connection = await db.getConnection();
+
+        try {
+            const fields = ['pod_status = ?', 'status = ?'];
+            const values = [podStatus, podStatus];
+
+            if (podProductionStatus) {
+                fields.push('pod_production_status = ?');
+                values.push(podProductionStatus);
+            }
+
+            if (trackingNumber) {
+                fields.push('tracking_number = ?');
+                values.push(trackingNumber);
+            }
+
+            values.push(id);
+
+            const [result] = await connection.query(
+                `UPDATE orders SET ${fields.join(', ')} WHERE id = ?`,
+                values
+            );
+
+            return result.affectedRows > 0;
         } finally {
             connection.release();
         }

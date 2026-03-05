@@ -139,6 +139,55 @@ class JobService {
         );
     }
 
+    // ========== POD Jobs ==========
+
+    /**
+     * Thêm job tạo POD order
+     */
+    async addPodCreateOrderJob(orderData, delaySeconds = 0) {
+        return await JobModel.create(
+            'pod_create_order',
+            { orderData },
+            delaySeconds,
+            3
+        );
+    }
+
+    /**
+     * Thêm job update tracking number lên ECount POD
+     */
+    async addPodUpdateTrackingEcountJob(orderId, erpOrderCode, trackingNumber, ecountLink, delaySeconds = 0) {
+        return await JobModel.create(
+            'pod_update_tracking_ecount',
+            {
+                orderId,
+                erpOrderCode,
+                trackingNumber,
+                ecountLink
+            },
+            delaySeconds,
+            3
+        );
+    }
+
+    /**
+     * Thêm job update status lên ECount POD
+     */
+    async addPodUpdateStatusEcountJob(orderId, erpOrderCode, trackingNumber, status, ecountLink, delaySeconds = 0) {
+        return await JobModel.create(
+            'pod_update_status_ecount',
+            {
+                orderId,
+                erpOrderCode,
+                trackingNumber,
+                status,
+                ecountLink
+            },
+            delaySeconds,
+            3
+        );
+    }
+
     /**
      * Lấy stats
      */

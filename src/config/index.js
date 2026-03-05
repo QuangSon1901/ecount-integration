@@ -91,6 +91,34 @@ module.exports = {
         connectTimeout: 10000
     },
 
+    // POD Ecount account (separate from Express)
+    ecount_pod: {
+        companyCode: process.env.ECOUNT_POD_COMPANY_CODE,
+        id: process.env.ECOUNT_POD_ID,
+        password: process.env.ECOUNT_POD_PASSWORD,
+        baseUrl: process.env.ECOUNT_POD_BASE_URL || process.env.ECOUNT_BASE_URL,
+        hashLink: process.env.ECOUNT_POD_HASH_LINK || process.env.ECOUNT_HASH_LINK || '#menuType=MENUTREE_000004&menuSeq=MENUTREE_000186&groupSeq=MENUTREE_000030&prgId=C000073&depth=1',
+    },
+
+    // POD Warehouses
+    onos: {
+        baseUrl: process.env.ONOS_BASE_URL || 'https://api-app.onospod.com/api/v1',
+        email: process.env.ONOS_EMAIL,
+        password: process.env.ONOS_PASSWORD,
+        webhookSecret: process.env.ONOS_WEBHOOK_SECRET,
+    },
+
+    s2bdiy: {
+        baseUrl: process.env.S2BDIY_BASE_URL || 'http://openapi.s2bdiy.com/open',
+        appKey: process.env.S2BDIY_APP_KEY,
+        appSecret: process.env.S2BDIY_APP_SECRET,
+    },
+
+    printposs: {
+        baseUrl: process.env.PRINTPOSS_BASE_URL || 'https://api.printposs.com',
+        apiKey: process.env.PRINTPOSS_API_KEY,
+    },
+
     telegram: {
         enabled: process.env.TELEGRAM_ENABLED === 'true',
         botToken: process.env.TELEGRAM_BOT_TOKEN,

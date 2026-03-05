@@ -11,6 +11,7 @@ const labelRoutes = require('./routes/label.routes');
 const extensionRoutes = require('./routes/extension.routes');
 const authRoutes = require('./routes/auth.routes');
 const telegramRoutes = require('./routes/telegram.routes');
+const podWebhookRoutes = require('./routes/pod-webhook.routes');
 
 const apiV1Routes = require('./routes/api-v1.routes');
 
@@ -52,8 +53,15 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Body parser
-app.use(express.json({ limit: '10mb' }));
+// Body parser - capture rawBody for webhook HMAC verification
+app.use(express.json({
+    limit: '10mb',
+    verify: (req, res, buf) => {
+        if (req.originalUrl.startsWith('/api/webhooks/')) {
+            req.rawBody = buf.toString('utf8');
+        }
+    }
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 const uploadsDir = path.join(__dirname, '../public/uploads');
@@ -131,6 +139,7 @@ app.use('/api/ecount', ecountRoutes);
 app.use('/api/labels', labelRoutes);
 app.use('/extensions', extensionRoutes);
 app.use('/api/telegram', telegramRoutes);
+app.use('/api/webhooks/pod', podWebhookRoutes);
 
 // 404 handler
 app.use((req, res) => {

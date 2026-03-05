@@ -860,6 +860,78 @@ const migrations = [
                 COMMENT 'Danh sách Telegram group chat ID riêng của customer, phân cách bởi dấu phẩy. VD: -100123456,-100789012'
                 AFTER telegram_responsibles;
         `
+    },
+
+    {
+        version: 34,
+        name: 'add_pod_support_to_orders',
+        up: `
+            ALTER TABLE orders
+                ADD COLUMN order_type ENUM('express', 'pod') NOT NULL DEFAULT 'express'
+                    COMMENT 'Order type: express shipping or POD warehouse'
+                    AFTER order_number,
+                ADD COLUMN pod_warehouse VARCHAR(50) NULL
+                    COMMENT 'POD warehouse code (ONOS, S2BDIY, PRINTPOSS)'
+                    AFTER order_type,
+                ADD COLUMN pod_warehouse_order_id VARCHAR(200) NULL
+                    COMMENT 'Order ID in POD warehouse system'
+                    AFTER pod_warehouse,
+                ADD COLUMN pod_status VARCHAR(50) NULL
+                    COMMENT 'Unified POD status'
+                    AFTER pod_warehouse_order_id,
+                ADD COLUMN pod_production_status VARCHAR(100) NULL
+                    COMMENT 'Raw production status from warehouse'
+                    AFTER pod_status,
+                ADD COLUMN pod_items JSON NULL
+                    COMMENT 'POD items: SKU, product_id, print_areas, design_urls'
+                    AFTER pod_production_status,
+                ADD COLUMN pod_shipping_method VARCHAR(100) NULL
+                    COMMENT 'POD shipping method selected'
+                    AFTER pod_items,
+                ADD COLUMN pod_warehouse_response JSON NULL
+                    COMMENT 'Full response from POD warehouse API'
+                    AFTER pod_shipping_method,
+                MODIFY COLUMN status ENUM(
+                    'new', 'scheduled', 'received', 'shipped', 'deleted', 'warning',
+                    'pending', 'created', 'in_transit', 'out_for_delivery', 'delivered',
+                    'exception', 'returned', 'cancelled', 'failed',
+                    'pod_pending', 'pod_in_production', 'pod_tracking_received',
+                    'pod_shipped', 'pod_delivered', 'pod_cancelled', 'pod_on_hold', 'pod_error'
+                ) NOT NULL DEFAULT 'pending' COMMENT 'Order status (Express + POD unified)',
+                ADD INDEX idx_order_type (order_type),
+                ADD INDEX idx_pod_warehouse (pod_warehouse),
+                ADD INDEX idx_pod_status (pod_status),
+                ADD INDEX idx_pod_warehouse_order_id (pod_warehouse_order_id);
+        `
+    },
+    {
+        version: 35,
+        name: 'create_webhook_logs_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS webhook_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                source VARCHAR(50) NOT NULL COMMENT 'Webhook source: ONOS, S2BDIY, PRINTPOSS',
+                event VARCHAR(100) NULL COMMENT 'Event type: order.updated, shipment.events',
+                method VARCHAR(10) NOT NULL DEFAULT 'POST',
+                url VARCHAR(500) NULL COMMENT 'Request URL',
+                headers JSON NULL COMMENT 'Request headers',
+                body JSON NULL COMMENT 'Request body (full payload)',
+                status_code INT NULL DEFAULT 200 COMMENT 'Response status code',
+                response JSON NULL COMMENT 'Response sent back',
+                order_id INT NULL COMMENT 'Matched order ID in our system',
+                pod_warehouse_order_id VARCHAR(200) NULL COMMENT 'Order ID from warehouse',
+                processing_result VARCHAR(50) NULL COMMENT 'success, error, skipped, not_found',
+                processing_error TEXT NULL COMMENT 'Error message if failed',
+                ip_address VARCHAR(50) NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_source (source),
+                INDEX idx_event (event),
+                INDEX idx_order_id (order_id),
+                INDEX idx_pod_warehouse_order_id (pod_warehouse_order_id),
+                INDEX idx_created_at (created_at),
+                INDEX idx_processing_result (processing_result)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        `
     }
 
 ];

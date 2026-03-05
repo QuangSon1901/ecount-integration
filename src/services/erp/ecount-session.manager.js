@@ -3,12 +3,12 @@ const SessionModel = require('../../models/session.model');
 const logger = require('../../utils/logger');
 
 class ECountSessionManager {
-    constructor() {
-        this.sessionKey = 'ecount:main';
-        this.sessionType = 'ecount';
+    constructor(sessionKey = 'ecount:main', sessionType = 'ecount') {
+        this.sessionKey = sessionKey;
+        this.sessionType = sessionType;
         this.session = null;
         this.sessionExpiry = null;
-        
+
         // Auto-load session khi khởi động
         this.initialize();
     }
@@ -194,4 +194,9 @@ class ECountSessionManager {
     }
 }
 
-module.exports = new ECountSessionManager();
+const mainSessionManager = new ECountSessionManager('ecount:main', 'ecount');
+const podSessionManager = new ECountSessionManager('ecount:pod', 'ecount_pod');
+
+module.exports = mainSessionManager;
+module.exports.podSessionManager = podSessionManager;
+module.exports.ECountSessionManager = ECountSessionManager;

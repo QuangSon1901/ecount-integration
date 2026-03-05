@@ -4,6 +4,7 @@ const jobService = require('./queue/job.service');
 const OrderModel = require('../models/order.model');
 const logger = require('../utils/logger');
 const carriersConfig = require('../config/carriers.config');
+const podWarehousesConfig = require('../config/pod-warehouses.config');
 
 class OrderService {
     /**
@@ -58,12 +59,18 @@ class OrderService {
             const validationErrors = [];
             const validOrders = [];
 
+            const availableCarriers = Object.keys(carriersConfig).filter(k => carriersConfig[k].enabled);
+            const availablePodWarehouses = Object.keys(podWarehousesConfig).filter(k => podWarehousesConfig[k].enabled);
+
             ordersData.forEach((orderData, index) => {
                 const carrier = orderData.carrier?.toUpperCase();
                 const productCode = orderData.productCode;
 
-                // Kiểm tra carrier có tồn tại không
-                if (!carrier || !carriersConfig[carrier]) {
+                // Kiểm tra carrier có phải POD warehouse không
+                const isPod = carrier && podWarehousesConfig[carrier];
+                const isExpress = carrier && carriersConfig[carrier];
+
+                if (!carrier || (!isPod && !isExpress)) {
                     validationErrors.push({
                         orderIndex: index,
                         erpOrderCode: orderData.erpOrderCode,
@@ -74,68 +81,92 @@ class OrderService {
                         reason: 'invalid_carrier',
                         errors: [{
                             field: 'carrier',
-                            message: `Carrier "${carrier}" không được hỗ trợ. Các carrier khả dụng: ${Object.keys(carriersConfig).filter(k => carriersConfig[k].enabled).join(', ')}`
+                            message: `Carrier "${carrier}" không được hỗ trợ. Carriers: ${availableCarriers.join(', ')}. POD: ${availablePodWarehouses.join(', ')}`
                         }]
                     });
                     return;
                 }
 
-                // Kiểm tra carrier có được enable không
-                if (!carriersConfig[carrier].enabled) {
-                    validationErrors.push({
-                        orderIndex: index,
-                        erpOrderCode: orderData.erpOrderCode,
-                        customerOrderNumber: orderData.customerOrderNumber,
-                        carrier: carrier,
-                        productCode: productCode,
-                        status: 'carrier_disabled',
-                        reason: 'carrier_disabled',
-                        errors: [{
-                            field: 'carrier',
-                            message: `Carrier "${carrier}" hiện không khả dụng`
-                        }]
-                    });
-                    return;
-                }
+                if (isPod) {
+                    // POD warehouse validation
+                    if (!podWarehousesConfig[carrier].enabled) {
+                        validationErrors.push({
+                            orderIndex: index,
+                            erpOrderCode: orderData.erpOrderCode,
+                            customerOrderNumber: orderData.customerOrderNumber,
+                            carrier: carrier,
+                            productCode: productCode,
+                            status: 'carrier_disabled',
+                            reason: 'pod_warehouse_disabled',
+                            errors: [{
+                                field: 'carrier',
+                                message: `POD warehouse "${carrier}" hiện không khả dụng`
+                            }]
+                        });
+                        return;
+                    }
 
-                // Kiểm tra productCode có hợp lệ với carrier không
-                const allowedProducts = carriersConfig[carrier].productCodes || [];
-                if (!productCode) {
-                    validationErrors.push({
-                        orderIndex: index,
-                        erpOrderCode: orderData.erpOrderCode,
-                        customerOrderNumber: orderData.customerOrderNumber,
-                        carrier: carrier,
-                        productCode: productCode,
-                        status: 'missing_product_code',
-                        reason: 'missing_product_code',
-                        errors: [{
-                            field: 'productCode',
-                            message: `Product code là bắt buộc. Các product code khả dụng cho ${carrier}: ${allowedProducts.join(', ')}`
-                        }]
-                    });
-                    return;
-                }
+                    // POD pass validation - đánh dấu isPod = true trong orderData
+                    orderData.podWarehouse = carrier;
+                    orderData.orderType = 'pod';
+                    validOrders.push({ orderIndex: index, orderData, isPod: true });
+                } else {
+                    // Express carrier validation (giữ nguyên logic cũ)
+                    if (!carriersConfig[carrier].enabled) {
+                        validationErrors.push({
+                            orderIndex: index,
+                            erpOrderCode: orderData.erpOrderCode,
+                            customerOrderNumber: orderData.customerOrderNumber,
+                            carrier: carrier,
+                            productCode: productCode,
+                            status: 'carrier_disabled',
+                            reason: 'carrier_disabled',
+                            errors: [{
+                                field: 'carrier',
+                                message: `Carrier "${carrier}" hiện không khả dụng`
+                            }]
+                        });
+                        return;
+                    }
 
-                if (!allowedProducts.includes(productCode)) {
-                    validationErrors.push({
-                        orderIndex: index,
-                        erpOrderCode: orderData.erpOrderCode,
-                        customerOrderNumber: orderData.customerOrderNumber,
-                        carrier: carrier,
-                        productCode: productCode,
-                        status: 'invalid_product_code',
-                        reason: 'invalid_product_code',
-                        errors: [{
-                            field: 'productCode',
-                            message: `Product code "${productCode}" không hợp lệ cho carrier ${carrier}. Các product code khả dụng: ${allowedProducts.join(', ')}`
-                        }]
-                    });
-                    return;
-                }
+                    const allowedProducts = carriersConfig[carrier].productCodes || [];
+                    if (!productCode) {
+                        validationErrors.push({
+                            orderIndex: index,
+                            erpOrderCode: orderData.erpOrderCode,
+                            customerOrderNumber: orderData.customerOrderNumber,
+                            carrier: carrier,
+                            productCode: productCode,
+                            status: 'missing_product_code',
+                            reason: 'missing_product_code',
+                            errors: [{
+                                field: 'productCode',
+                                message: `Product code là bắt buộc. Các product code khả dụng cho ${carrier}: ${allowedProducts.join(', ')}`
+                            }]
+                        });
+                        return;
+                    }
 
-                // Nếu pass validation, thêm vào danh sách hợp lệ
-                validOrders.push({ orderIndex: index, orderData });
+                    if (!allowedProducts.includes(productCode)) {
+                        validationErrors.push({
+                            orderIndex: index,
+                            erpOrderCode: orderData.erpOrderCode,
+                            customerOrderNumber: orderData.customerOrderNumber,
+                            carrier: carrier,
+                            productCode: productCode,
+                            status: 'invalid_product_code',
+                            reason: 'invalid_product_code',
+                            errors: [{
+                                field: 'productCode',
+                                message: `Product code "${productCode}" không hợp lệ cho carrier ${carrier}. Các product code khả dụng: ${allowedProducts.join(', ')}`
+                            }]
+                        });
+                        return;
+                    }
+
+                    // Express pass validation
+                    validOrders.push({ orderIndex: index, orderData, isPod: false });
+                }
             });
 
             // Nếu có lỗi validation, trả về ngay
@@ -174,13 +205,13 @@ class OrderService {
             const blocked = []; // Đơn đang xử lý, không cho push job
             const allowed = []; // Đơn được phép push job
             
-            validOrders.forEach(({ orderIndex, orderData }) => {
+            validOrders.forEach(({ orderIndex, orderData, isPod }) => {
                 const erpCode = orderData.erpOrderCode;
                 const statusInfo = existingStatuses.find(s => s.erp_order_code === erpCode);
-                
+
                 if (!statusInfo) {
                     // Không tìm thấy status info - cho phép
-                    allowed.push({ orderIndex, orderData, reason: 'not_checked' });
+                    allowed.push({ orderIndex, orderData, isPod, reason: 'not_checked' });
                     return;
                 }
 
@@ -194,9 +225,10 @@ class OrderService {
                 ];
 
                 if (allowedStatuses.includes(status)) {
-                    allowed.push({ 
-                        orderIndex, 
+                    allowed.push({
+                        orderIndex,
                         orderData,
+                        isPod,
                         existingStatus: status,
                         reason: status === 'not_found' ? 'new_order' : 'retry_allowed'
                     });
@@ -255,17 +287,28 @@ class OrderService {
             const errors = [];
 
             for (let i = 0; i < allowed.length; i++) {
-                const { orderIndex, orderData, existingStatus } = allowed[i];
-                
+                const { orderIndex, orderData, existingStatus, isPod } = allowed[i];
+
                 try {
                     // Validate cơ bản
-                    if (!orderData.receiver || !orderData.packages || !orderData.declarationInfo) {
-                        throw new Error('Missing required fields: receiver, packages, or declarationInfo');
+                    if (isPod) {
+                        if (!orderData.receiver || !orderData.items || orderData.items.length === 0) {
+                            throw new Error('Missing required fields for POD: receiver or items');
+                        }
+                    } else {
+                        if (!orderData.receiver || !orderData.packages || !orderData.declarationInfo) {
+                            throw new Error('Missing required fields: receiver, packages, or declarationInfo');
+                        }
                     }
 
                     // Push job với delay tăng dần để tránh overload
                     const delaySeconds = i * 2; // Mỗi job cách nhau 2 giây
-                    const jobId = await jobService.addCreateOrderJob(orderData, delaySeconds);
+                    let jobId;
+                    if (isPod) {
+                        jobId = await jobService.addPodCreateOrderJob(orderData, delaySeconds);
+                    } else {
+                        jobId = await jobService.addCreateOrderJob(orderData, delaySeconds);
+                    }
 
                     results.push({
                         index: orderIndex,
