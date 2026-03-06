@@ -91,7 +91,7 @@ class OnosService extends BasePodWarehouse {
         };
 
         // THG cung cấp label sẵn
-        if (orderData.tracking) {
+        if (orderData.tracking && orderData.tracking.trackingNumber) {
             payload.tracking = {
                 tracking_number: orderData.tracking.trackingNumber,
                 carrier: orderData.tracking.carrier,
@@ -123,7 +123,7 @@ class OnosService extends BasePodWarehouse {
             return {
                 success: true,
                 warehouseOrderId: data?.id || '',
-                trackingNumber: data?.tracking?.tracking || null,
+                tracking: data?.tracking || null,
                 rawResponse: response.data
             };
         } catch (error) {

@@ -12,7 +12,7 @@ class OrderModel {
             const [result] = await connection.query(
                 `INSERT INTO orders (
                     order_number, customer_order_number, platform_order_number, erp_order_code,
-                    carrier, product_code, warehouse_code, additional_service, waybill_number, tracking_number, bar_codes,
+                    carrier, product_code, warehouse_code, additional_service, waybill_number, tracking_number, label_url, bar_codes,
                     package_weight, unit_weight, package_length, package_width, package_height,
                     weight_unit, size_unit,
                     receiver_name, receiver_country, receiver_state, receiver_city,
@@ -23,7 +23,7 @@ class OrderModel {
                     extra_services, sensitive_type, goods_type,
                     vat_number, ioss_code, eori_number,
                     order_data, carrier_response, partner_id, partner_name
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     orderData.orderNumber,
                     orderData.customerOrderNumber || null,
@@ -35,6 +35,7 @@ class OrderModel {
                     orderData.additionalService || null,
                     orderData.waybillNumber || null,
                     orderData.trackingNumber || null,
+                    orderData.labelUrl || null,
                     orderData.barCodes || null,
                     orderData.packageWeight || null,
                     orderData.unitWeight || null,

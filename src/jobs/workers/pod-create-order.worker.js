@@ -61,7 +61,8 @@ class PodCreateOrderWorker extends BaseWorker {
             carrier: warehouseCode, // POD warehouse code thay cho carrier
             productCode: orderData.productCode || warehouseCode, // productCode = warehouse code cho POD
             waybillNumber: null,
-            trackingNumber: result.trackingNumber || null, // Một số POD trả tracking ngay
+            trackingNumber: result?.tracking?.tracking || null, // Một số POD trả tracking ngay
+            labelUrl: result?.tracking?.url || null, // URL của label
             packageWeight: totalWeight,
             packageLength: firstPackage.length || null,
             packageWidth: firstPackage.width || null,
@@ -114,7 +115,7 @@ class PodCreateOrderWorker extends BaseWorker {
             orderNumber,
             warehouseOrderId: result.warehouseOrderId,
             warehouseCode,
-            trackingNumber: result.trackingNumber || null
+            trackingNumber: result?.tracking?.tracking || null
         };
     }
 
