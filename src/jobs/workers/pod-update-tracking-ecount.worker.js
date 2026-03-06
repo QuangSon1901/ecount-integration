@@ -241,13 +241,7 @@ class PodUpdateTrackingBatchWorker extends BaseWorker {
 
         const waybillNumber = order.waybill_number || '';
         let labelUrl = null;
-        if (order.label_url) {
-            if (order.label_access_key && process.env.SHORT_LINK_LABEL == 'true') {
-                labelUrl = `${process.env.BASE_URL || ''}/api/labels/${order.label_access_key}`;
-            } else {
-                labelUrl = order.label_url;
-            }
-        }
+        if (order.label_url) labelUrl = order.label_url;
 
         await this.searchOrder(page, erpOrderCode);
         await this.updateTrackingNumber(page, trackingNumber, waybillNumber, labelUrl);
@@ -406,15 +400,15 @@ class PodUpdateTrackingBatchWorker extends BaseWorker {
             linkModal.click();
         });
 
-        await dataFrame.waitForSelector('[data-container="popup-body"] .contents [placeholder="Tracking last mile"]', { state: 'visible', timeout: this.playwrightConfig.timeout });
+        await dataFrame.waitForSelector('[data-container="popup-body"] .contents [placeholder="Lastmile tracking"]', { state: 'visible', timeout: this.playwrightConfig.timeout });
 
         await dataFrame.waitForFunction(() => {
-            const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking last mile"]');
+            const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Lastmile tracking"]');
             return input && !input.disabled;
         }, null, { timeout: this.playwrightConfig.timeout });
 
         await dataFrame.evaluate(({ trackingNumber, waybillNumber, labelUrl }) => {
-            const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Tracking last mile"]');
+            const input = document.querySelector('[data-container="popup-body"] .contents [placeholder="Lastmile tracking"]');
             if (!input) throw new Error('Không tìm thấy input Tracking number');
 
             input.value = trackingNumber;
@@ -456,7 +450,7 @@ class PodUpdateTrackingBatchWorker extends BaseWorker {
             try {
                 const result = await dataFrame.evaluate(({ trackingNumber, waybillNumber, labelUrl }) => {
                     const headers = Array.from(document.querySelectorAll('#app-root .wrapper-frame-body .contents thead th'));
-                    const trackingIdx = headers.findIndex(th => th.textContent.trim().normalize('NFC').includes('Tracking last mile'));
+                    const trackingIdx = headers.findIndex(th => th.textContent.trim().normalize('NFC').includes('Lastmile tracking'));
                     const masterIdx = headers.findIndex(th => th.textContent.trim().normalize('NFC').includes('Master tracking'));
                     const labelIdx = headers.findIndex(th => th.textContent.trim().normalize('NFC').includes('Shipping label'));
 

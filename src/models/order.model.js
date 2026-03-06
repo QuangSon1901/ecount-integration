@@ -620,7 +620,7 @@ class OrderModel {
     /**
      * Update POD status + optional tracking (atomic)
      */
-    static async updatePodStatus(id, podStatus, podProductionStatus = null, trackingNumber = null) {
+    static async updatePodStatus(id, podStatus, podProductionStatus = null, trackingNumber = null, labelUrl = null) {
         const connection = await db.getConnection();
 
         try {
@@ -635,6 +635,11 @@ class OrderModel {
             if (trackingNumber) {
                 fields.push('tracking_number = ?');
                 values.push(trackingNumber);
+            }
+
+            if (labelUrl) {
+                fields.push('label_url = ?');
+                values.push(labelUrl);
             }
 
             values.push(id);

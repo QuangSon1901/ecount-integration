@@ -7,12 +7,13 @@ const logger = require('../utils/logger');
 
 class PodWebhookController {
     /**
-     * Handle ONOS webhook events
-     * Events: order.updated, shipment.events
+     * Handle ONOS webhook — xử lý chung tất cả event
+     * Kiểm tra status thay đổi → push job cập nhật status
+     * Kiểm tra tracking mới → push job tracking + lưu label_url
      */
     async handleOnosWebhook(req, res) {
-        const { event, data } = req.body || {};
-        const warehouseOrderId = data?.order_id || data?.id || null;
+        const { event, order } = req.body || {};
+        const warehouseOrderId = order?.order_id || order?.id || null;
 
         // Lưu webhook log vào DB ngay lập tức
         const logId = await WebhookLogModel.create({
@@ -34,21 +35,7 @@ class PodWebhookController {
         try {
             logger.info('[POD Webhook] ONOS event received', { event, logId });
 
-            let result = { action: 'none' };
-
-            switch (event) {
-                case 'order.updated':
-                    result = await this.handleOnosOrderUpdated(data);
-                    break;
-
-                case 'shipment.events':
-                    result = await this.handleOnosShipmentEvents(data);
-                    break;
-
-                default:
-                    result = { action: 'skipped', reason: `Unhandled event: ${event}` };
-                    logger.info(`[POD Webhook] Unhandled ONOS event: ${event}`);
-            }
+            const result = await this.processOnosWebhook(order);
 
             const responseBody = { received: true, logId };
             res.status(200).json(responseBody);
@@ -80,12 +67,15 @@ class PodWebhookController {
     }
 
     /**
-     * Handle order.updated - status change from ONOS
+     * Xử lý chung webhook ONOS — không chia theo event
+     * 1) Tìm đơn theo warehouse order ID
+     * 2) Nếu có status thay đổi → update status + push job Ecount
+     * 3) Nếu có tracking mới → update tracking + label_url + push job Ecount
      */
-    async handleOnosOrderUpdated(data) {
-        const warehouseOrderId = data.order_id || data.id;
+    async processOnosWebhook(data) {
+        const warehouseOrderId = data?.id;
         if (!warehouseOrderId) {
-            logger.warn('[POD Webhook] No order_id in order.updated event');
+            logger.warn('[POD Webhook] No order_id in ONOS webhook data');
             return { processingResult: 'skipped', reason: 'no_order_id' };
         }
 
@@ -95,25 +85,77 @@ class PodWebhookController {
             return { processingResult: 'not_found', reason: `order not found: ${warehouseOrderId}` };
         }
 
+        const actions = [];
+
+        // ── 1. Kiểm tra status thay đổi ──
         const warehouse = podWarehouseFactory.getWarehouse('ONOS');
         const newPodStatus = warehouse.mapStatus(data.status);
         const oldPodStatus = order.pod_status;
+        let statusChanged = false;
 
         if (newPodStatus && newPodStatus !== oldPodStatus) {
-            await OrderModel.updatePodStatus(
-                order.id,
-                newPodStatus,
-                data.status
-            );
+            statusChanged = true;
+            actions.push(`status: ${oldPodStatus} → ${newPodStatus}`);
 
-            // Queue Ecount status update
-            if (order.erp_order_code && order.ecount_link) {
-                const ecountStatus = this.mapPodStatusToEcountStatus(newPodStatus);
+            logger.info(`[POD Webhook] Order ${order.id} status changed`, {
+                from: oldPodStatus,
+                to: newPodStatus,
+                onosStatus: data.status
+            });
+        }
+
+        // ── 2. Kiểm tra tracking mới ──
+        const trackingNumber = data?.tracking?.tracking || null;
+        const labelUrl = data?.tracking?.url || null;
+        const oldTrackingNumber = order.tracking_number || '';
+        let trackingChanged = false;
+
+        if (trackingNumber && trackingNumber !== oldTrackingNumber) {
+            trackingChanged = true;
+            actions.push(`tracking: ${oldTrackingNumber || '(none)'} → ${trackingNumber}`);
+            if (labelUrl) {
+                actions.push(`label_url: ${labelUrl}`);
+            }
+
+            logger.info(`[POD Webhook] Order ${order.id} tracking received`, {
+                trackingNumber,
+                labelUrl: labelUrl || '(none)',
+                warehouse: 'ONOS'
+            });
+        }
+
+        // ── Không có gì thay đổi → skip ──
+        if (!statusChanged && !trackingChanged) {
+            logger.info(`[POD Webhook] Order ${order.id} no changes`, {
+                onosStatus: data.status,
+                currentPodStatus: oldPodStatus
+            });
+            return { orderId: order.id, processingResult: 'skipped', reason: 'no_changes' };
+        }
+
+        // ── 3. Update DB ──
+        // Nếu có tracking → status pod_fulfilled, ngược lại dùng newPodStatus
+        const finalStatus = trackingChanged ? 'pod_fulfilled' : newPodStatus;
+        const finalProductionStatus = data.status || null;
+
+        await OrderModel.updatePodStatus(
+            order.id,
+            finalStatus,
+            finalProductionStatus,
+            trackingChanged ? trackingNumber : null,
+            trackingChanged ? labelUrl : null
+        );
+
+        // ── 4. Push jobs Ecount ──
+        if (order.erp_order_code && order.ecount_link) {
+            // Push job cập nhật status
+            if (statusChanged || trackingChanged) {
+                const ecountStatus = this.mapPodStatusToEcountStatus(finalStatus);
                 if (ecountStatus) {
                     await jobService.addPodUpdateStatusEcountJob(
                         order.id,
                         order.erp_order_code,
-                        order.tracking_number || '',
+                        trackingChanged ? trackingNumber : (order.tracking_number || ''),
                         ecountStatus,
                         order.ecount_link,
                         5
@@ -121,52 +163,8 @@ class PodWebhookController {
                 }
             }
 
-            logger.info(`[POD Webhook] Order ${order.id} status updated`, {
-                from: oldPodStatus,
-                to: newPodStatus,
-                onosStatus: data.status
-            });
-
-            return { orderId: order.id, processingResult: 'success' };
-        }
-
-        return { orderId: order.id, processingResult: 'skipped', reason: 'status_unchanged' };
-    }
-
-    /**
-     * Handle shipment.events - tracking info from ONOS
-     */
-    async handleOnosShipmentEvents(data) {
-        const warehouseOrderId = data.order_id || data.id;
-        if (!warehouseOrderId) {
-            logger.warn('[POD Webhook] No order_id in shipment.events');
-            return { processingResult: 'skipped', reason: 'no_order_id' };
-        }
-
-        const order = await OrderModel.findByPodWarehouseOrderId(String(warehouseOrderId));
-        if (!order) {
-            logger.warn(`[POD Webhook] Order not found for ONOS order_id: ${warehouseOrderId}`);
-            return { processingResult: 'not_found', reason: `order not found: ${warehouseOrderId}` };
-        }
-
-        const trackingNumber = data.tracking_number || data.trackingNumber;
-        if (!trackingNumber) {
-            logger.warn(`[POD Webhook] No tracking number in shipment.events for order ${order.id}`);
-            return { orderId: order.id, processingResult: 'skipped', reason: 'no_tracking_number' };
-        }
-
-        const oldTrackingNumber = order.tracking_number || '';
-
-        if (trackingNumber !== oldTrackingNumber) {
-            await OrderModel.updatePodStatus(
-                order.id,
-                'pod_shipped',
-                data.status || 'Fulfilled',
-                trackingNumber
-            );
-
-            // Queue Ecount tracking update
-            if (order.erp_order_code && order.ecount_link) {
+            // Push job tracking riêng nếu có tracking mới
+            if (trackingChanged) {
                 await jobService.addPodUpdateTrackingEcountJob(
                     order.id,
                     order.erp_order_code,
@@ -175,28 +173,22 @@ class PodWebhookController {
                     5
                 );
             }
-
-            logger.info(`[POD Webhook] Tracking updated for order ${order.id}`, {
-                trackingNumber,
-                warehouse: 'ONOS'
-            });
-
-            return { orderId: order.id, processingResult: 'success' };
         }
 
-        return { orderId: order.id, processingResult: 'skipped', reason: 'tracking_unchanged' };
+        logger.info(`[POD Webhook] Order ${order.id} processed`, { actions });
+
+        return { orderId: order.id, processingResult: 'success', actions };
     }
 
     mapPodStatusToEcountStatus(podStatus) {
         const statusMap = {
-            'pod_pending': 'Đang xử lý',
-            'pod_in_production': 'Đang sản xuất',
-            'pod_tracking_received': 'Đã có tracking',
-            'pod_shipped': 'Đã giao hàng',
-            'pod_delivered': 'Đã hoàn tất',
-            'pod_cancelled': 'Đã hủy',
-            'pod_on_hold': 'Tạm giữ',
-            'pod_error': 'Lỗi'
+            'pod_pending': 'New',
+            'pod_processing': 'New',
+            'pod_in_production': 'In production',
+            'pod_fulfilled': 'In transit',
+            'pod_completed': 'Delivered',
+            'pod_cancelled': 'Cancelled',
+            'pod_refunded': 'Refund',
         };
         return statusMap[podStatus] || null;
     }

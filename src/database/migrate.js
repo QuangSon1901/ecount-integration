@@ -970,6 +970,22 @@ const migrations = [
                 INDEX idx_status (status)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `
+    },
+    {
+        version: 37,
+        name: 'add_missing_pod_status_enum_values',
+        up: `
+            ALTER TABLE orders
+                MODIFY COLUMN status ENUM(
+                    'new', 'scheduled', 'received', 'shipped', 'deleted', 'warning',
+                    'pending', 'created', 'in_transit', 'out_for_delivery', 'delivered',
+                    'exception', 'returned', 'cancelled', 'failed',
+                    'pod_pending', 'pod_processing', 'pod_in_production',
+                    'pod_fulfilled', 'pod_completed', 'pod_refunded',
+                    'pod_tracking_received', 'pod_shipped', 'pod_delivered',
+                    'pod_cancelled', 'pod_on_hold', 'pod_error'
+                ) NOT NULL DEFAULT 'pending' COMMENT 'Order status (Express + POD unified)';
+        `
     }
 
 ];

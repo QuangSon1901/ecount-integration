@@ -252,8 +252,11 @@ class OnosService extends BasePodWarehouse {
     mapStatus(warehouseStatus) {
         const statusMap = {
             'Pending': 'pod_pending',
-            'Processing': 'pod_in_production',
-            'Fulfilled': 'pod_shipped',
+            'Processing': 'pod_processing',
+            'In Production': 'pod_in_production',
+            'Fulfilled': 'pod_fulfilled',
+            'Completed': 'pod_completed',
+            'Refunded': 'pod_refunded',
             'Cancelled': 'pod_cancelled',
         };
         return statusMap[warehouseStatus] || 'pod_pending';
