@@ -64,6 +64,13 @@ router.get('/admin-docs', requireAdmin, serveView('admin-docs.html'));
  */
 router.get('/tool-express', requireAdmin, serveView('ecount-extension.html'));
 
+/**
+ * @route   GET /extensions/pod-products
+ * @desc    POD Products catalog management
+ * @access  Private (Admin only)
+ */
+router.get('/pod-products', requireAdmin, serveView('pod-products.html'));
+
 // ─── Public Pages ────────────────────────────────────────────────
 
 /**

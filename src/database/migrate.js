@@ -932,6 +932,44 @@ const migrations = [
                 INDEX idx_processing_result (processing_result)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `
+    },
+    {
+        version: 36,
+        name: 'create_pod_products_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS pod_products (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                pod_warehouse VARCHAR(50) NOT NULL COMMENT 'ONOS, PRINTPOSS, S2BDIY',
+                item_name VARCHAR(255) NOT NULL,
+                warehouse_sku VARCHAR(100) NOT NULL COMMENT 'SKU gốc warehouse (3DSHIRT-AS-DESIGN-S)',
+                product_color VARCHAR(100) NULL,
+                size VARCHAR(20) NULL,
+                weight DECIMAL(10,2) NULL,
+                length DECIMAL(10,2) NULL,
+                width DECIMAL(10,2) NULL,
+                height DECIMAL(10,2) NULL,
+                gross_price DECIMAL(10,2) NULL,
+                product_group VARCHAR(100) NULL COMMENT 'Nhóm sản phẩm: T-shirt, Mug, ...',
+                sku_key VARCHAR(50) NULL COMMENT 'Key of SKU: 3DSHIRT',
+                thg_sku_sbsl VARCHAR(100) NULL COMMENT 'THG SKU cho SBSL (1-3DSHIRT-S)',
+                thg_sku_sbtt VARCHAR(100) NULL COMMENT 'THG SKU cho SBTT (2-3DSHIRT-S)',
+                thg_price_sbsl DECIMAL(10,2) NULL,
+                thg_price_sbtt DECIMAL(10,2) NULL,
+                us_import_tax_unit DECIMAL(10,4) NULL,
+                customs_fee_order DECIMAL(10,4) NULL,
+                metadata JSON NULL COMMENT 'Dữ liệu riêng warehouse (ONOS: cw_sbsl, code_sbsl, sf_sbsl...)',
+                status ENUM('active','inactive') NOT NULL DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE INDEX idx_warehouse_sku (pod_warehouse, warehouse_sku),
+                INDEX idx_pod_warehouse (pod_warehouse),
+                INDEX idx_thg_sku_sbsl (thg_sku_sbsl),
+                INDEX idx_thg_sku_sbtt (thg_sku_sbtt),
+                INDEX idx_sku_key (sku_key),
+                INDEX idx_product_group (product_group),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        `
     }
 
 ];

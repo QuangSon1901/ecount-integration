@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POD Products - THG-FULFILL</title>
+    <link rel="icon" type="image/png" href="/uploads/logo.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #eff6ff;
+            --secondary: #64748b;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --border: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --sidebar-width: 260px;
+            --header-height: 64px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .app-container { display: flex; min-height: 100vh; }
+
+        /* ─── Sidebar ─── */
+        .sidebar {
+            position: fixed; left: 0; top: 0;
+            width: var(--sidebar-width); height: 100vh;
+            background: var(--bg-primary);
+            border-right: 1px solid var(--border);
+            overflow-y: auto; z-index: 101;
+            display: flex; flex-direction: column;
+        }
+        .sidebar-logo {
+            padding: 20px; border-bottom: 1px solid var(--border);
+        }
+        .logo-content { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--text-primary); }
+        .logo-icon {
+            width: 40px; height: 40px; border-radius: 10px;
+            object-fit: contain;
+        }
+        .logo-text h2 { font-size: 16px; font-weight: 700; }
+        .logo-text p { font-size: 12px; color: var(--text-secondary); }
+
+        .sidebar-nav { padding: 16px 0; flex: 1; }
+        .nav-section { margin-bottom: 24px; }
+        .nav-section-title {
+            padding: 0 20px 8px; font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary);
+        }
+        .nav-menu { list-style: none; }
+        .nav-item { margin: 2px 12px; }
+        .nav-link {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 12px; color: var(--text-secondary);
+            text-decoration: none; border-radius: 8px;
+            font-size: 14px; font-weight: 500;
+            transition: all 0.2s; cursor: pointer;
+        }
+        .nav-link:hover { background: var(--bg-secondary); color: var(--text-primary); }
+        .nav-link.active { background: var(--primary-light); color: var(--primary); }
+        .nav-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
+
+        .sidebar-footer {
+            padding: 16px 20px; border-top: 1px solid var(--border);
+            font-size: 12px; color: var(--text-secondary);
+        }
+
+        /* ─── Header ─── */
+        .header {
+            position: fixed; top: 0; left: var(--sidebar-width); right: 0;
+            height: var(--header-height); background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 32px; z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .header-title h1 { font-size: 20px; font-weight: 600; }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .breadcrumb a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb a:hover {
+            color: var(--primary);
+        }
+
+        .breadcrumb .separator {
+            color: var(--border);
+        }
+
+        .breadcrumb .current {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .header-right a {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        .header-right a:hover {
+            color: var(--primary);
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        /* ─── Main Content ─── */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            margin-top: var(--header-height);
+            padding: 24px 32px;
+            min-height: calc(100vh - var(--header-height));
+            width: calc(100% - var(--sidebar-width));
+        }
+
+        /* ─── Stat Cards ─── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--border);
+            transition: box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .stat-card.total { border-left-color: var(--primary); }
+        .stat-card.active { border-left-color: var(--success); }
+        .stat-card.inactive { border-left-color: var(--danger); }
+        .stat-card.warehouses { border-left-color: var(--warning); }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* ─── Action Bar ─── */
+        .action-bar {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .action-bar .filters {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            flex-wrap: wrap;
+        }
+
+        .action-bar .actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-input {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            transition: border-color 0.2s;
+            outline: none;
+        }
+
+        .form-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        select.form-input {
+            cursor: pointer;
+            min-width: 140px;
+        }
+
+        input[type="search"].form-input {
+            min-width: 200px;
+        }
+
+        /* ─── Buttons ─── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-dark);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #059669;
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--border);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 13px;
+        }
+
+        .btn-icon {
+            padding: 6px 8px;
+        }
+
+        /* ─── Data Table ─── */
+        .table-card {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            width: calc(100vw - 32px - var(--sidebar-width));
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .data-table thead {
+            background: var(--bg-secondary);
+            border-bottom: 2px solid var(--border);
+        }
+
+        .data-table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .data-table td {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+
+        .data-table tbody tr:hover {
+            background: var(--primary-light);
+        }
+
+        .data-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table-empty {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-secondary);
+        }
+
+        .table-empty .empty-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .table-empty p {
+            font-size: 15px;
+        }
+
+        /* ─── Badges ─── */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.5;
+        }
+
+        .badge-wh-onos {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-wh-s2bdiy {
+            background: var(--success-light);
+            color: #065f46;
+        }
+
+        .badge-wh-printposs {
+            background: #ede9fe;
+            color: #5b21b6;
+        }
+
+        .badge-active {
+            background: var(--success-light);
+            color: #065f46;
+        }
+
+        .badge-inactive {
+            background: var(--danger-light);
+            color: #991b1b;
+        }
+
+        /* ─── Pagination ─── */
+        .pagination-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .pagination-info {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pagination-controls .btn {
+            min-width: 36px;
+            justify-content: center;
+        }
+
+        /* ─── Modal ─── */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.5);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 720px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: var(--bg-primary);
+            border-radius: 12px 12px 0 0;
+            z-index: 1;
+        }
+
+        .modal-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            position: sticky;
+            bottom: 0;
+            background: var(--bg-primary);
+            border-radius: 0 0 12px 12px;
+        }
+
+        /* ─── Form ─── */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-grid .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .form-group label .required {
+            color: var(--danger);
+            margin-left: 2px;
+        }
+
+        .form-group .form-input {
+            width: 100%;
+        }
+
+        .form-section-title {
+            grid-column: 1 / -1;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding-top: 12px;
+            margin-top: 4px;
+            border-top: 1px solid var(--border);
+        }
+
+        .form-section-title:first-child {
+            padding-top: 0;
+            margin-top: 0;
+            border-top: none;
+        }
+
+        /* ─── Import Modal ─── */
+        .import-modal .modal {
+            max-width: 560px;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 40px 24px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .upload-area .upload-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        .upload-area .upload-text {
+            font-size: 15px;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .upload-area .upload-hint {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .file-info {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--primary-light);
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+
+        .file-info.show {
+            display: flex;
+        }
+
+        .file-info .file-icon {
+            font-size: 24px;
+        }
+
+        .file-info .file-details {
+            flex: 1;
+        }
+
+        .file-info .file-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .file-info .file-size {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .file-info .file-remove {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 18px;
+            padding: 4px;
+            transition: color 0.2s;
+        }
+
+        .file-info .file-remove:hover {
+            color: var(--danger);
+        }
+
+        .import-results {
+            display: none;
+            margin-top: 16px;
+            padding: 16px;
+            border-radius: 8px;
+        }
+
+        .import-results.show {
+            display: block;
+        }
+
+        .import-results.success {
+            background: var(--success-light);
+            border: 1px solid #a7f3d0;
+        }
+
+        .import-results.error {
+            background: var(--danger-light);
+            border: 1px solid #fecaca;
+        }
+
+        .import-results h4 {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .import-results p {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .import-results .result-stats {
+            display: flex;
+            gap: 16px;
+            margin-top: 8px;
+        }
+
+        .import-results .result-stat {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* ─── Notification Toast ─── */
+        .toast {
+            position: fixed;
+            top: 80px;
+            right: 32px;
+            z-index: 300;
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+            max-width: 400px;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .toast-error {
+            background: var(--danger);
+            color: white;
+        }
+
+        .toast-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        /* ─── Loading Spinner ─── */
+        .spinner-inline {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255, 255, 255, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .loading-overlay .spinner-lg {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* ─── Action Buttons in Table ─── */
+        .action-btns {
+            display: flex;
+            gap: 4px;
+        }
+
+        .action-btns .btn-sm {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 1024px) {
+            .sidebar { display: none; }
+
+            .header {
+                left: 0;
+            }
+
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .action-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .action-bar .filters {
+                flex-wrap: wrap;
+            }
+
+            .action-bar .actions {
+                justify-content: flex-end;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 0 16px;
+            }
+
+            .main-content {
+                padding: 16px;
+            }
+
+            .stats-row {
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .breadcrumb {
+                display: none;
+            }
+
+            .modal {
+                max-width: 100%;
+                max-height: 100vh;
+                border-radius: 0;
+            }
+
+            input[type="search"].form-input {
+                min-width: 100%;
+            }
+
+            select.form-input {
+                min-width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-row {
+                grid-template-columns: 1fr;
+            }
+
+            .stat-card {
+                padding: 14px;
+            }
+
+            .stat-value {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+
+        <!-- ─── Sidebar ─── -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <a class="logo-content" href="/extensions/dashboard">
+                    <img class="logo-icon" src="/uploads/logo.png" alt="THG-FULFILL">
+                    <div class="logo-text">
+                        <h2>THG-FULFILL</h2>
+                        <p>Management</p>
+                    </div>
+                </a>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Overview</div>
+                    <ul class="nav-menu">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/extensions/dashboard">
+                                <span class="nav-icon">&#x1F4CA;</span> Dashboard
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Extensions</div>
+                    <ul class="nav-menu">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/extensions/bulk-update">
+                                <span class="nav-icon">&#x1F527;</span> Internal Tools
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/extensions/pod-products">
+                                <span class="nav-icon">&#x1F4E6;</span> POD Products
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div>THG-FULFILL v1.0</div>
+            </div>
+        </aside>
+
+        <!-- ─── Main Area ─── -->
+        <div style="flex:1;">
+
+            <!-- ─── Header ─── -->
+            <header class="header">
+                <div class="header-left">
+                    <div class="header-title">
+                        <h1>POD Products</h1>
+                    </div>
+                    <div class="breadcrumb">
+                        <a href="/extensions/dashboard">Dashboard</a>
+                        <span class="separator">&#8250;</span>
+                        <span class="current">POD Products</span>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <a href="/extensions/dashboard">&#8592; Back to Dashboard</a>
+                </div>
+            </header>
+
+            <!-- ─── Content ─── -->
+            <main class="main-content">
+
+                <!-- ─── Stat Cards ─── -->
+                <div class="stats-row">
+                    <div class="stat-card total">
+                        <div class="stat-label">Total Products</div>
+                        <div class="stat-value" id="statTotal">0</div>
+                    </div>
+                    <div class="stat-card active">
+                        <div class="stat-label">Active</div>
+                        <div class="stat-value" id="statActive">0</div>
+                    </div>
+                    <div class="stat-card inactive">
+                        <div class="stat-label">Inactive</div>
+                        <div class="stat-value" id="statInactive">0</div>
+                    </div>
+                    <div class="stat-card warehouses">
+                        <div class="stat-label">Warehouses</div>
+                        <div class="stat-value" id="statWarehouses">0</div>
+                    </div>
+                </div>
+
+                <!-- ─── Action Bar ─── -->
+                <div class="action-bar">
+                    <div class="filters">
+                        <select id="filterWarehouse" class="form-input">
+                            <option value="">All Warehouses</option>
+                            <option value="ONOS">ONOS</option>
+                            <option value="S2BDIY">S2BDIY</option>
+                            <option value="PRINTPOSS">PRINTPOSS</option>
+                        </select>
+
+                        <input type="search" id="filterSearch" class="form-input" placeholder="Search by name, SKU...">
+
+                        <select id="filterProductGroup" class="form-input">
+                            <option value="">All Groups</option>
+                        </select>
+
+                        <select id="filterStatus" class="form-input">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-secondary" id="btnOpenImport">
+                            <span>&#8593;</span> Import Excel
+                        </button>
+                        <button class="btn btn-primary" id="btnOpenAdd">
+                            + Add Product
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ─── Data Table ─── -->
+                <div class="table-card">
+                    <div class="loading-overlay" id="tableLoading">
+                        <div class="spinner-lg"></div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px">#</th>
+                                    <th>Warehouse</th>
+                                    <th>Item Name</th>
+                                    <th>Warehouse SKU</th>
+                                    <th>Size</th>
+                                    <th>Color</th>
+                                    <th>THG SBSL</th>
+                                    <th>THG SBTT</th>
+                                    <th>Group</th>
+                                    <th>Price</th>
+                                    <th>Status</th>
+                                    <th style="width: 100px">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                <tr>
+                                    <td colspan="12" class="table-empty">
+                                        <div class="empty-icon">&#128230;</div>
+                                        <p>No products found</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-bar">
+                        <div class="pagination-info" id="paginationInfo">
+                            Showing 0 of 0
+                        </div>
+                        <div class="pagination-controls">
+                            <button class="btn btn-secondary btn-sm" id="btnPrev" disabled>&#8592; Prev</button>
+                            <button class="btn btn-secondary btn-sm" id="btnNext" disabled>Next &#8594;</button>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- ─── Add/Edit Product Modal ─── -->
+    <div class="modal-overlay" id="productModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add Product</h2>
+                <button class="modal-close" id="btnCloseProductModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="productForm">
+                    <input type="hidden" id="productId">
+                    <div class="form-grid">
+
+                        <!-- Group 1: Basic Info -->
+                        <div class="form-section-title">Basic Information</div>
+
+                        <div class="form-group">
+                            <label>Warehouse <span class="required">*</span></label>
+                            <select id="formWarehouse" class="form-input" required>
+                                <option value="">Select warehouse</option>
+                                <option value="ONOS">ONOS</option>
+                                <option value="S2BDIY">S2BDIY</option>
+                                <option value="PRINTPOSS">PRINTPOSS</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Product Group</label>
+                            <input type="text" id="formProductGroup" class="form-input" placeholder="e.g. T-Shirt, Mug">
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label>Item Name <span class="required">*</span></label>
+                            <input type="text" id="formItemName" class="form-input" required placeholder="Product display name">
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label>Warehouse SKU <span class="required">*</span></label>
+                            <input type="text" id="formWarehouseSku" class="form-input" required placeholder="SKU from warehouse">
+                        </div>
+
+                        <!-- Group 2: Variant Info -->
+                        <div class="form-section-title">Variant Details</div>
+
+                        <div class="form-group">
+                            <label>SKU Key</label>
+                            <input type="text" id="formSkuKey" class="form-input" placeholder="Internal SKU key">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Size</label>
+                            <input type="text" id="formSize" class="form-input" placeholder="e.g. S, M, L, XL">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Color</label>
+                            <input type="text" id="formColor" class="form-input" placeholder="e.g. Black, White">
+                        </div>
+
+                        <!-- Group 3: Dimensions -->
+                        <div class="form-section-title">Dimensions &amp; Weight</div>
+
+                        <div class="form-group">
+                            <label>Weight (g)</label>
+                            <input type="number" id="formWeight" class="form-input" step="0.01" placeholder="0">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Length (cm)</label>
+                            <input type="number" id="formLength" class="form-input" step="0.01" placeholder="0">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Width (cm)</label>
+                            <input type="number" id="formWidth" class="form-input" step="0.01" placeholder="0">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Height (cm)</label>
+                            <input type="number" id="formHeight" class="form-input" step="0.01" placeholder="0">
+                        </div>
+
+                        <!-- Group 4: Pricing & THG SKUs -->
+                        <div class="form-section-title">THG SKU &amp; Pricing</div>
+
+                        <div class="form-group">
+                            <label>Gross Price</label>
+                            <input type="number" id="formGrossPrice" class="form-input" step="0.01" placeholder="0.00">
+                        </div>
+
+                        <div class="form-group">
+                            <label>THG SKU SBSL</label>
+                            <input type="text" id="formThgSkuSbsl" class="form-input" placeholder="THG SKU (So Luong)">
+                        </div>
+
+                        <div class="form-group">
+                            <label>THG SKU SBTT</label>
+                            <input type="text" id="formThgSkuSbtt" class="form-input" placeholder="THG SKU (Thuc Te)">
+                        </div>
+
+                        <!-- Group 5: THG Prices & Taxes -->
+                        <div class="form-section-title">THG Prices &amp; Fees</div>
+
+                        <div class="form-group">
+                            <label>THG Price SBSL</label>
+                            <input type="number" id="formThgPriceSbsl" class="form-input" step="0.01" placeholder="0.00">
+                        </div>
+
+                        <div class="form-group">
+                            <label>THG Price SBTT</label>
+                            <input type="number" id="formThgPriceSbtt" class="form-input" step="0.01" placeholder="0.00">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Import Tax</label>
+                            <input type="number" id="formImportTax" class="form-input" step="0.01" placeholder="0.00">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Customs Fee</label>
+                            <input type="number" id="formCustomsFee" class="form-input" step="0.01" placeholder="0.00">
+                        </div>
+
+                        <!-- Group 6: Status -->
+                        <div class="form-section-title">Status</div>
+
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select id="formStatus" class="form-input">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnCancelProduct">Cancel</button>
+                <button class="btn btn-primary" id="btnSaveProduct">Save Product</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── Import Modal ─── -->
+    <div class="modal-overlay import-modal" id="importModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Import Products from Excel</h2>
+                <button class="modal-close" id="btnCloseImportModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Warehouse <span class="required">*</span></label>
+                    <select id="importWarehouse" class="form-input" required>
+                        <option value="">Select warehouse</option>
+                        <option value="ONOS">ONOS</option>
+                        <option value="S2BDIY">S2BDIY</option>
+                        <option value="PRINTPOSS">PRINTPOSS</option>
+                    </select>
+                </div>
+
+                <div class="upload-area" id="importUploadArea">
+                    <div class="upload-icon">&#128196;</div>
+                    <div class="upload-text">Drag &amp; drop your Excel file here</div>
+                    <div class="upload-hint">or click to browse (.xlsx, .xls)</div>
+                </div>
+                <input type="file" id="importFileInput" accept=".xlsx,.xls" style="display:none">
+
+                <div class="file-info" id="importFileInfo">
+                    <span class="file-icon">&#128196;</span>
+                    <div class="file-details">
+                        <div class="file-name" id="importFileName">-</div>
+                        <div class="file-size" id="importFileSize">-</div>
+                    </div>
+                    <button class="file-remove" id="btnRemoveImportFile" title="Remove file">&times;</button>
+                </div>
+
+                <div class="import-results" id="importResults">
+                    <h4 id="importResultTitle">Import Complete</h4>
+                    <p id="importResultMessage"></p>
+                    <div class="result-stats" id="importResultStats"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnCancelImport">Cancel</button>
+                <button class="btn btn-success" id="btnImport" disabled>
+                    Import Products
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── Toast Notification ─── -->
+    <div class="toast" id="toast"></div>
+
+    <script src="/js/pod-products.js?2009"></script>
+</body>
+</html>

@@ -6,12 +6,14 @@ const router = express.Router();
 const apiAuthMiddleware = require('../middlewares/api-auth.middleware');
 const apiRateLimitMiddleware = require('../middlewares/api-rate-limit.middleware');
 const apiAuditMiddleware = require('../middlewares/api-audit.middleware');
+const { requireAdmin } = require('../middlewares/session-auth.middleware');
 
 // Routes
 const apiAuthRoutes = require('./api-auth.routes');
 const apiCustomerRoutes = require('./api-customer.routes');
 const apiOrderRoutes = require('./api-order.routes');
 const apiWebhookRoutes = require('./api-webhook.routes');
+const podProductRoutes = require('./pod-product.routes');
 
 /**
  * Apply audit middleware to all API routes
@@ -104,6 +106,11 @@ router.get('/warehouses', apiAuthMiddleware, (req, res) => {
         timestamp: new Date().toISOString(),
     });
 });
+
+/**
+ * Admin routes (POD products catalog)
+ */
+router.use('/admin/pod-products', requireAdmin, podProductRoutes);
 
 router.use('/webhooks', apiWebhookRoutes);
 

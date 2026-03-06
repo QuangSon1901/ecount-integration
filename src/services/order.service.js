@@ -2,6 +2,7 @@ const carrierFactory = require('./carriers');
 const ecountService = require('./erp/ecount.service');
 const jobService = require('./queue/job.service');
 const OrderModel = require('../models/order.model');
+const PodProductModel = require('../models/pod-product.model');
 const logger = require('../utils/logger');
 const carriersConfig = require('../config/carriers.config');
 const podWarehousesConfig = require('../config/pod-warehouses.config');
@@ -280,8 +281,62 @@ class OrderService {
                 };
             }
 
-            // Bước 6: Tất cả đơn đều OK, bắt đầu push jobs
-            logger.info(`Tất cả ${allowed.length} đơn hàng hợp lệ, bắt đầu push jobs...`);
+            // Bước 6: Validate tất cả đơn trước khi push job
+            logger.info(`Tất cả ${allowed.length} đơn hàng hợp lệ, bắt đầu validate & map SKU...`);
+
+            // 6a: Validate cơ bản + map SKU cho tất cả đơn POD trước
+            const skuErrors = [];
+            for (let i = 0; i < allowed.length; i++) {
+                const { orderIndex, orderData, isPod } = allowed[i];
+
+                try {
+                    if (isPod) {
+                        if (!orderData.receiver || !orderData.items || orderData.items.length === 0) {
+                            throw new Error('Missing required fields for POD: receiver or items');
+                        }
+                        // Map THG SKU → warehouse SKU từ catalog (throw nếu không tìm thấy)
+                        allowed[i].orderData = await this.mapPodItemSkus(orderData);
+                    } else {
+                        if (!orderData.receiver || !orderData.packages || !orderData.declarationInfo) {
+                            throw new Error('Missing required fields: receiver, packages, or declarationInfo');
+                        }
+                    }
+                } catch (error) {
+                    logger.error(`✗ Validate lỗi đơn ${i + 1}/${allowed.length}:`, error.message);
+                    skuErrors.push({
+                        index: orderIndex,
+                        erpOrderCode: orderData.erpOrderCode,
+                        customerOrderNumber: orderData.customerOrderNumber,
+                        carrier: orderData.carrier,
+                        productCode: orderData.productCode,
+                        error: error.message
+                    });
+                }
+            }
+
+            // 6b: Nếu có bất kỳ lỗi validate/SKU nào → dừng lại, không tạo đơn nào
+            if (skuErrors.length > 0) {
+                logger.warn(`Có ${skuErrors.length} đơn hàng lỗi validate/SKU, không push job nào`);
+                return {
+                    success: false,
+                    data: {
+                        summary: {
+                            total: ordersData.length,
+                            checked: ordersData.length,
+                            allowed: allowed.length,
+                            blocked: blocked.length,
+                            queued: 0,
+                            failed: skuErrors.length
+                        },
+                        results: [],
+                        errors: skuErrors
+                    },
+                    message: `Không thể tạo đơn: ${skuErrors.length}/${allowed.length} đơn hàng lỗi validate/SKU`
+                };
+            }
+
+            // 6c: Tất cả đơn đều OK, bắt đầu push jobs
+            logger.info(`Validate OK, bắt đầu push ${allowed.length} jobs...`);
 
             const results = [];
             const errors = [];
@@ -290,17 +345,6 @@ class OrderService {
                 const { orderIndex, orderData, existingStatus, isPod } = allowed[i];
 
                 try {
-                    // Validate cơ bản
-                    if (isPod) {
-                        if (!orderData.receiver || !orderData.items || orderData.items.length === 0) {
-                            throw new Error('Missing required fields for POD: receiver or items');
-                        }
-                    } else {
-                        if (!orderData.receiver || !orderData.packages || !orderData.declarationInfo) {
-                            throw new Error('Missing required fields: receiver, packages, or declarationInfo');
-                        }
-                    }
-
                     // Push job với delay tăng dần để tránh overload
                     const delaySeconds = i * 2; // Mỗi job cách nhau 2 giây
                     let jobId;
@@ -333,7 +377,7 @@ class OrderService {
 
                 } catch (error) {
                     logger.error(`✗ Lỗi push job ${i + 1}/${allowed.length}:`, error.message);
-                    
+
                     errors.push({
                         index: orderIndex,
                         erpOrderCode: orderData.erpOrderCode,
@@ -370,6 +414,68 @@ class OrderService {
             logger.error('Lỗi processOrderMulti:', error.message);
             throw error;
         }
+    }
+
+    /**
+     * Map THG SKU → warehouse original SKU từ bảng pod_products
+     * Tìm theo thg_sku_sbsl hoặc thg_sku_sbtt, thay bằng warehouse_sku
+     * Áp dụng cho mọi warehouse có dữ liệu catalog (ONOS, PRINTPOSS, S2BDIY...)
+     */
+    async mapPodItemSkus(orderData) {
+        const podWarehouse = (orderData.carrier || '').toUpperCase();
+        const items = orderData.items || [];
+
+        if (items.length === 0) {
+            throw new Error(`[SKU Map] Đơn hàng không có items`);
+        }
+
+        const skus = items.map(item => item.sku).filter(Boolean);
+        if (skus.length === 0) {
+            throw new Error(`[SKU Map] Không có SKU nào trong items`);
+        }
+
+        const catalogEntries = await PodProductModel.bulkLookupByThgSkus(podWarehouse, skus);
+
+        // Build lookup map: thg_sku_sbsl/sbtt → catalog entry
+        const skuMap = new Map();
+        for (const entry of catalogEntries) {
+            if (entry.thg_sku_sbsl) skuMap.set(entry.thg_sku_sbsl, entry);
+            if (entry.thg_sku_sbtt) skuMap.set(entry.thg_sku_sbtt, entry);
+        }
+
+        // Map items và thu thập SKU không tìm thấy
+        const unmappedSkus = [];
+        const mappedItems = items.map(item => {
+            const catalogEntry = skuMap.get(item.sku);
+            if (catalogEntry) {
+                logger.info(`[SKU Map] ${item.sku} → ${catalogEntry.warehouse_sku}`, {
+                    warehouse: podWarehouse,
+                    itemName: catalogEntry.item_name
+                });
+                return {
+                    ...item,
+                    originalSku: item.sku,
+                    sku: catalogEntry.warehouse_sku,
+                    catalogProductId: catalogEntry.id,
+                    catalogMetadata: catalogEntry.metadata || {}
+                };
+            } else {
+                unmappedSkus.push(item.sku);
+                return item;
+            }
+        });
+
+        // Nếu có bất kỳ SKU nào không tìm thấy → throw error
+        if (unmappedSkus.length > 0) {
+            throw new Error(`SKU không tìm thấy trong catalog ${podWarehouse}: ${unmappedSkus.join(', ')}`);
+        }
+
+        logger.info(`[SKU Map] Mapped ${mappedItems.length}/${items.length} items for ${podWarehouse}`);
+
+        return {
+            ...orderData,
+            items: mappedItems
+        };
     }
 
     /**
