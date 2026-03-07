@@ -101,7 +101,7 @@ class OnosService extends BasePodWarehouse {
 
         try {
             const response = await axios.post(
-                `${this.baseUrl}/order/create/test`,
+                `${this.baseUrl}/order/create`,
                 payload,
                 { headers: this.getHeaders(), timeout: 60000 }
             );
