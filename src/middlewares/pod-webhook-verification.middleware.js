@@ -33,11 +33,11 @@ function verifyOnosWebhook(req, res, next) {
 
         if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
             logger.warn('[POD Webhook] Invalid ONOS webhook signature');
-            return res.status(401).json({ error: 'Invalid signature' });
+            return res.status(200).json({ status: 401, error: 'Invalid signature' });
         }
     } catch (error) {
         logger.warn('[POD Webhook] HMAC verification error:', error.message);
-        return res.status(401).json({ error: 'Signature verification failed' });
+        return res.status(200).json({ status: 500, error: 'Signature verification failed' });
     }
 
     next();
