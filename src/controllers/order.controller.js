@@ -37,16 +37,17 @@ class OrderController {
             
             const result = await orderService.processOrderMulti(orders);
             
-            // Nếu có đơn bị block, trả về 409 Conflict
-            if (!result.success && result.data.validationErrors && result.data.validationErrors.length > 0) {
-                return res.status(409).json({
+            // Nếu service trả về thất bại (đơn bị block hoặc lỗi validate/SKU)
+            if (!result.success) {
+                const statusCode = result.data?.validationErrors ? 409 : 400;
+                return res.status(statusCode).json({
                     success: false,
                     message: result.message,
                     data: result.data,
                     timestamp: new Date().toISOString()
                 });
             }
-            
+
             // Success case
             return successResponse(res, result.data, result.message, 201);
             
