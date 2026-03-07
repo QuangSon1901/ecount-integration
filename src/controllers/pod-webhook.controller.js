@@ -134,8 +134,8 @@ class PodWebhookController {
         }
 
         // ── 3. Update DB ──
-        // Nếu có tracking → status pod_fulfilled, ngược lại dùng newPodStatus
-        const finalStatus = trackingChanged ? 'pod_fulfilled' : newPodStatus;
+        // Status luôn lấy từ mapStatus (theo ONOS status thực tế), tracking lưu riêng
+        const finalStatus = statusChanged ? newPodStatus : oldPodStatus;
         const finalProductionStatus = data.status || null;
 
         await OrderModel.updatePodStatus(
@@ -148,8 +148,8 @@ class PodWebhookController {
 
         // ── 4. Push jobs Ecount ──
         if (order.erp_order_code && order.ecount_link) {
-            // Push job cập nhật status
-            if (statusChanged || trackingChanged) {
+            // Push job cập nhật status nếu status thay đổi
+            if (statusChanged) {
                 const ecountStatus = this.mapPodStatusToEcountStatus(finalStatus);
                 if (ecountStatus) {
                     await jobService.addPodUpdateStatusEcountJob(
