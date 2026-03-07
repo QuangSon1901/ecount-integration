@@ -64,34 +64,46 @@ class TelegramNotifier {
     /**
      * Format error message cho Telegram
      */
+    escapeHtml(text) {
+        return String(text || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
     formatErrorMessage(error, context = {}) {
         const timestamp = new Date().toLocaleString('vi-VN', {
             timeZone: 'Asia/Ho_Chi_Minh'
         });
 
+        const errorMsg = this.escapeHtml(error.message || error);
+
         let message = `🚨 <b>ERROR ALERT</b>\n`;
         message += `<b>Time:</b> ${timestamp}\n`;
-        message += `<b>Message:</b> ${error.message || error}\n`;
+        message += `<b>Message:</b> ${errorMsg}\n`;
 
         if (context.orderId) {
-            message += `<b>Order ID:</b> ${context.orderId}\n`;
+            message += `<b>Order ID:</b> ${this.escapeHtml(context.orderId)}\n`;
         }
         if (context.erpOrderCode) {
-            message += `<b>ERP Code:</b> ${context.erpOrderCode}\n`;
+            message += `<b>ERP Code:</b> ${this.escapeHtml(context.erpOrderCode)}\n`;
         }
         if (context.trackingNumber) {
-            message += `<b>Tracking:</b> ${context.trackingNumber}\n`;
+            message += `<b>Tracking:</b> ${this.escapeHtml(context.trackingNumber)}\n`;
         }
         if (context.jobId) {
-            message += `<b>Job ID:</b> ${context.jobId}\n`;
+            message += `<b>Job ID:</b> ${this.escapeHtml(context.jobId)}\n`;
         }
         if (context.action) {
-            message += `<b>Action:</b> ${context.action}\n`;
+            message += `<b>Action:</b> ${this.escapeHtml(context.action)}\n`;
+        }
+        if (context.message) {
+            message += `<b>Detail:</b> ${this.escapeHtml(context.message)}\n`;
         }
 
         if (error.stack && process.env.TELEGRAM_INCLUDE_STACK === 'true') {
             const stackLines = error.stack.split('\n').slice(0, 5);
-            message += `\n<pre>${stackLines.join('\n')}</pre>`;
+            message += `\n<pre>${this.escapeHtml(stackLines.join('\n'))}</pre>`;
         }
 
         return message;
@@ -119,13 +131,13 @@ class TelegramNotifier {
             timeZone: 'Asia/Ho_Chi_Minh'
         });
 
-        let message = `✅ <b>${title}</b>\n`;
+        let message = `✅ <b>${this.escapeHtml(title)}</b>\n`;
         message += `<b>Time:</b> ${timestamp}\n`;
 
         Object.entries(details).forEach(([key, value]) => {
             const icon = this.getIconForKey(key);
             const label = this.getLabelForKey(key);
-            message += `${icon} <b>${label}:</b> ${value}\n`;
+            message += `${icon} <b>${label}:</b> ${this.escapeHtml(value)}\n`;
         });
 
         return message;
