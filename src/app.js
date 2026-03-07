@@ -96,10 +96,7 @@ app.use((req, res, next) => {
     logger.info(`${req.method} ${req.path}`, {
         ip: clientIp,
         originalIp: req.ip, // Log cả IP gốc để debug
-        headers: {
-            'x-forwarded-for': req.headers['x-forwarded-for'],
-            'x-real-ip': req.headers['x-real-ip']
-        },
+        headers: req.headers,
         body: req.method === 'POST' ? req.body : undefined
     });
     next();
