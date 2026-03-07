@@ -183,7 +183,7 @@ class PodWebhookController {
     mapPodStatusToEcountStatus(podStatus) {
         const statusMap = {
             'pod_pending': 'New',
-            'pod_processing': 'New',
+            'pod_processing': 'Processing',
             'pod_in_production': 'In production',
             'pod_fulfilled': 'In transit',
             'pod_completed': 'Delivered',

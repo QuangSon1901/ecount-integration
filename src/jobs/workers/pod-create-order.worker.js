@@ -2,6 +2,7 @@
 // Tạo order trên POD warehouse + lưu DB giống create-order.worker.js của Express
 const BaseWorker = require('./base.worker');
 const OrderModel = require('../../models/order.model');
+const jobService = require('../../services/queue/job.service');
 const podWarehouseFactory = require('../../services/pod');
 const telegram = require('../../utils/telegram');
 const logger = require('../../utils/logger');
@@ -108,6 +109,22 @@ class PodCreateOrderWorker extends BaseWorker {
             warehouseOrderId: result.warehouseOrderId,
             warehouseCode
         });
+
+        // Push job update status Ecount → Processing
+        if (orderData.erpOrderCode && orderData.ecountLink) {
+            await jobService.addPodUpdateStatusEcountJob(
+                orderId,
+                orderData.erpOrderCode,
+                result?.tracking?.tracking || '',
+                'Processing',
+                orderData.ecountLink,
+                5
+            );
+            logger.info(`[POD] Queued Ecount status update → Processing`, {
+                orderId,
+                erpOrderCode: orderData.erpOrderCode
+            });
+        }
 
         return {
             success: true,
