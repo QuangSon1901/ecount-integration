@@ -5,7 +5,8 @@ const logger = require('../utils/logger');
 
 /**
  * Verify ONOS webhook HMAC-SHA256 signature
- * Skip verification in development nếu chưa config webhook secret
+ * ONOS signs: HMAC-SHA256(secret, rawBody) → base64
+ * Header: X-Onos-Hmac-SHA256
  */
 function verifyOnosWebhook(req, res, next) {
     const signature = req.headers['x-onos-hmac-sha256'];
@@ -22,17 +23,23 @@ function verifyOnosWebhook(req, res, next) {
         return res.status(200).json({ status: 401, error: 'Missing signature' });
     }
 
-    const expectedSignature = crypto
-        .createHash('sha256')
-        .update(secret, 'utf8')
-        .digest('hex');
-
     try {
-        const sigBuffer = Buffer.from(signature);
-        const expectedBuffer = Buffer.from(expectedSignature);
+        // rawBody từ express.json({ verify }) hoặc stringify lại
+        const rawBody = req.rawBody || JSON.stringify(req.body);
+
+        const expectedSignature = crypto
+            .createHmac('sha256', secret)
+            .update(rawBody, 'utf8')
+            .digest('base64');
+
+        const sigBuffer = Buffer.from(signature, 'base64');
+        const expectedBuffer = Buffer.from(expectedSignature, 'base64');
 
         if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
-            logger.warn('[POD Webhook] Invalid ONOS webhook signature');
+            logger.warn('[POD Webhook] Invalid ONOS webhook signature', {
+                received: signature,
+                expected: expectedSignature
+            });
             return res.status(200).json({ status: 401, error: 'Invalid signature' });
         }
     } catch (error) {
