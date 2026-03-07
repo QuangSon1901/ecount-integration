@@ -32,7 +32,7 @@ const receiverSchema = Joi.object({
             'string.empty': 'city is required',
             'string.max': 'city must not exceed 50 characters'
         }),
-    addressLines: Joi.array(),
+    addressLines: Joi.array().items(Joi.string().allow('', null)),
     postalCode: Joi.string().min(1).max(20).required()
         .messages({
             'string.empty': 'postalCode is required',
@@ -393,7 +393,7 @@ const podReceiverSchema = Joi.object({
     countryCode: Joi.string().length(2).required(),
     province: Joi.string().max(100).allow(''),
     city: Joi.string().max(100).allow(''),
-    addressLines: Joi.array().items(Joi.string()),
+    addressLines: Joi.array().items(Joi.string().allow('', null)),
     address1: Joi.string().max(500).allow(''),
     address2: Joi.string().max(500).allow(''),
     postalCode: Joi.string().max(20).allow(''),
