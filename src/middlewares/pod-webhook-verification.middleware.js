@@ -19,7 +19,7 @@ function verifyOnosWebhook(req, res, next) {
 
     if (!signature) {
         logger.warn('[POD Webhook] Missing X-Onos-Hmac-SHA256 header');
-        return res.status(401).json({ error: 'Missing signature' });
+        return res.status(200).json({ status: 401, error: 'Missing signature' });
     }
 
     const expectedSignature = crypto
