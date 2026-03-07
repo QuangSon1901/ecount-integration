@@ -6,5 +6,6 @@ const { verifyOnosWebhook } = require('../middlewares/pod-webhook-verification.m
 
 // ONOS webhook - verify HMAC signature then handle
 router.post('/onos', verifyOnosWebhook, (req, res) => podWebhookController.handleOnosWebhook(req, res));
+router.get('/onos', verifyOnosWebhook, (req, res) => podWebhookController.handleOnosWebhook(req, res));
 
 module.exports = router;
