@@ -304,12 +304,14 @@ class OrderService {
                 } catch (error) {
                     logger.error(`✗ Validate lỗi đơn ${i + 1}/${allowed.length}:`, error.message);
                     skuErrors.push({
-                        index: orderIndex,
-                        erpOrderCode: orderData.erpOrderCode,
+                        orderIndex,
                         customerOrderNumber: orderData.customerOrderNumber,
-                        carrier: orderData.carrier,
-                        productCode: orderData.productCode,
-                        error: error.message
+                        erpOrderCode: orderData.erpOrderCode,
+                        orderType: isPod ? 'pod' : 'express',
+                        errors: [{
+                            field: 'sku',
+                            message: error.message
+                        }]
                     });
                 }
             }
@@ -322,16 +324,12 @@ class OrderService {
                     data: {
                         summary: {
                             total: ordersData.length,
-                            checked: ordersData.length,
-                            allowed: allowed.length,
-                            blocked: blocked.length,
-                            queued: 0,
-                            failed: skuErrors.length
+                            valid: allowed.length - skuErrors.length,
+                            invalid: skuErrors.length
                         },
-                        results: [],
-                        errors: skuErrors
+                        validationErrors: skuErrors
                     },
-                    message: `Không thể tạo đơn: ${skuErrors.length}/${allowed.length} đơn hàng lỗi validate/SKU`
+                    message: 'Validation failed for some orders'
                 };
             }
 
