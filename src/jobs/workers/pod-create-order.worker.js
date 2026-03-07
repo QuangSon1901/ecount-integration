@@ -62,8 +62,8 @@ class PodCreateOrderWorker extends BaseWorker {
             carrier: warehouseCode, // POD warehouse code thay cho carrier
             productCode: orderData.productCode || warehouseCode, // productCode = warehouse code cho POD
             waybillNumber: null,
-            trackingNumber: result?.tracking?.tracking || null, // Một số POD trả tracking ngay
-            labelUrl: result?.tracking?.url || null, // URL của label
+            trackingNumber: result?.tracking?.tracking || orderData.tracking?.trackingNumber || null,
+            labelUrl: result?.tracking?.url || orderData.tracking?.linkPrint || null,
             packageWeight: totalWeight,
             packageLength: firstPackage.length || null,
             packageWidth: firstPackage.width || null,
