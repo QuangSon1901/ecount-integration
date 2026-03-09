@@ -106,7 +106,7 @@ class PodWebhookController {
 
         // ── 2. Kiểm tra tracking mới ──
         const trackingNumber = data?.tracking?.tracking || null;
-        const labelUrl = data?.tracking?.url || null;
+        const labelUrl = data?.tracking?.shipping_label || null;
         const oldTrackingNumber = order.tracking_number || '';
         let trackingChanged = false;
 
