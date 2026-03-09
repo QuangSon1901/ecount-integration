@@ -407,7 +407,7 @@ const podItemSchema = Joi.object({
     product_variant_id: Joi.alternatives().try(Joi.string(), Joi.number()).allow('', null),
     name: Joi.string().max(500).allow(''),
     quantity: Joi.number().integer().min(1).default(1),
-    price: Joi.number().min(0).allow(null),
+    price: Joi.allow(''),
     size_id: Joi.alternatives().try(Joi.string(), Joi.number()).allow('', null),
     color_id: Joi.alternatives().try(Joi.string(), Joi.number()).allow('', null),
     print_areas: Joi.array().allow('', null),

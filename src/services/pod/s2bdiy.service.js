@@ -34,8 +34,7 @@ class S2BDIYService extends BasePodWarehouse {
             );
 
             // S2BDIY returns token as string directly or in response.data
-            const token = typeof response.data === 'string' ? response.data : response.data?.data;
-
+            const token = response.data?.data?.token || null;
             if (!token) {
                 throw new Error('S2BDIY getToken returned empty token');
             }
