@@ -76,6 +76,7 @@ class PodFetchTrackingCron {
                     const newPodStatus = warehouse.mapStatus(orderDetail.data.status);
                     const oldPodStatus = order.pod_status;
                     const newTrackingNumber = orderDetail.data.trackingNumber || null;
+                    const newLabelUrl = orderDetail.data.labelUrl || null;
                     const oldTrackingNumber = order.tracking_number || '';
 
                     // Update last check time
@@ -89,7 +90,8 @@ class PodFetchTrackingCron {
                             order.id,
                             newPodStatus || oldPodStatus,
                             orderDetail.data.status,
-                            newTrackingNumber
+                            newTrackingNumber,
+                            newLabelUrl
                         );
 
                         // Queue job to update tracking on Ecount POD

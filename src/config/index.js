@@ -113,7 +113,6 @@ module.exports = {
         appKey: process.env.S2BDIY_APP_KEY,
         appSecret: process.env.S2BDIY_APP_SECRET,
         storeId: parseInt(process.env.S2BDIY_STORE_ID) || 406,
-        logisticsId: parseInt(process.env.S2BDIY_LOGISTICS_ID) || 999,
     },
 
     printposs: {
