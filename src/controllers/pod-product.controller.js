@@ -8,6 +8,7 @@ const logger = require('../utils/logger');
 const HEADER_MAP = {
     'Item name': 'itemName',
     "Onos's SKU": 'warehouseSku',
+    "S2BDIY's SKU": 'warehouseSku',
     'Product color': 'productColor',
     'Size': 'size',
     'WEIGHT': 'weight',
