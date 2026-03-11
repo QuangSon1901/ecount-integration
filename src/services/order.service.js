@@ -455,6 +455,8 @@ class OrderService {
                     originalSku: item.sku,
                     sku: catalogEntry.warehouse_sku,
                     catalogProductId: catalogEntry.id,
+                    catalogSize: catalogEntry.size || null,
+                    catalogColor: item.product_color || null,
                     catalogMetadata: catalogEntry.metadata || {}
                 };
             } else {

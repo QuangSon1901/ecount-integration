@@ -112,6 +112,8 @@ module.exports = {
         baseUrl: process.env.S2BDIY_BASE_URL || 'http://openapi.s2bdiy.com/open',
         appKey: process.env.S2BDIY_APP_KEY,
         appSecret: process.env.S2BDIY_APP_SECRET,
+        storeId: parseInt(process.env.S2BDIY_STORE_ID) || 406,
+        logisticsId: parseInt(process.env.S2BDIY_LOGISTICS_ID) || 999,
     },
 
     printposs: {

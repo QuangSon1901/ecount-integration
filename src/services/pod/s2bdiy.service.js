@@ -11,6 +11,8 @@ class S2BDIYService extends BasePodWarehouse {
         this.baseUrl = config.s2bdiy.baseUrl;
         this.appKey = config.s2bdiy.appKey;
         this.appSecret = config.s2bdiy.appSecret;
+        this.storeId = config.s2bdiy.storeId || 406;
+        this.logisticsId = config.s2bdiy.logisticsId || 999;
 
         // Token cache
         this.token = null;
@@ -58,16 +60,152 @@ class S2BDIYService extends BasePodWarehouse {
         };
     }
 
+    /**
+     * Fetch basic product info from S2BDIY API by product codes
+     * GET /v1/basicProduct?codes={codes}&per_page=100
+     * @param {string[]} codes - Array of product codes (e.g., ["PUSJK7", "ZU6NAW"])
+     * @returns {Promise<Object[]>} - Array of product objects with id, colors[], sizes[]
+     */
+    async getBasicProducts(codes) {
+        await this.getToken();
+
+        const codesStr = codes.join(',');
+        try {
+            const response = await axios.get(
+                `${this.baseUrl}/v1/basicProduct?codes=${codesStr}&per_page=100`,
+                { headers: this.getHeaders(), timeout: 30000 }
+            );
+
+            const products = response.data?.data?.data;
+            if (!Array.isArray(products)) {
+                throw new Error(`S2BDIY basicProduct API returned unexpected format for codes: ${codesStr}`);
+            }
+
+            logger.info(`[S2BDIY] Fetched ${products.length} products for codes: ${codesStr}`);
+            return products;
+        } catch (error) {
+            logger.error('[S2BDIY] getBasicProducts failed:', { codes: codesStr, error: error.response?.data || error.message });
+            throw new Error(`S2BDIY getBasicProducts failed: ${error.response?.data?.msg || error.message}`);
+        }
+    }
+
+    /**
+     * Resolve product_id, color_id, size_id for each item from S2BDIY Products API
+     *
+     * Flow per item:
+     *   1. Extract code from warehouse_sku: code = warehouse_sku.split('-')[0]
+     *   2. Fetch product info from S2BDIY API by code
+     *   3. Match color: normalize(item.color) === normalize(product.colors[].en_name)
+     *   4. Match size: normalize(pod_products.size) includes normalize(product.sizes[].en_name), fallback to "One Size"
+     *
+     * @param {Object[]} items - Items with sku (warehouse_sku), catalogColor, catalogSize
+     * @returns {Promise<Object[]>} - Items enriched with productId, colorId, sizeId
+     */
+    async resolveProductInfo(items) {
+        // Step 2a: Extract unique codes from warehouse_sku
+        const codeToItems = new Map();
+        for (const item of items) {
+            const warehouseSku = item.sku;
+            if (!warehouseSku) {
+                throw new Error(`S2BDIY: item missing warehouse_sku (sku field)`);
+            }
+            const code = warehouseSku.split('-')[0];
+            if (!codeToItems.has(code)) {
+                codeToItems.set(code, []);
+            }
+            codeToItems.get(code).push(item);
+        }
+
+        // Step 2b: Batch fetch all product info
+        const codes = Array.from(codeToItems.keys());
+        const products = await this.getBasicProducts(codes);
+
+        // Build lookup: code → product
+        const productByCode = new Map();
+        for (const product of products) {
+            productByCode.set(product.code, product);
+        }
+
+        const normalize = (s) => (s || '').toLowerCase().replace(/\s+/g, '');
+
+        // Resolve each item
+        const resolvedItems = [];
+        for (const item of items) {
+            const warehouseSku = item.sku;
+            const code = warehouseSku.split('-')[0];
+            const product = productByCode.get(code);
+
+            if (!product) {
+                throw new Error(`S2BDIY: Product not found for code "${code}" (warehouse_sku: ${warehouseSku})`);
+            }
+
+            const productId = product.id;
+
+            // Step 2c: Resolve color_id
+            const itemColor = item.color || item.catalogColor || '';
+            if (!itemColor) {
+                throw new Error(`S2BDIY: Missing color for item with sku "${warehouseSku}". Provide color in item data or pod_products.product_color`);
+            }
+            const normalizedItemColor = normalize(itemColor);
+            const matchedColor = product.colors.find(c => normalize(c.en_name) === normalizedItemColor);
+            if (!matchedColor) {
+                const availableColors = product.colors.map(c => c.en_name).join(', ');
+                throw new Error(`S2BDIY: Color "${itemColor}" not found for product "${code}". Available: ${availableColors}`);
+            }
+            const colorId = matchedColor.id;
+
+            // Step 2d: Resolve size_id
+            const itemSize = item.catalogSize || '';
+            if (!itemSize) {
+                throw new Error(`S2BDIY: Missing size for item with sku "${warehouseSku}". Check pod_products.size`);
+            }
+            const normalizedItemSize = normalize(itemSize);
+            let matchedSize = product.sizes.find(s => {
+                const normalizedApiSize = normalize(s.en_name);
+                return normalizedApiSize.includes(normalizedItemSize) || normalizedItemSize.includes(normalizedApiSize);
+            });
+
+            // Fallback: try "One Size"
+            if (!matchedSize) {
+                matchedSize = product.sizes.find(s => normalize(s.en_name) === normalize('One Size'));
+            }
+
+            if (!matchedSize) {
+                const availableSizes = product.sizes.map(s => s.en_name).join(', ');
+                throw new Error(`S2BDIY: Size "${itemSize}" not found for product "${code}". Available: ${availableSizes}`);
+            }
+            const sizeId = matchedSize.id;
+
+            logger.info(`[S2BDIY] Resolved product info for ${warehouseSku}`, {
+                productId, colorId, sizeId,
+                color: matchedColor.en_name,
+                size: matchedSize.en_name
+            });
+
+            resolvedItems.push({
+                ...item,
+                productId,
+                colorId,
+                sizeId
+            });
+        }
+
+        return resolvedItems;
+    }
+
     async createOrder(orderData) {
         await this.getToken();
 
+        // Resolve product_id, color_id, size_id from S2BDIY Products API
+        const resolvedItems = await this.resolveProductInfo(orderData.items);
+
         const payload = {
             third_order_id: orderData.thirdOrderId,
-            third_user_id: orderData.thirdUserId || 1,
-            platform: orderData.platform || 9, // 9 = Other
-            store_id: orderData.storeId || 406,
+            third_user_id: 1,
+            platform: orderData.platform || 99,
+            store_id: orderData.storeId || this.storeId,
             remark: orderData.remark || '',
-            logistics_id: orderData.logisticsId || 999,
+            logistics_id: 391,
             address: {
                 firstname: orderData.address.firstName,
                 lastname: orderData.address.lastName || '',
@@ -80,10 +218,10 @@ class S2BDIYService extends BasePodWarehouse {
                 address: orderData.address.address,
                 ioss: orderData.address.ioss || null
             },
-            items: orderData.items.map(item => {
+            items: resolvedItems.map(item => {
                 const mapped = {
-                    third_product_id: item.thirdProductId || 0,
-                    third_product_image_url: item.thirdProductImageUrl || '',
+                    third_product_id: 1,
+                    third_product_image_url: item.print_areas && item.print_areas.length > 0 ? item.print_areas[0].value : '',
                     product_id: item.productId,
                     num: item.quantity || 1,
                     size_id: item.sizeId,
@@ -105,8 +243,16 @@ class S2BDIYService extends BasePodWarehouse {
         };
 
         try {
+            logger.info('[S2BDIY] Creating order', {
+                thirdOrderId: orderData.thirdOrderId,
+                itemCount: resolvedItems.length,
+                payload: JSON.stringify(payload)
+            });
+
+            console.log('S2BDIY create order payload:', payload);
+
             const response = await axios.post(
-                `${this.baseUrl}/order`,
+                `${this.baseUrl}/v1/order`,
                 payload,
                 { headers: this.getHeaders(), timeout: 60000 }
             );
@@ -114,6 +260,10 @@ class S2BDIYService extends BasePodWarehouse {
             const data = response.data?.data;
 
             if (response.data?.status !== 'success' && response.data?.status_code !== 200) {
+                logger.error('[S2BDIY] Create order API error', {
+                    response: response.data,
+                    thirdOrderId: orderData.thirdOrderId
+                });
                 throw new Error(`S2BDIY create order failed: ${response.data?.msg || 'Unknown error'}`);
             }
 
@@ -125,10 +275,13 @@ class S2BDIYService extends BasePodWarehouse {
             return {
                 success: true,
                 warehouseOrderId: String(data?.id || ''),
-                rawResponse: response.data
+                rawResponse: response?.data || ''
             };
         } catch (error) {
-            logger.error('[S2BDIY] Create order failed:', error.response?.data || error.message);
+            logger.error('[S2BDIY] Create order failed:', {
+                error: error.response?.data || error.message,
+                thirdOrderId: orderData.thirdOrderId
+            });
             throw new Error(`S2BDIY create order failed: ${error.response?.data?.msg || error.message}`);
         }
     }
@@ -215,8 +368,8 @@ class S2BDIYService extends BasePodWarehouse {
     }
 
     /**
-     * Transform API unified format → S2BDIY format
-     * API: { receiver, items: [{product_id, size_id, color_id, product_design}], customerOrderNumber }
+     * Transform API unified format -> S2BDIY format
+     * API: { receiver, items: [{sku, color, design_image_url, catalogSize, catalogColor}], customerOrderNumber }
      * S2BDIY: { thirdOrderId, address: {firstName, country, address}, items: [{productId, sizeId, colorId}] }
      */
     transformOrderData(apiData) {
@@ -243,11 +396,8 @@ class S2BDIYService extends BasePodWarehouse {
             },
             items: (apiData.items || []).map(item => ({
                 ...item,
-                productId: item.productId || item.product_id,
-                thirdProductId: item.thirdProductId || item.product_id || 0,
+                thirdProductId: item.thirdProductId || item.product_id || 1,
                 thirdProductImageUrl: item.thirdProductImageUrl || item.design_image_url || '',
-                sizeId: item.sizeId || item.size_id,
-                colorId: item.colorId || item.color_id,
                 quantity: item.quantity || item.num || 1,
                 productDesign: item.productDesign || item.product_design || null
             }))
@@ -263,8 +413,8 @@ class S2BDIYService extends BasePodWarehouse {
         if (!orderData.address.address) throw new Error('S2BDIY: address.address is required');
 
         for (const item of orderData.items) {
-            if (!item.productDesign && !item.productId) {
-                throw new Error('S2BDIY: item.productId or item.productDesign is required');
+            if (!item.sku) {
+                throw new Error('S2BDIY: item.sku (warehouse_sku) is required for product resolution');
             }
         }
 
