@@ -241,7 +241,14 @@ class PodUpdateTrackingBatchWorker extends BaseWorker {
 
         const waybillNumber = order.waybill_number || '';
         let labelUrl = null;
-        if (order.label_url) labelUrl = order.label_url;
+        if (order.label_url) {
+            if (order.label_access_key && process.env.SHORT_LINK_LABEL == 'true') {
+                const baseUrl = process.env.BASE_URL || '';
+                labelUrl = `${baseUrl}/api/labels/${order.label_access_key}`;
+            } else {
+                labelUrl = order.label_url;
+            }
+        }
 
         await this.searchOrder(page, erpOrderCode);
         await this.updateTrackingNumber(page, trackingNumber, waybillNumber, labelUrl);

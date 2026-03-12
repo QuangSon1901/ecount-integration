@@ -146,6 +146,16 @@ class PodWebhookController {
             trackingChanged ? labelUrl : null
         );
 
+        // ── Generate label access key nếu có label URL mới (proxy qua domain mình) ──
+        if (trackingChanged && labelUrl) {
+            try {
+                await OrderModel.generateLabelAccessKey(order.id);
+                logger.info(`[POD Webhook] Generated label access key for order ${order.id}`);
+            } catch (error) {
+                logger.error(`[POD Webhook] Failed to generate label access key for order ${order.id}: ${error.message}`);
+            }
+        }
+
         // ── 4. Push jobs Ecount ──
         if (order.erp_order_code && order.ecount_link) {
             // Push job cập nhật status nếu status thay đổi
