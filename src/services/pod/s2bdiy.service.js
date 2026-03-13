@@ -357,7 +357,7 @@ class S2BDIYService extends BasePodWarehouse {
                         name: item.name || '',
                         views: [
                             {
-                                view_id: 2, //面ID
+                                view_id: 1, //面ID
                                 objects: [ //设计项
                                     {
                                         type: "image", //类型，目前仅支持image
@@ -390,7 +390,7 @@ class S2BDIYService extends BasePodWarehouse {
             
 
             const response = await axios.post(
-                `${this.baseUrl}/v1/order/order/createWithDesign`,
+                `${this.baseUrl}/v1/order/createWithDesign`,
                 payload,
                 { headers: this.getHeaders(), timeout: 60000 }
             );
