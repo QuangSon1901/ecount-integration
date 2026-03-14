@@ -600,6 +600,7 @@ class S2BDIYService extends BasePodWarehouse {
                     labelUrl: order.order_logistics?.oss_file_src || null,
                     labelBarcode: order.order_logistics?.label_barcode || null,
                     logisticsTime: order.order_logistics?.logisticss_time || null,
+                    logisticsStatus: order.order_logistics?.logisticss_status || null, // 1:Awaiting 2:In transit 3:Arrived 4:Delivered 5:Delayed 6:Failed 7:Anomaly
                     logisticsPlatform: order.logistics_platform,
                     producedTime: order.produced_time,
                     deliveryTime: order.delivery_time,

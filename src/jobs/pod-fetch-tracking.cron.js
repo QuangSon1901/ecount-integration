@@ -68,8 +68,17 @@ class PodFetchTrackingCron {
                             continue;
                         }
 
-                        const newPodStatus = warehouse.mapStatus(orderDetail.data.status);
+                        let newPodStatus = warehouse.mapStatus(orderDetail.data.status);
                         const oldPodStatus = order.pod_status;
+
+                        // S2BDIY status 6 = "Shipped" nhưng cần check logisticss_status để phân biệt
+                        // In transit vs Delivered. logisticss_status: 4 = "Successfully signed for" = Delivered
+                        if (parseInt(orderDetail.data.status) === 6 && orderDetail.data.logisticsStatus) {
+                            const logStatus = parseInt(orderDetail.data.logisticsStatus);
+                            if (logStatus === 4) {
+                                newPodStatus = 'pod_delivered';
+                            }
+                        }
                         const newTrackingNumber = orderDetail.data.trackingNumber || null;
                         const newLabelUrl = orderDetail.data.labelUrl || null;
                         const oldTrackingNumber = order.tracking_number || '';
@@ -269,7 +278,7 @@ class PodFetchTrackingCron {
             'pod_processing': 'Processing',
             'pod_in_production': 'In production',
             'pod_shipped': 'In transit',
-            'pod_shipped': 'Delivered',
+            'pod_delivered': 'Delivered',
             'pod_cancelled': 'Cancelled',
             'pod_refunded': 'Refund',
         };
