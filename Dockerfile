@@ -41,7 +41,7 @@ RUN npm ci --only=production && \
 # Copy source
 COPY . .
 
-RUN mkdir -p logs/screenshots
+RUN mkdir -p logs/screenshots public/uploads/pod
 
 # Create user VÀ COPY Playwright browsers
 RUN groupadd -r appuser && useradd -r -g appuser -G audio,video appuser \

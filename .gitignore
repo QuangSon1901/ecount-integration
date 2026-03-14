@@ -29,3 +29,5 @@ coverage/
 # Build
 dist/
 build/
+
+public/uploads/
