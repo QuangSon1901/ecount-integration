@@ -35,7 +35,7 @@ class PrintpossService extends BasePodWarehouse {
             phone: orderData.shippingAddress.phone || '',
             store_id: orderData.storeId || null,
             notes: orderData.notes || '',
-            is_sample: true,
+            is_sample: false,
             items: orderData.items.map(item => ({
                 product_variant_id: parseInt(item.productVariantId),
                 quantity: item.quantity || 1,
