@@ -12,7 +12,8 @@ class PodWebhookController {
      * Kiểm tra tracking mới → push job tracking + lưu label_url
      */
     async handleOnosWebhook(req, res) {
-        const { event, order } = req.body || {};
+        const { order } = req.body || {};
+        const event = req.headers['x-onos-topic'] || 'unknown';
         const warehouseOrderId = order?.order_id || order?.id || null;
 
         // Lưu webhook log vào DB ngay lập tức

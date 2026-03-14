@@ -327,6 +327,7 @@ class PrintpossService extends BasePodWarehouse {
             'shipped': 'pod_shipped',
             'delivered': 'pod_delivered',
             'cancelled': 'pod_cancelled',
+            'failed': 'pod_cancelled',
         };
         return statusMap[warehouseStatus] || 'pod_processing';
     }

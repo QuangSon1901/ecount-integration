@@ -268,7 +268,7 @@ class PodFetchTrackingCron {
             'pod_pending': 'New',
             'pod_processing': 'Processing',
             'pod_in_production': 'In production',
-            'pod_fulfilled': 'In transit',
+            'pod_shipped': 'In transit',
             'pod_shipped': 'Delivered',
             'pod_cancelled': 'Cancelled',
             'pod_refunded': 'Refund',
