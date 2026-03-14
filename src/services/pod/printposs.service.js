@@ -22,26 +22,34 @@ class PrintpossService extends BasePodWarehouse {
 
     async createOrder(orderData) {
         const payload = {
-            store_id: orderData.storeId,
             external_order_id: orderData.externalOrderId,
+            first_name: orderData.shippingAddress.firstName || '',
+            last_name: orderData.shippingAddress.lastName || '',
+            address_1: orderData.shippingAddress.addressLine1 || '',
+            address_2: orderData.shippingAddress.addressLine2 || '',
+            city: orderData.shippingAddress.city || '',
+            region: orderData.shippingAddress.state || '',
+            zip: orderData.shippingAddress.postalCode || '',
+            country: orderData.shippingAddress.countryCode || '',
+            email: orderData.shippingAddress.email || '',
+            phone: orderData.shippingAddress.phone || '',
+            store_id: orderData.storeId || null,
+            notes: orderData.notes || '',
+            is_sample: true,
             items: orderData.items.map(item => ({
-                product_variant_id: item.productVariantId,
+                product_variant_id: parseInt(item.productVariantId),
                 quantity: item.quantity || 1,
                 design_image_url: item.designImageUrl,
-                shipping_label_url: item.shippingLabelUrl || null
-            })),
-            shipping_address: {
-                name: orderData.shippingAddress.name,
-                address_line_1: orderData.shippingAddress.addressLine1,
-                address_line_2: orderData.shippingAddress.addressLine2 || '',
-                city: orderData.shippingAddress.city,
-                state: orderData.shippingAddress.state || '',
-                postal_code: orderData.shippingAddress.postalCode,
-                country_code: orderData.shippingAddress.countryCode,
-                phone: orderData.shippingAddress.phone || '',
-                email: orderData.shippingAddress.email || ''
-            }
+                mockup_image_url: item.mockupImageUrl || null
+            }))
         };
+        const isSBTT = orderData.podShippingMethod.toUpperCase() === 'SBTT';
+        const tracking = orderData.tracking;
+
+        // SBTT: include shipping_label_url at order level
+        if (isSBTT && orderData.shippingLabelUrl) {
+            payload.shipping_label_url = orderData.shippingLabelUrl;
+        }
 
         try {
             const response = await axios.post(
@@ -57,22 +65,55 @@ class PrintpossService extends BasePodWarehouse {
             const data = response.data?.data;
 
             logger.info('[PRINTPOSS] Order created', {
-                printpossOrderId: data?.id,
+                orderNumber: data?.order_number,
                 externalOrderId: orderData.externalOrderId
             });
 
+
             return {
                 success: true,
-                warehouseOrderId: String(data?.id || ''),
+                // order_number is the warehouseOrderId for PrintPoss (used in getOrder API)
+                warehouseOrderId: String(data?.order_number || ''),
+                tracking: isSBTT && tracking ? {
+                    tracking: tracking.trackingNumber || null,
+                    carrier: tracking.carrier || 'USPS',
+                    shipping_label: tracking.linkPrint || null
+                } : null,
                 rawResponse: response.data
             };
         } catch (error) {
-            // Handle rate limit
             if (error.response?.status === 429) {
                 logger.warn('[PRINTPOSS] Rate limited, retry later');
             }
-            logger.error('[PRINTPOSS] Create order failed:', error.response?.data || error.message);
-            throw new Error(`Printposs create order failed: ${error.response?.data?.message || error.message}`);
+
+            // Format error message chi tiết từ response
+            const responseData = error.response?.data;
+            let errorDetail = '';
+
+            if (responseData) {
+                if (responseData.message) {
+                    errorDetail = responseData.message;
+                }
+                // PrintPoss trả errors dạng { field: ["error1", "error2"] }
+                if (responseData.errors && typeof responseData.errors === 'object') {
+                    const fieldErrors = Object.entries(responseData.errors)
+                        .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+                        .join(' | ');
+                    errorDetail = errorDetail ? `${errorDetail} — ${fieldErrors}` : fieldErrors;
+                }
+            }
+
+            if (!errorDetail) {
+                errorDetail = error.message;
+            }
+
+            logger.error('[PRINTPOSS] Create order failed:', {
+                status: error.response?.status,
+                detail: errorDetail,
+                responseData
+            });
+
+            throw new Error(`Printposs create order failed (${error.response?.status || 'network'}): ${errorDetail}`);
         }
     }
 
@@ -89,16 +130,18 @@ class PrintpossService extends BasePodWarehouse {
 
             const data = response.data?.data;
 
+            // Extract tracking from packages
+            const pkg = data?.packages?.[0] || {};
+
             return {
-                id: data?.id,
+                id: data?.order_number,
                 externalOrderId: data?.external_order_id,
-                status: data?.status,
-                trackingNumber: data?.tracking_number || null,
-                shippingCarrier: data?.shipping_carrier || null,
-                trackingUrl: data?.tracking_url || null,
-                labelUrl: data?.label_url || null,
+                status: data?.order_status,
+                trackingNumber: pkg.tracking_number || null,
+                shippingCarrier: pkg.carrier || null,
+                trackingUrl: pkg.tracking_link || null,
+                labelUrl: pkg.shipping_label_url || null,
                 items: data?.items || [],
-                shippingAddress: data?.shipping_address || null,
                 rawResponse: response.data
             };
         } catch (error) {
@@ -108,7 +151,6 @@ class PrintpossService extends BasePodWarehouse {
     }
 
     async getTracking(warehouseOrderId) {
-        // Printposs: tracking info is embedded in order detail
         const order = await this.getOrder(warehouseOrderId);
 
         return {
@@ -116,12 +158,11 @@ class PrintpossService extends BasePodWarehouse {
             carrier: order.shippingCarrier || null,
             trackingUrl: order.trackingUrl || null,
             shipmentStatus: order.status || null,
-            events: [] // Printposs doesn't provide shipment events
+            events: []
         };
     }
 
     async cancelOrder(warehouseOrderId) {
-        // Printposs docs unclear on cancel endpoint
         logger.warn('[PRINTPOSS] Cancel order not fully documented, attempting...');
         try {
             const response = await axios.delete(
@@ -136,22 +177,114 @@ class PrintpossService extends BasePodWarehouse {
     }
 
     /**
+     * Fetch products from PrintPoss API and return SKU → variant_id mapping
+     */
+    async fetchProducts() {
+        try {
+            const response = await axios.get(
+                `${this.baseUrl}/api/v1/seller/products`,
+                {
+                    params: {
+                        order_by: 'created_at',
+                        order_direction: 'desc',
+                        page: 1,
+                        per_page: 50
+                    },
+                    headers: this.getHeaders(),
+                    timeout: 30000
+                }
+            );
+
+            if (!response.data?.success) {
+                throw new Error(`Printposs fetch products failed: ${JSON.stringify(response.data)}`);
+            }
+
+            const skuToVariantId = {};
+            const products = response.data?.data || [];
+
+            for (const product of products) {
+                for (const variant of (product.variants || [])) {
+                    if (variant.sku) {
+                        skuToVariantId[variant.sku] = variant.id;
+                    }
+                }
+            }
+
+            logger.info(`[PRINTPOSS] Fetched ${products.length} products, ${Object.keys(skuToVariantId).length} variants mapped`);
+
+            return skuToVariantId;
+        } catch (error) {
+            logger.error('[PRINTPOSS] Fetch products failed:', error.response?.data || error.message);
+            throw new Error(`Printposs fetch products failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Sync warehouse_id (variant_id) for PrintPoss products in pod_products table
+     * Matches by warehouse_sku ↔ variant.sku
+     */
+    async syncWarehouseIds() {
+        const PodProductModel = require('../../models/pod-product.model');
+
+        try {
+            const skuToVariantId = await this.fetchProducts();
+
+            const products = await PodProductModel.findMissingWarehouseId('PRINTPOSS');
+
+            if (products.length === 0) {
+                logger.info('[PRINTPOSS] All products already have warehouse_id');
+                return { synced: 0, total: 0 };
+            }
+
+            const updateMap = {};
+            const notFound = [];
+
+            for (const product of products) {
+                const variantId = skuToVariantId[product.warehouse_sku];
+                if (variantId) {
+                    updateMap[product.warehouse_sku] = variantId;
+                } else {
+                    notFound.push(product.warehouse_sku);
+                }
+            }
+
+            let synced = 0;
+            if (Object.keys(updateMap).length > 0) {
+                synced = await PodProductModel.bulkUpdateWarehouseId('PRINTPOSS', updateMap);
+            }
+
+            if (notFound.length > 0) {
+                logger.warn(`[PRINTPOSS] ${notFound.length} SKUs not found on PrintPoss API`, { notFound });
+            }
+
+            logger.info(`[PRINTPOSS] Synced warehouse_id for ${synced}/${products.length} products`);
+
+            return { synced, total: products.length, notFound };
+        } catch (error) {
+            logger.error('[PRINTPOSS] Sync warehouse IDs failed:', error.message);
+            throw error;
+        }
+    }
+
+    /**
      * Transform API unified format → Printposs format
-     * API: { receiver, items: [{product_variant_id, design_image_url}], customerOrderNumber }
-     * Printposs: { externalOrderId, storeId, shippingAddress: {name, addressLine1, countryCode}, items: [{productVariantId, designImageUrl}] }
+     * Key difference: PrintPoss uses warehouse_id (variant_id) instead of SKU
+     * SBTT orders include shipping_label_url instead of tracking_number
      */
     transformOrderData(apiData) {
         const receiver = apiData.receiver || {};
-        const fullName = [receiver.firstName, receiver.lastName].filter(Boolean).join(' ') || receiver.name || '';
+        const firstName = receiver.firstName || '';
+        const lastName = receiver.lastName || '-';
 
         return {
             ...apiData,
-            externalOrderId: apiData.externalOrderId || apiData.customerOrderNumber,
-            storeId: apiData.storeId || this.config.printposs.storeId || 1,
-            shippingAddress: apiData.shippingAddress || {
-                name: fullName,
-                addressLine1: receiver.addressLines?.[0] || receiver.address1 || '',
-                addressLine2: receiver.addressLines?.[1] || receiver.address2 || '',
+            externalOrderId: apiData.customerOrderNumber,
+            storeId: null,
+            shippingAddress: {
+                firstName: firstName,
+                lastName: lastName,
+                addressLine1: receiver.addressLines?.[0] || '',
+                addressLine2: receiver.addressLines?.[1] || '',
                 city: receiver.city || '',
                 state: receiver.province || '',
                 postalCode: receiver.postalCode || '',
@@ -159,27 +292,27 @@ class PrintpossService extends BasePodWarehouse {
                 phone: receiver.phoneNumber || '',
                 email: receiver.email || ''
             },
+            // Map items: use warehouseId (variant_id) as productVariantId
             items: (apiData.items || []).map(item => ({
                 ...item,
-                productVariantId: item.productVariantId || item.product_variant_id,
-                designImageUrl: item.designImageUrl || item.design_image_url,
-                shippingLabelUrl: item.shippingLabelUrl || item.shipping_label_url || null,
+                productVariantId: item.warehouseId || null,
+                designImageUrl: item.print_areas[0]?.value || null,
+                mockupImageUrl: item.image || null,
                 quantity: item.quantity || 1
-            }))
+            })),
+            // SBTT: pass shipping label URL from tracking
+            shippingLabelUrl: apiData.tracking?.linkPrint || null,
+            podShippingMethod: apiData.shippingMethod || null
         };
     }
 
     validateOrderData(orderData) {
-        if (!orderData.storeId) throw new Error('Printposs: storeId is required');
         if (!orderData.externalOrderId) throw new Error('Printposs: externalOrderId is required');
         if (!orderData.items || orderData.items.length === 0) throw new Error('Printposs: items is required');
         if (!orderData.shippingAddress) throw new Error('Printposs: shippingAddress is required');
-        if (!orderData.shippingAddress.name) throw new Error('Printposs: shippingAddress.name is required');
-        if (!orderData.shippingAddress.addressLine1) throw new Error('Printposs: shippingAddress.addressLine1 is required');
-        if (!orderData.shippingAddress.countryCode) throw new Error('Printposs: shippingAddress.countryCode is required');
 
         for (const item of orderData.items) {
-            if (!item.productVariantId) throw new Error('Printposs: item.productVariantId is required');
+            if (!item.productVariantId) throw new Error('Printposs: item.productVariantId is required (warehouse_id missing, sync products first)');
             if (!item.designImageUrl) throw new Error('Printposs: item.designImageUrl is required');
         }
 
@@ -189,12 +322,13 @@ class PrintpossService extends BasePodWarehouse {
     mapStatus(warehouseStatus) {
         const statusMap = {
             'pending': 'pod_pending',
-            'processing': 'pod_in_production',
+            'draft': 'pod_processing',
+            'in_production': 'pod_in_production',
             'shipped': 'pod_shipped',
+            'delivered': 'pod_delivered',
             'cancelled': 'pod_cancelled',
-            'on_hold': 'pod_on_hold',
         };
-        return statusMap[warehouseStatus] || 'pod_pending';
+        return statusMap[warehouseStatus] || 'pod_processing';
     }
 }
 

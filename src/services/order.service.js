@@ -448,12 +448,14 @@ class OrderService {
             if (catalogEntry) {
                 logger.info(`[SKU Map] ${item.sku} → ${catalogEntry.warehouse_sku}`, {
                     warehouse: podWarehouse,
-                    itemName: catalogEntry.item_name
+                    itemName: catalogEntry.item_name,
+                    warehouseId: catalogEntry.warehouse_id || null
                 });
                 return {
                     ...item,
                     originalSku: item.sku,
                     sku: catalogEntry.warehouse_sku,
+                    warehouseId: catalogEntry.warehouse_id || null,
                     catalogProductId: catalogEntry.id,
                     catalogSize: catalogEntry.size || null,
                     catalogColor: item.product_color || null,
@@ -468,6 +470,14 @@ class OrderService {
         // Nếu có bất kỳ SKU nào không tìm thấy → throw error
         if (unmappedSkus.length > 0) {
             throw new Error(`SKU không tìm thấy trong catalog ${podWarehouse}: ${unmappedSkus.join(', ')}`);
+        }
+
+        // PrintPoss: check warehouse_id (variant_id) exists for all items
+        if (podWarehouse === 'PRINTPOSS') {
+            const missingIds = mappedItems.filter(item => !item.warehouseId).map(item => item.sku);
+            if (missingIds.length > 0) {
+                throw new Error(`PrintPoss warehouse_id chưa được sync cho SKU: ${missingIds.join(', ')}. Hãy gọi POST /pod-products/sync-printposs trước.`);
+            }
         }
 
         logger.info(`[SKU Map] Mapped ${mappedItems.length}/${items.length} items for ${podWarehouse}`);

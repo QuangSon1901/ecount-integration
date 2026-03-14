@@ -259,7 +259,7 @@ class OnosService extends BasePodWarehouse {
             'Refunded': 'pod_refunded',
             'Cancelled': 'pod_cancelled',
         };
-        return statusMap[warehouseStatus] || 'pod_pending';
+        return statusMap[warehouseStatus] || 'pod_processing';
     }
 }
 

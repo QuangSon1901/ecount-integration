@@ -12,16 +12,17 @@ class PodProductModel {
         try {
             const [result] = await connection.query(
                 `INSERT INTO pod_products (
-                    pod_warehouse, item_name, warehouse_sku, product_color, size,
+                    pod_warehouse, item_name, warehouse_sku, warehouse_id, product_color, size,
                     weight, length, width, height, gross_price,
                     product_group, sku_key, thg_sku_sbsl, thg_sku_sbtt,
                     thg_price_sbsl, thg_price_sbtt,
                     us_import_tax_unit, customs_fee_order, metadata, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     data.podWarehouse,
                     data.itemName || null,
                     data.warehouseSku,
+                    data.warehouseId || null,
                     data.productColor || null,
                     data.size || null,
                     data.weight || null,
@@ -69,6 +70,10 @@ class PodProductModel {
             if (updateData.warehouseSku !== undefined) {
                 fields.push('warehouse_sku = ?');
                 values.push(updateData.warehouseSku);
+            }
+            if (updateData.warehouseId !== undefined) {
+                fields.push('warehouse_id = ?');
+                values.push(updateData.warehouseId);
             }
             if (updateData.productColor !== undefined) {
                 fields.push('product_color = ?');
@@ -349,6 +354,7 @@ class PodProductModel {
                 item.podWarehouse,
                 item.itemName || null,
                 item.warehouseSku,
+                item.warehouseId || null,
                 item.productColor || null,
                 item.size || null,
                 item.weight || null,
@@ -370,7 +376,7 @@ class PodProductModel {
 
             const [result] = await connection.query(
                 `INSERT INTO pod_products (
-                    pod_warehouse, item_name, warehouse_sku, product_color, size,
+                    pod_warehouse, item_name, warehouse_sku, warehouse_id, product_color, size,
                     weight, length, width, height, gross_price,
                     product_group, sku_key, thg_sku_sbsl, thg_sku_sbtt,
                     thg_price_sbsl, thg_price_sbtt,
@@ -403,6 +409,46 @@ class PodProductModel {
             const updated = result.changedRows;
 
             return { created, updated };
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
+     * Find products by warehouse that are missing warehouse_id
+     */
+    static async findMissingWarehouseId(podWarehouse) {
+        const connection = await db.getConnection();
+
+        try {
+            const [rows] = await connection.query(
+                `SELECT * FROM pod_products WHERE pod_warehouse = ?`,
+                [podWarehouse]
+            );
+
+            return rows;
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
+     * Bulk update warehouse_id by matching warehouse_sku
+     */
+    static async bulkUpdateWarehouseId(podWarehouse, skuToIdMap) {
+        const connection = await db.getConnection();
+
+        try {
+            let updated = 0;
+            for (const [sku, warehouseId] of Object.entries(skuToIdMap)) {
+                const [result] = await connection.query(
+                    `UPDATE pod_products SET warehouse_id = ? WHERE pod_warehouse = ? AND warehouse_sku = ?`,
+                    [String(warehouseId), podWarehouse, sku]
+                );
+                if (result.affectedRows > 0) updated++;
+            }
+
+            return updated;
         } finally {
             connection.release();
         }

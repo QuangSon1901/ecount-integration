@@ -118,6 +118,7 @@ module.exports = {
     printposs: {
         baseUrl: process.env.PRINTPOSS_BASE_URL || 'https://api.printposs.com',
         apiKey: process.env.PRINTPOSS_API_KEY,
+        webhookSecret: process.env.PRINTPOSS_WEBHOOK_SECRET,
     },
 
     telegram: {

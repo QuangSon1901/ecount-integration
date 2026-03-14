@@ -1,5 +1,6 @@
 // src/controllers/pod-product.controller.js
 const PodProductModel = require('../models/pod-product.model');
+const podWarehouseFactory = require('../services/pod');
 const xlsx = require('xlsx');
 const { successResponse, errorResponse } = require('../utils/response');
 const logger = require('../utils/logger');
@@ -9,6 +10,7 @@ const HEADER_MAP = {
     'Item name': 'itemName',
     "Onos's SKU": 'warehouseSku',
     "S2BDIY's SKU": 'warehouseSku',
+    "Printposs's SKU": 'warehouseSku',
     'Product color': 'productColor',
     'Size': 'size',
     'WEIGHT': 'weight',
@@ -121,6 +123,11 @@ class PodProductController {
             });
 
             logger.info('Created POD product', { productId, podWarehouse, warehouseSku });
+
+            // Auto-sync warehouse_id for PrintPoss products
+            if (podWarehouse === 'PRINTPOSS') {
+                this.triggerPrintpossSyncWarehouseIds();
+            }
 
             return successResponse(res, { id: productId }, 'Product created successfully', 201);
 
@@ -299,6 +306,11 @@ class PodProductController {
 
             logger.info('POD product import completed', { podWarehouse, ...summary });
 
+            // Auto-sync warehouse_id for PrintPoss after import
+            if (podWarehouse === 'PRINTPOSS' && (created > 0 || updated > 0)) {
+                this.triggerPrintpossSyncWarehouseIds();
+            }
+
             return successResponse(res, {
                 summary,
                 errors: errors.length > 0 ? errors : undefined
@@ -325,6 +337,36 @@ class PodProductController {
         } catch (error) {
             next(error);
         }
+    }
+    /**
+     * POST /sync-printposs
+     * Manually trigger PrintPoss warehouse_id sync
+     */
+    async syncPrintposs(req, res, next) {
+        try {
+            const warehouse = podWarehouseFactory.getWarehouse('PRINTPOSS');
+            const result = await warehouse.syncWarehouseIds();
+
+            return successResponse(res, result, `Synced ${result.synced}/${result.total} products`);
+        } catch (error) {
+            logger.error('Failed to sync PrintPoss warehouse IDs:', error);
+            next(error);
+        }
+    }
+
+    /**
+     * Trigger PrintPoss sync in background (fire-and-forget)
+     */
+    triggerPrintpossSyncWarehouseIds() {
+        setImmediate(async () => {
+            try {
+                const warehouse = podWarehouseFactory.getWarehouse('PRINTPOSS');
+                const result = await warehouse.syncWarehouseIds();
+                logger.info('[PRINTPOSS] Auto-sync warehouse_id completed', result);
+            } catch (error) {
+                logger.error('[PRINTPOSS] Auto-sync warehouse_id failed:', error.message);
+            }
+        });
     }
 }
 

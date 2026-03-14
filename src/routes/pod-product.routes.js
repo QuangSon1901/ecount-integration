@@ -20,5 +20,6 @@ router.post('/', controller.create.bind(controller));
 router.patch('/:id', controller.update.bind(controller));
 router.delete('/:id', controller.delete.bind(controller));
 router.post('/import', upload.single('file'), controller.importExcel.bind(controller));
+router.post('/sync-printposs', controller.syncPrintposs.bind(controller));
 
 module.exports = router;

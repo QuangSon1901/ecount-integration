@@ -50,4 +50,30 @@ function verifyOnosWebhook(req, res, next) {
     next();
 }
 
-module.exports = { verifyOnosWebhook };
+/**
+ * Verify PrintPoss webhook via secret key header
+ * PrintPoss sends: X-PrintPoss-Hmac-SHA256 header with plain secret (not HMAC encoded)
+ */
+function verifyPrintpossWebhook(req, res, next) {
+    const signature = req.headers['x-printposs-hmac-sha256'];
+    const secret = config.printposs?.webhookSecret;
+
+    if (!secret) {
+        logger.warn('[POD Webhook] PRINTPOSS_WEBHOOK_SECRET not configured - skipping verification');
+        return next();
+    }
+
+    if (!signature) {
+        logger.warn('[POD Webhook] Missing X-PrintPoss-Hmac-SHA256 header');
+        return res.status(200).json({ status: 401, error: 'Missing signature' });
+    }
+
+    if (signature !== secret) {
+        logger.warn('[POD Webhook] Invalid PrintPoss webhook signature');
+        return res.status(200).json({ status: 401, error: 'Invalid signature' });
+    }
+
+    next();
+}
+
+module.exports = { verifyOnosWebhook, verifyPrintpossWebhook };

@@ -16,6 +16,6 @@ module.exports = {
         name: 'Printposs',
         code: 'PRINTPOSS',
         enabled: true,
-        hasWebhook: false,
+        hasWebhook: true,
     }
 };

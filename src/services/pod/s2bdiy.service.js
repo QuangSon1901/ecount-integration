@@ -727,7 +727,7 @@ class S2BDIYService extends BasePodWarehouse {
             6: 'pod_shipped',       // Shipped
             7: 'pod_cancelled',     // Cancelled
         };
-        return statusMap[status] || 'pod_pending';
+        return statusMap[status] || 'pod_processing';
     }
 }
 

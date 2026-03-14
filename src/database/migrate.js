@@ -986,6 +986,15 @@ const migrations = [
                     'pod_cancelled', 'pod_on_hold', 'pod_error'
                 ) NOT NULL DEFAULT 'pending' COMMENT 'Order status (Express + POD unified)';
         `
+    },
+    {
+        version: 38,
+        name: 'add_warehouse_id_to_pod_products',
+        up: `
+            ALTER TABLE pod_products
+                ADD COLUMN warehouse_id VARCHAR(100) NULL COMMENT 'ID sản phẩm trên warehouse (PrintPoss variant_id)' AFTER warehouse_sku,
+                ADD INDEX idx_warehouse_id (warehouse_id);
+        `
     }
 
 ];
