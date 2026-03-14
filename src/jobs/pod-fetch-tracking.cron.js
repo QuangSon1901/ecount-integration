@@ -9,7 +9,7 @@ const logger = require('../utils/logger');
 class PodFetchTrackingCron {
     constructor() {
         this.isRunning = false;
-        this.schedule = '*/1 * * * *'; // Mỗi 5 phút
+        this.schedule = '*/5 * * * *'; // Mỗi 5 phút
         this.batchSize = 20;
     }
 
