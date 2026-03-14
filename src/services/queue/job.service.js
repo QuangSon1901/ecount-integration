@@ -171,6 +171,24 @@ class JobService {
     }
 
     /**
+     * Thêm job upload tracking label lên S2BDIY cho SBTT order
+     */
+    async addSbttLabelUploadJob(orderId, podWarehouseOrderId, erpOrderCode, trackingNumber, labelUrl, delaySeconds = 0) {
+        return await JobModel.create(
+            'sbtt_label_upload',
+            {
+                orderId,
+                erpOrderCode,
+                podWarehouseOrderId,
+                trackingNumber,
+                labelUrl
+            },
+            delaySeconds,
+            3
+        );
+    }
+
+    /**
      * Thêm job update status lên ECount POD
      */
     async addPodUpdateStatusEcountJob(orderId, erpOrderCode, trackingNumber, status, ecountLink, delaySeconds = 0) {

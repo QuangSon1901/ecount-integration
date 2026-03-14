@@ -9,7 +9,7 @@ const logger = require('../utils/logger');
 class PodFetchTrackingCron {
     constructor() {
         this.isRunning = false;
-        this.schedule = '*/5 * * * *'; // Mỗi 5 phút
+        this.schedule = '*/1 * * * *'; // Mỗi 5 phút
         this.batchSize = 20;
     }
 
@@ -79,7 +79,7 @@ class PodFetchTrackingCron {
 
                         let hasChanges = false;
 
-                        // === SBTT: Upload tracking label to S2BDIY if needed ===
+                        // === SBTT: Push job upload tracking label lên S2BDIY nếu cần ===
                         if (order.pod_shipping_method === 'SBTT') {
                             // S2BDIY chưa có tracking → cần upload label
                             // Kiểm tra bằng tracking trên S2BDIY, nếu chưa có nghĩa là chưa upload
@@ -89,7 +89,7 @@ class PodFetchTrackingCron {
                                 // pay_status: 1=Pending 2=In progress 3=Completed 4=Failed
                                 // Chỉ upload khi đã thanh toán (>=2) và không failed (!=4)
                                 if (payStatus && payStatus >= 2 && payStatus !== 4) {
-                                    await this.uploadSbttLabel(warehouse, order, orderDetail, stats);
+                                    await this.queueSbttLabelUpload(order, stats);
                                 } else {
                                     logger.info(`[POD] SBTT order ${order.id} chưa sẵn sàng upload label (pay_status: ${payStatus})`, {
                                         warehouseOrderId: order.pod_warehouse_order_id,
@@ -218,10 +218,11 @@ class PodFetchTrackingCron {
     }
 
     /**
-     * Upload tracking label lên S2BDIY cho SBTT order
-     * Lấy tracking info từ order_data.tracking.linkPrint
+     * Push job upload tracking label lên S2BDIY cho SBTT order
+     * Lấy tracking info từ order_data.tracking
+     * Job sẽ tự retry 3 lần nếu thất bại
      */
-    async uploadSbttLabel(warehouse, order, orderDetail, stats) {
+    async queueSbttLabelUpload(order, stats) {
         try {
             let orderData;
             try {
@@ -239,26 +240,23 @@ class PodFetchTrackingCron {
                 return;
             }
 
-            logger.info(`[POD] SBTT order ${order.id} paid (pay_status: ${orderDetail.data.payStatus}) - uploading tracking label`, {
-                warehouseOrderId: order.pod_warehouse_order_id,
-                trackingNumber: tracking.trackingNumber,
-                linkPrint: tracking.linkPrint
-            });
-
-            await warehouse.uploadTrackingLabel(
+            await jobService.addSbttLabelUploadJob(
+                order.id,
                 order.pod_warehouse_order_id,
+                order.erp_order_code,
                 tracking.trackingNumber || '',
                 tracking.linkPrint
             );
 
             stats.sbttLabelUploaded++;
-            logger.info(`[POD] SBTT tracking label uploaded for order ${order.id}`, {
+            logger.info(`[POD] Queued SBTT label upload job for order ${order.id}`, {
                 warehouseOrderId: order.pod_warehouse_order_id,
-                trackingNumber: tracking.trackingNumber
+                trackingNumber: tracking.trackingNumber,
+                linkPrint: tracking.linkPrint
             });
 
         } catch (error) {
-            logger.error(`[POD] SBTT label upload error for order ${order.id}: ${error.message}`);
+            logger.error(`[POD] Failed to queue SBTT label upload for order ${order.id}: ${error.message}`);
         }
     }
 
