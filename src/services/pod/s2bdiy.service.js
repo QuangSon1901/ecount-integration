@@ -1,8 +1,15 @@
 // src/services/pod/s2bdiy.service.js
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 const FormData = require('form-data');
 const BasePodWarehouse = require('./base.pod-warehouse');
 const logger = require('../../utils/logger');
+
+// Supported file extensions that S2BDIY accepts
+const DIRECT_FILE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.pdf', '.svg'];
+const UPLOADS_DIR = path.join(__dirname, '../../../public/uploads/pod');
 
 class S2BDIYService extends BasePodWarehouse {
     constructor(config) {
@@ -212,38 +219,155 @@ class S2BDIYService extends BasePodWarehouse {
     }
 
     /**
+     * Extract Google Drive file ID from various URL formats
+     * Supports: /file/d/{id}/..., ?id={id}, /open?id={id}
+     */
+    extractGoogleDriveFileId(url) {
+        if (!url) return null;
+        const dMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (dMatch) return dMatch[1];
+        const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        if (idMatch) return idMatch[1];
+        return null;
+    }
+
+    /**
+     * Check if a URL has a direct file extension that S2BDIY accepts
+     * e.g., .png, .jpg, .pdf
+     */
+    hasDirectFileExtension(url) {
+        if (!url) return false;
+        try {
+            const pathname = new URL(url).pathname;
+            const ext = path.extname(pathname).toLowerCase();
+            return DIRECT_FILE_EXTENSIONS.includes(ext);
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Detect file extension from buffer content (magic bytes)
+     */
+    detectFileExtension(buffer) {
+        if (!buffer || buffer.length < 4) return '.bin';
+        const hex = buffer.slice(0, 8).toString('hex').toUpperCase();
+
+        if (hex.startsWith('89504E47')) return '.png';
+        if (hex.startsWith('FFD8FF')) return '.jpg';
+        if (hex.startsWith('47494638')) return '.gif';
+        if (hex.startsWith('25504446')) return '.pdf';
+        if (hex.startsWith('424D')) return '.bmp';
+        if (hex.startsWith('52494646') && buffer.slice(8, 12).toString('ascii') === 'WEBP') return '.webp';
+
+        return '.png'; // default to png for images
+    }
+
+    /**
+     * Ensure URL has a direct file extension that S2BDIY accepts.
+     * If URL already ends with .png/.jpg/.pdf etc, return as-is.
+     * If not (e.g. Google Drive share link), download the file,
+     * save to public/uploads/pod/, return system URL.
+     *
+     * @param {string} url - Original URL (may be Google Drive, etc.)
+     * @returns {Promise<string>} - URL with proper file extension
+     */
+    async ensureDirectFileUrl(url) {
+        if (!url) return url;
+
+        // Only download & save locally for Google Drive links
+        // Other URLs (shortlinks, CDN, etc.) are passed through as-is
+        const fileId = this.extractGoogleDriveFileId(url);
+        if (!fileId) {
+            return url;
+        }
+
+        // Download the file from Google Drive
+        const buffer = await this.downloadFileAsBuffer(url);
+
+        // Detect file type from content
+        const ext = this.detectFileExtension(buffer);
+
+        // Generate unique filename
+        const hash = crypto.createHash('md5').update(url).digest('hex').substring(0, 12);
+        const timestamp = Date.now();
+        const filename = `${timestamp}_${hash}${ext}`;
+
+        // Ensure directory exists
+        if (!fs.existsSync(UPLOADS_DIR)) {
+            fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+        }
+
+        // Save file locally
+        const filePath = path.join(UPLOADS_DIR, filename);
+        fs.writeFileSync(filePath, buffer);
+
+        // Build system URL
+        const systemUrl = `${this.config.baseUrl}/uploads/pod/${filename}`;
+
+        logger.info('[S2BDIY] File saved locally for S2BDIY', {
+            originalUrl: url,
+            systemUrl,
+            fileSize: buffer.length,
+            extension: ext
+        });
+
+        return systemUrl;
+    }
+
+    /**
      * Download a file from URL and return as Buffer
-     * Used to download shipping label PDFs from Google Drive or other sources
+     * Handles Google Drive share links with confirmation page bypass
      * @param {string} url - URL to download from
      * @returns {Promise<Buffer>} - File content as Buffer
      */
     async downloadFileAsBuffer(url) {
         try {
-            // Handle Google Drive links - convert to direct download
-            let downloadUrl = url;
-            const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-            if (driveMatch) {
-                downloadUrl = `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`;
-            }
+            const fileId = this.extractGoogleDriveFileId(url);
+            let downloadUrl = fileId
+                ? `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`
+                : url;
 
             const response = await axios.get(downloadUrl, {
                 responseType: 'arraybuffer',
                 timeout: 60000,
-                maxRedirects: 5,
+                maxRedirects: 10,
                 headers: {
-                    'User-Agent': 'Mozilla/5.0'
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 }
             });
 
+            let buffer = Buffer.from(response.data);
+
+            // Check if Google Drive returned an HTML confirmation page instead of the file
+            if (fileId && buffer.length < 200000) {
+                const content = buffer.toString('utf-8', 0, Math.min(buffer.length, 1000));
+                if (content.includes('virus scan') || content.includes('confirm=') || content.includes('Google Drive')) {
+                    const confirmUrl = `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`;
+                    const retryResponse = await axios.get(confirmUrl, {
+                        responseType: 'arraybuffer',
+                        timeout: 60000,
+                        maxRedirects: 10,
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                        }
+                    });
+                    buffer = Buffer.from(retryResponse.data);
+                    logger.info(`[S2BDIY] Downloaded file from Google Drive (retry)`, {
+                        url, fileId, size: buffer.length
+                    });
+                    return buffer;
+                }
+            }
+
             logger.info(`[S2BDIY] Downloaded file from URL`, {
-                url: url,
-                size: response.data.length
+                url, size: buffer.length, isGoogleDrive: !!fileId
             });
 
-            return Buffer.from(response.data);
+            return buffer;
         } catch (error) {
             logger.error('[S2BDIY] Failed to download file:', { url, error: error.message });
-            throw new Error(`S2BDIY: Failed to download shipping label from ${url}: ${error.message}`);
+            throw new Error(`S2BDIY: Failed to download file from ${url}: ${error.message}`);
         }
     }
 
@@ -344,10 +468,14 @@ class S2BDIYService extends BasePodWarehouse {
                 address: orderData.address.address,
                 ioss: orderData.address.ioss || null
             },
-            items: resolvedItems.map(item => {
-                const mapped = {
+            items: await Promise.all(resolvedItems.map(async (item) => {
+                const designImageUrl = item.print_areas && item.print_areas.length > 0 ? item.print_areas[0].value : '';
+                // Ensure URL has proper file extension for S2BDIY
+                const directImageUrl = designImageUrl ? await this.ensureDirectFileUrl(designImageUrl) : '';
+
+                return {
                     third_product_id: 1,
-                    third_product_image_url: item.print_areas && item.print_areas.length > 0 ? item.print_areas[0].value : '',
+                    third_product_image_url: directImageUrl,
                     product_id: 0,
                     num: item.quantity || 1,
                     size_id: item.sizeId,
@@ -357,21 +485,19 @@ class S2BDIYService extends BasePodWarehouse {
                         name: item.name || '',
                         views: [
                             {
-                                view_id: 1, //面ID
-                                objects: [ //设计项
+                                view_id: 1,
+                                objects: [
                                     {
-                                        type: "image", //类型，目前仅支持image
-                                        image_src: item.print_areas && item.print_areas.length > 0 ? item.print_areas[0].value : '', //图片链接
-                                        design_type: 1 //设计类型，1：填充 2：适应 3：拉伸
+                                        type: "image",
+                                        image_src: directImageUrl,
+                                        design_type: 1
                                     }
                                 ]
                             }
                         ]
                     }
                 };
-
-                return mapped;
-            })
+            }))
         };
 
         try {
@@ -382,12 +508,6 @@ class S2BDIYService extends BasePodWarehouse {
                 logisticsId,
                 payload: JSON.stringify(payload)
             });
-
-            console.log('S2BDIY create order payload:', payload);
-            console.log('S2BDIY create order payload:', payload.items);
-            console.log('S2BDIY create order payload:', payload.items[0].product_design);
-            console.log('S2BDIY create order payload:', payload.items[0].product_design.views[0].objects[0]);
-            
 
             const response = await axios.post(
                 `${this.baseUrl}/v1/order/createWithDesign`,
@@ -414,37 +534,17 @@ class S2BDIYService extends BasePodWarehouse {
                 logisticsId
             });
 
-            // SBTT: After order creation, upload tracking label from Ecount
+            // SBTT: Don't upload tracking label immediately - S2BDIY order needs to be paid first
+            // The cron job (pod-fetch-tracking) will check pay_status and upload when ready
             const isSBTT = shippingMethod.toUpperCase() === 'SBTT';
             const tracking = orderData.tracking;
 
-            if (isSBTT && tracking && tracking.linkPrint && warehouseOrderId) {
-                try {
-                    logger.info('[S2BDIY] SBTT order - uploading tracking label', {
-                        orderId: warehouseOrderId,
-                        trackingNumber: tracking.trackingNumber,
-                        linkPrint: tracking.linkPrint
-                    });
-
-                    await this.uploadTrackingLabel(
-                        warehouseOrderId,
-                        tracking.trackingNumber || '',
-                        tracking.linkPrint
-                    );
-
-                    logger.info('[S2BDIY] SBTT tracking label uploaded successfully', {
-                        orderId: warehouseOrderId,
-                        trackingNumber: tracking.trackingNumber
-                    });
-                } catch (uploadError) {
-                    // Log error but don't fail the order creation
-                    logger.error('[S2BDIY] SBTT tracking label upload failed (order still created)', {
-                        orderId: warehouseOrderId,
-                        error: uploadError.message,
-                        trackingNumber: tracking.trackingNumber,
-                        linkPrint: tracking.linkPrint
-                    });
-                }
+            if (isSBTT && tracking) {
+                logger.info('[S2BDIY] SBTT order created - tracking label will be uploaded by cron after payment', {
+                    orderId: warehouseOrderId,
+                    trackingNumber: tracking.trackingNumber,
+                    linkPrint: tracking.linkPrint
+                });
             }
 
             return {
@@ -494,6 +594,8 @@ class S2BDIYService extends BasePodWarehouse {
                     thirdOrderId: order.third_order_id,
                     status: order.status,
                     statusText: order.status_text,
+                    payStatus: order.pay_status,         // 1:Pending 2:In progress 3:Completed 4:Failed
+                    payStatusText: order.pay_status_text,
                     trackingNumber: order.order_logistics?.logisticss_track_number || null,
                     labelUrl: order.order_logistics?.oss_file_src || null,
                     labelBarcode: order.order_logistics?.label_barcode || null,
@@ -618,9 +720,9 @@ class S2BDIYService extends BasePodWarehouse {
         const status = parseInt(warehouseStatus);
         const statusMap = {
             1: 'pod_pending',       // Unconfirmed
-            2: 'pod_pending',       // Unpaid
-            3: 'pod_pending',       // Under review
-            4: 'pod_in_production', // In queue
+            2: 'pod_processing',       // Unpaid
+            3: 'pod_processing',       // Under review
+            4: 'pod_processing', // In queue
             5: 'pod_in_production', // In production
             6: 'pod_shipped',       // Shipped
             7: 'pod_cancelled',     // Cancelled

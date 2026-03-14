@@ -567,18 +567,20 @@ class OrderModel {
     // ========== POD Methods ==========
 
     /**
-     * Tìm POD orders cần fetch tracking (cho cron polling S2BDIY/Printposs)
+     * Tìm S2BDIY orders cần check tracking/status (cho cron polling)
+     * Bao gồm cả SBTT (cần upload label) và SBSL (cần fetch tracking)
+     * Dùng NOT IN để loại bỏ các trạng thái cuối cùng, tương tự fetch-tracking.cron.js
      */
-    static async findPodOrdersNeedTracking(limit = 20) {
+    static async findS2bdiyOrdersNeedCheck(limit = 20) {
         const connection = await db.getConnection();
 
         try {
             const [rows] = await connection.query(
                 `SELECT * FROM orders
                 WHERE order_type = 'pod'
-                AND pod_warehouse IN ('S2BDIY', 'PRINTPOSS')
-                AND status IN ('pod_pending', 'pod_in_production')
+                AND pod_warehouse = 'S2BDIY'
                 AND pod_warehouse_order_id IS NOT NULL
+                AND status NOT IN ('pod_shipped', 'pod_cancelled', 'pod_refunded', 'deleted', 'cancelled', 'failed')
                 AND (
                     last_tracking_check_at IS NULL
                     OR last_tracking_check_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)
