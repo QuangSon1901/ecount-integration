@@ -49,6 +49,9 @@ RUN groupadd -r appuser && useradd -r -g appuser -G audio,video appuser \
     && cp -r /root/.cache/ms-playwright /home/appuser/.cache/ \
     && chown -R appuser:appuser /home/appuser /app
 
+# Đảm bảo thư mục uploads có quyền ghi cho appuser khi bind mount
+RUN chown -R appuser:appuser /app/public/uploads
+
 # Set Playwright path cho appuser
 ENV PLAYWRIGHT_BROWSERS_PATH=/home/appuser/.cache/ms-playwright
 
