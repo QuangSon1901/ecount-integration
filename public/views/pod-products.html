@@ -791,6 +791,27 @@
             font-size: 12px;
         }
 
+        /* ─── Sticky Actions Column ─── */
+        .data-table th:last-child,
+        .data-table td:last-child {
+            position: sticky;
+            right: 0;
+            z-index: 2;
+        }
+
+        .data-table th:last-child {
+            background: var(--bg-secondary);
+        }
+
+        .data-table td:last-child {
+            background: var(--bg-primary);
+            box-shadow: -4px 0 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .data-table tbody tr:hover td:last-child {
+            background: var(--primary-light);
+        }
+
         /* ─── Responsive ─── */
         @media (max-width: 1024px) {
             .sidebar { display: none; }
