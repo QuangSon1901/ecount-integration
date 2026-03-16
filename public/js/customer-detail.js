@@ -121,6 +121,20 @@ function renderCustomerInfo() {
             tgGroupEl.innerHTML = '<span style="color:var(--text-secondary);font-size:13px;">Chưa cấu hình</span>';
         }
     }
+
+    // Lark Groups
+    var larkGroupEl = document.getElementById('infoLarkGroups');
+    if (larkGroupEl) {
+        var larkGroups = CUSTOMER.lark_group_ids;
+        if (larkGroups) {
+            var lids = larkGroups.split(',').map(function (g) {
+                return '<code style="font-size:11px;margin-right:4px;">' + esc(g.trim()) + '</code>';
+            }).join('');
+            larkGroupEl.innerHTML = lids;
+        } else {
+            larkGroupEl.innerHTML = '<span style="color:var(--text-secondary);font-size:13px;">Chưa cấu hình</span>';
+        }
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -695,6 +709,7 @@ function openEditModal() {
     document.getElementById('editRateDay').value = CUSTOMER.rate_limit_per_day || 10000;
     document.getElementById('editTelegramResp').value = CUSTOMER.telegram_responsibles || '';
     document.getElementById('editTelegramGroups').value = CUSTOMER.telegram_group_ids || '';
+    document.getElementById('editLarkGroups').value = CUSTOMER.lark_group_ids || '';
 
     document.getElementById('editModal').classList.add('show');
 }
@@ -714,7 +729,8 @@ async function handleSaveEdit() {
         rateLimitPerHour:    parseInt(document.getElementById('editRateHour').value) || 6000,
         rateLimitPerDay:     parseInt(document.getElementById('editRateDay').value) || 10000,
         telegramResponsibles: document.getElementById('editTelegramResp').value.trim() || null,
-        telegramGroupIds:    document.getElementById('editTelegramGroups').value.trim() || null
+        telegramGroupIds:    document.getElementById('editTelegramGroups').value.trim() || null,
+        larkGroupIds:        document.getElementById('editLarkGroups').value.trim() || null
     };
 
     if (!payload.customerName) {

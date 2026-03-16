@@ -322,6 +322,10 @@ body {
                 <span class="info-label">Telegram Groups</span>
                 <span class="info-value" id="infoTelegramGroups" style="font-size:13px;">&#x2014;</span>
             </div>
+            <div class="info-row">
+                <span class="info-label">Lark Groups</span>
+                <span class="info-value" id="infoLarkGroups" style="font-size:13px;">&#x2014;</span>
+            </div>
         </div>
     </div>
 
@@ -515,6 +519,15 @@ body {
             </div>
         </div>
 
+        <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px;">
+            <p style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:12px;">Lark Notification</p>
+            <div class="form-group">
+                <label class="form-label">Lark Group Chat IDs</label>
+                <input type="text" class="form-input" id="editLarkGroups" placeholder="oc_xxxxxxxx,oc_yyyyyyyy">
+                <p style="margin-top:4px;font-size:12px;color:var(--text-secondary);">Group Lark riêng của khách hàng. Thêm bot vào group Lark để lấy Chat ID. Phân cách bởi dấu phẩy.</p>
+            </div>
+        </div>
+
         <div class="modal-actions">
             <button class="btn" id="btnCancelEdit">Cancel</button>
             <button class="btn btn-primary" id="btnSaveEdit">Save Changes</button>
@@ -544,4 +557,4 @@ body {
     </div>
 </div>
 
-<script src="/js/customer-detail.js?v=2007"></script>
+<script src="/js/customer-detail.js?v=2010"></script>

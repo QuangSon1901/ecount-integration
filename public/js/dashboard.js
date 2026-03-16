@@ -296,6 +296,7 @@ function renderCustomerRows(customers, tbody) {
             '<td><span class="badge badge-' + statusBadge(c.status) + '">' + c.status + '</span></td>' +
             '<td>' + formatTelegramTags(c.telegram_responsibles) + '</td>' +
             '<td>' + formatTelegramGroups(c.telegram_group_ids) + '</td>' +
+            '<td>' + formatLarkGroups(c.lark_group_ids) + '</td>' +
             '<td>' + fmtDate(c.created_at) + '</td>' +
             '<td><button class="btn btn-sm view-btn" data-id="' + c.id + '" data-code="' + esc(c.customer_code) + '">View</button></td>';
         tbody.appendChild(tr);
@@ -803,6 +804,12 @@ function formatTelegramTags(str) {
 }
 
 function formatTelegramGroups(str) {
+    if (!str) return '<span style="color:var(--text-secondary);font-size:12px;">—</span>';
+    var groups = str.split(',').map(function (g) { return g.trim(); }).filter(Boolean);
+    return '<span style="color:var(--text-secondary);font-size:11px;">' + groups.length + ' group' + (groups.length > 1 ? 's' : '') + '</span>';
+}
+
+function formatLarkGroups(str) {
     if (!str) return '<span style="color:var(--text-secondary);font-size:12px;">—</span>';
     var groups = str.split(',').map(function (g) { return g.trim(); }).filter(Boolean);
     return '<span style="color:var(--text-secondary);font-size:11px;">' + groups.length + ' group' + (groups.length > 1 ? 's' : '') + '</span>';
