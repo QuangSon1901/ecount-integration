@@ -81,7 +81,7 @@ class LarkNotifier {
                 msg_type: 'post',
                 content: JSON.stringify({
                     post: {
-                        vi_vn: {
+                        en_us: {
                             title: title,
                             content: contentLines
                         }
