@@ -511,7 +511,7 @@ class S2BDIYService extends BasePodWarehouse {
             const response = await axios.post(
                 `${this.baseUrl}/v1/order/createWithDesign`,
                 payload,
-                { headers: this.getHeaders(), timeout: 60000 }
+                { headers: this.getHeaders(), timeout: 180000 }
             );
 
             const data = response.data?.data;
