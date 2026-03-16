@@ -127,5 +127,12 @@ module.exports = {
         chatId: process.env.TELEGRAM_CHAT_ID,
         onError: process.env.TELEGRAM_ON_ERROR === 'true',
         includeStack: process.env.TELEGRAM_INCLUDE_STACK === 'true'
+    },
+
+    lark: {
+        enabled: process.env.LARK_ENABLED === 'true',
+        appId: process.env.LARK_APP_ID,
+        appSecret: process.env.LARK_APP_SECRET,
+        verificationToken: process.env.LARK_VERIFICATION_TOKEN,
     }
 };

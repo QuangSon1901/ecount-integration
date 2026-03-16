@@ -1,6 +1,7 @@
 // src/services/tracking-checkpoint.service.js - UPDATE
 const db = require('../database/connection');
 const telegram = require('../utils/telegram');
+const lark = require('../utils/lark');
 const logger = require('../utils/logger');
 const jobService = require('./queue/job.service');
 const ApiCustomerModel = require('../models/api-customer.model');
@@ -63,17 +64,20 @@ class TrackingCheckpointService {
     async getTelegramConfig(partnerId) {
         try {
             const customer = await ApiCustomerModel.findByCode(partnerId);
-            if (!customer) return { responsibles: null, groupIds: [] };
+            if (!customer) return { responsibles: null, groupIds: [], larkGroupIds: [] };
 
             const responsibles = customer.telegram_responsibles || null;
             const groupIds = customer.telegram_group_ids
                 ? customer.telegram_group_ids.split(',').map(g => g.trim()).filter(Boolean)
                 : [];
+            const larkGroupIds = customer.lark_group_ids
+                ? customer.lark_group_ids.split(',').map(g => g.trim()).filter(Boolean)
+                : [];
 
-            return { responsibles, groupIds };
+            return { responsibles, groupIds, larkGroupIds };
         } catch (err) {
             logger.error(`getTelegramConfig failed for ${partnerId}:`, err);
-            return { responsibles: null, groupIds: [] };
+            return { responsibles: null, groupIds: [], larkGroupIds: [] };
         }
     }
 
@@ -300,7 +304,7 @@ class TrackingCheckpointService {
         });
 
         // ── Gửi vào group riêng của customer (KHÔNG có phần Phụ trách) ──
-        await this.sendToCustomerGroups(tgConfig.groupIds, order, nodeCode, nodeName, event, nodeLabels, 'abnormal');
+        await this.sendToCustomerGroups(tgConfig.groupIds, order, nodeCode, nodeName, event, nodeLabels, 'abnormal', tgConfig.larkGroupIds);
 
         let warningDetails = {
             code_thg: order.erp_order_code,
@@ -328,7 +332,8 @@ class TrackingCheckpointService {
         logger.warn(`Sent abnormal warning for order ${order.id}`, {
             nodeCode,
             erpOrderCode: order.erp_order_code,
-            customerGroups: tgConfig.groupIds.length
+            telegramGroups: tgConfig.groupIds.length,
+            larkGroups: tgConfig.larkGroupIds.length
         });
     }
 
@@ -386,7 +391,7 @@ class TrackingCheckpointService {
         });
 
         // ── Gửi vào group riêng của customer (KHÔNG có phần Phụ trách) ──
-        await this.sendToCustomerGroups(tgConfig.groupIds, order, nodeCode, nodeName, event, nodeLabels, 'return');
+        await this.sendToCustomerGroups(tgConfig.groupIds, order, nodeCode, nodeName, event, nodeLabels, 'return', tgConfig.larkGroupIds);
 
         let warningDetails = {
             code_thg: order.erp_order_code,
@@ -414,7 +419,8 @@ class TrackingCheckpointService {
         logger.warn(`Sent return warning for order ${order.id}`, {
             nodeCode,
             erpOrderCode: order.erp_order_code,
-            customerGroups: tgConfig.groupIds.length
+            telegramGroups: tgConfig.groupIds.length,
+            larkGroups: tgConfig.larkGroupIds.length
         });
     }
 
@@ -422,57 +428,132 @@ class TrackingCheckpointService {
      * Gửi warning vào các group Telegram riêng của customer
      * Message KHÔNG chứa phần "Phụ trách" — chỉ nội dung warning thuần
      */
-    async sendToCustomerGroups(groupIds, order, nodeCode, nodeName, event, nodeLabels, type) {
-        if (!groupIds || groupIds.length === 0) return;
+    async sendToCustomerGroups(groupIds, order, nodeCode, nodeName, event, nodeLabels, type, larkGroupIds) {
+        // ── Telegram groups ──
+        if (groupIds && groupIds.length > 0) {
+            const title = type === 'return'
+                ? '<b>THÔNG BÁO: ĐƠN HÀNG BỊ TRẢ LẠI</b>'
+                : '<b>CẢNH BÁO: ĐƠN HÀNG BẤT THƯỜNG</b>';
+
+            const statusLabel = type === 'return' ? 'Trạng thái trả hàng' : 'Trạng thái bất thường';
+            const detailLabel = type === 'return' ? 'Lý do trả hàng' : 'Chi tiết lỗi';
+
+            let msg = `${title}\n\n`;
+            msg += `- <b>ERP Code:</b> <code>${order.erp_order_code}</code>\n`;
+            msg += `- <b>Tracking:</b> <code>${order.tracking_number}</code>\n`;
+
+            if (order.waybill_number) {
+                msg += `- <b>Waybill:</b> <code>${order.waybill_number}</code>\n`;
+            }
+
+            msg += `\n<b>${statusLabel}:</b>\n`;
+            msg += `└ <b>Node Code:</b> <code>${nodeCode}</code>\n`;
+            msg += `└ <b>${type === 'return' ? 'Tình trạng' : 'Vấn đề'}:</b> ${nodeName}\n`;
+            msg += `└ <b>Mô tả:</b> ${event.process_content}\n`;
+
+            if (event.process_location) {
+                msg += `└ <b>Địa điểm:</b> ${event.process_location}\n`;
+            }
+
+            msg += `└ <b>Thời gian xảy ra:</b> ${this.formatDateTime(event.process_time)}\n`;
+
+            if (nodeLabels && nodeLabels.length > 0) {
+                msg += `\n<b>${detailLabel}:</b>\n`;
+                nodeLabels.forEach((label, index) => {
+                    msg += `${index + 1}. <b>${label.label_name}</b>\n`;
+                    if (label.label_name_en && label.label_name_en !== label.label_name) {
+                        msg += `   └ <i>${label.label_name_en}</i>\n`;
+                    }
+                });
+            }
+
+            msg += `\n====================================================`;
+
+            for (const groupId of groupIds) {
+                try {
+                    await telegram.sendMessage(msg, {
+                        chatId: groupId,
+                        parseMode: 'HTML'
+                    });
+                    logger.info(`Sent ${type} warning to Telegram group ${groupId} for order ${order.id}`);
+                } catch (err) {
+                    logger.error(`Failed to send ${type} warning to Telegram group ${groupId}:`, err);
+                }
+            }
+        }
+
+        // ── Lark groups ──
+        if (larkGroupIds && larkGroupIds.length > 0) {
+            await this.sendToLarkGroups(larkGroupIds, order, nodeCode, nodeName, event, nodeLabels, type);
+        }
+    }
+
+    /**
+     * Gửi warning vào các group Lark riêng của customer
+     * Dùng rich text (post) format cho message đẹp trên Lark
+     */
+    async sendToLarkGroups(larkGroupIds, order, nodeCode, nodeName, event, nodeLabels, type) {
+        if (!larkGroupIds || larkGroupIds.length === 0) return;
 
         const title = type === 'return'
-            ? '<b>THÔNG BÁO: ĐƠN HÀNG BỊ TRẢ LẠI</b>'
-            : '<b>CẢNH BÁO: ĐƠN HÀNG BẤT THƯỜNG</b>';
+            ? '📦 THÔNG BÁO: ĐƠN HÀNG BỊ TRẢ LẠI'
+            : '⚠️ CẢNH BÁO: ĐƠN HÀNG BẤT THƯỜNG';
 
         const statusLabel = type === 'return' ? 'Trạng thái trả hàng' : 'Trạng thái bất thường';
         const detailLabel = type === 'return' ? 'Lý do trả hàng' : 'Chi tiết lỗi';
 
-        let msg = `${title}\n\n`;
-        msg += `- <b>ERP Code:</b> <code>${order.erp_order_code}</code>\n`;
-        msg += `- <b>Tracking:</b> <code>${order.tracking_number}</code>\n`;
+        // Build Lark rich text content (post format)
+        const content = [];
+
+        // ERP Code + Tracking
+        content.push([
+            { tag: 'text', text: 'ERP Code: ' },
+            { tag: 'text', text: order.erp_order_code, style: ['bold'] }
+        ]);
+        content.push([
+            { tag: 'text', text: 'Tracking: ' },
+            { tag: 'text', text: order.tracking_number, style: ['bold'] }
+        ]);
 
         if (order.waybill_number) {
-            msg += `- <b>Waybill:</b> <code>${order.waybill_number}</code>\n`;
+            content.push([
+                { tag: 'text', text: 'Waybill: ' },
+                { tag: 'text', text: order.waybill_number, style: ['bold'] }
+            ]);
         }
 
-        msg += `\n<b>${statusLabel}:</b>\n`;
-        msg += `└ <b>Node Code:</b> <code>${nodeCode}</code>\n`;
-        msg += `└ <b>${type === 'return' ? 'Tình trạng' : 'Vấn đề'}:</b> ${nodeName}\n`;
-        msg += `└ <b>Mô tả:</b> ${event.process_content}\n`;
+        // Status section
+        content.push([{ tag: 'text', text: '' }]); // empty line
+        content.push([{ tag: 'text', text: `${statusLabel}:`, style: ['bold'] }]);
+        content.push([{ tag: 'text', text: `└ Node Code: ${nodeCode}` }]);
+        content.push([{ tag: 'text', text: `└ ${type === 'return' ? 'Tình trạng' : 'Vấn đề'}: ${nodeName}` }]);
+        content.push([{ tag: 'text', text: `└ Mô tả: ${event.process_content}` }]);
 
         if (event.process_location) {
-            msg += `└ <b>Địa điểm:</b> ${event.process_location}\n`;
+            content.push([{ tag: 'text', text: `└ Địa điểm: ${event.process_location}` }]);
         }
 
-        msg += `└ <b>Thời gian xảy ra:</b> ${this.formatDateTime(event.process_time)}\n`;
+        content.push([{ tag: 'text', text: `└ Thời gian: ${this.formatDateTime(event.process_time)}` }]);
 
+        // Detail labels
         if (nodeLabels && nodeLabels.length > 0) {
-            msg += `\n<b>${detailLabel}:</b>\n`;
+            content.push([{ tag: 'text', text: '' }]);
+            content.push([{ tag: 'text', text: `${detailLabel}:`, style: ['bold'] }]);
             nodeLabels.forEach((label, index) => {
-                msg += `${index + 1}. <b>${label.label_name}</b>\n`;
+                let labelText = `${index + 1}. ${label.label_name}`;
                 if (label.label_name_en && label.label_name_en !== label.label_name) {
-                    msg += `   └ <i>${label.label_name_en}</i>\n`;
+                    labelText += ` (${label.label_name_en})`;
                 }
+                content.push([{ tag: 'text', text: labelText }]);
             });
         }
 
-        // KHÔNG có phần "Phụ trách"
-        msg += `\n====================================================`;
-
-        for (const groupId of groupIds) {
+        for (const chatId of larkGroupIds) {
             try {
-                await telegram.sendMessage(msg, {
-                    chatId: groupId,
-                    parseMode: 'HTML'
-                });
-                logger.info(`Sent ${type} warning to customer group ${groupId} for order ${order.id}`);
+                await lark.sendMessage(chatId, title, content);
+                logger.info(`Sent ${type} warning to Lark group ${chatId} for order ${order.id}`);
             } catch (err) {
-                logger.error(`Failed to send ${type} warning to customer group ${groupId}:`, err);
+                logger.error(`Failed to send ${type} warning to Lark group ${chatId}:`, err);
             }
         }
     }

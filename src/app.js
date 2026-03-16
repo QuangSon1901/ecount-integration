@@ -11,6 +11,7 @@ const labelRoutes = require('./routes/label.routes');
 const extensionRoutes = require('./routes/extension.routes');
 const authRoutes = require('./routes/auth.routes');
 const telegramRoutes = require('./routes/telegram.routes');
+const larkRoutes = require('./routes/lark.routes');
 const podWebhookRoutes = require('./routes/pod-webhook.routes');
 
 const apiV1Routes = require('./routes/api-v1.routes');
@@ -136,6 +137,7 @@ app.use('/api/ecount', ecountRoutes);
 app.use('/api/labels', labelRoutes);
 app.use('/extensions', extensionRoutes);
 app.use('/api/telegram', telegramRoutes);
+app.use('/api/lark', larkRoutes);
 app.use('/api/webhooks/pod', podWebhookRoutes);
 
 // 404 handler

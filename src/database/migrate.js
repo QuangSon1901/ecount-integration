@@ -995,6 +995,14 @@ const migrations = [
                 ADD COLUMN warehouse_id VARCHAR(100) NULL COMMENT 'ID sản phẩm trên warehouse (PrintPoss variant_id)' AFTER warehouse_sku,
                 ADD INDEX idx_warehouse_id (warehouse_id);
         `
+    },
+    {
+        version: 39,
+        name: 'add_lark_group_ids_to_api_customers',
+        up: `
+            ALTER TABLE api_customers
+                ADD COLUMN lark_group_ids VARCHAR(500) NULL COMMENT 'Lark group chat IDs (comma-separated)' AFTER telegram_group_ids;
+        `
     }
 
 ];

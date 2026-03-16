@@ -131,6 +131,10 @@ class ApiCustomerModel {
                 fields.push('telegram_group_ids = ?');
                 values.push(updateData.telegramGroupIds || null);
             }
+            if (updateData.larkGroupIds !== undefined) {
+                fields.push('lark_group_ids = ?');
+                values.push(updateData.larkGroupIds || null);
+            }
 
             if (fields.length === 0) return false;
 
