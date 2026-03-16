@@ -181,14 +181,13 @@ class S2BDIYService extends BasePodWarehouse {
 
             // Step 2d: Resolve size_id
             const itemSize = item.catalogSize || '';
-            if (!itemSize) {
-                throw new Error(`S2BDIY: Missing size for item with sku "${warehouseSku}". Check pod_products.size`);
-            }
             const normalizedItemSize = normalize(itemSize);
-            let matchedSize = product.sizes.find(s => {
-                const normalizedApiSize = normalize(s.en_name);
-                return normalizedApiSize.includes(normalizedItemSize) || normalizedItemSize.includes(normalizedApiSize);
-            });
+            let matchedSize = itemSize
+                ? product.sizes.find(s => {
+                    const normalizedApiSize = normalize(s.en_name);
+                    return normalizedApiSize.includes(normalizedItemSize) || normalizedItemSize.includes(normalizedApiSize);
+                })
+                : null;
 
             // Fallback: try "One Size"
             if (!matchedSize) {
