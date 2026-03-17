@@ -76,18 +76,24 @@ class LarkNotifier {
         try {
             const token = await this.getTenantToken();
 
+            const contentObj = {
+                en_us: {
+                    title: title,
+                    content: contentLines
+                }
+            };
+
             const payload = {
                 receive_id: chatId,
                 msg_type: 'post',
-                content: JSON.stringify({
-                    post: {
-                        en_us: {
-                            title: title,
-                            content: contentLines
-                        }
-                    }
-                })
+                content: JSON.stringify(contentObj)
             };
+
+            logger.info('[Lark] Sending rich text message', {
+                chatId,
+                title,
+                contentJson: payload.content
+            });
 
             const response = await axios.post(
                 `${this.baseUrl}/im/v1/messages?receive_id_type=chat_id`,
