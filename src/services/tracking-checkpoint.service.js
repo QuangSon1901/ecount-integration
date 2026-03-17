@@ -496,8 +496,8 @@ class TrackingCheckpointService {
         if (!larkGroupIds || larkGroupIds.length === 0) return;
 
         const title = type === 'return'
-            ? '📦 THÔNG BÁO: ĐƠN HÀNG BỊ TRẢ LẠI'
-            : '⚠️ CẢNH BÁO: ĐƠN HÀNG BẤT THƯỜNG';
+            ? 'THÔNG BÁO: ĐƠN HÀNG BỊ TRẢ LẠI'
+            : 'CẢNH BÁO: ĐƠN HÀNG BẤT THƯỜNG';
 
         const statusLabel = type === 'return' ? 'Trạng thái trả hàng' : 'Trạng thái bất thường';
         const detailLabel = type === 'return' ? 'Lý do trả hàng' : 'Chi tiết lỗi';
