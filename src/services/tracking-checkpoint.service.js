@@ -507,24 +507,21 @@ class TrackingCheckpointService {
 
         // ERP Code + Tracking
         content.push([
-            { tag: 'text', text: 'ERP Code: ' },
-            { tag: 'text', text: order.erp_order_code, style: ['bold'] }
+            { tag: 'text', text: `ERP Code: ${order.erp_order_code}` }
         ]);
         content.push([
-            { tag: 'text', text: 'Tracking: ' },
-            { tag: 'text', text: order.tracking_number, style: ['bold'] }
+            { tag: 'text', text: `Tracking: ${order.tracking_number}` }
         ]);
 
         if (order.waybill_number) {
             content.push([
-                { tag: 'text', text: 'Waybill: ' },
-                { tag: 'text', text: order.waybill_number, style: ['bold'] }
+                { tag: 'text', text: `Waybill: ${order.waybill_number}` }
             ]);
         }
 
         // Status section
-        content.push([{ tag: 'text', text: '' }]); // empty line
-        content.push([{ tag: 'text', text: `${statusLabel}:`, style: ['bold'] }]);
+        content.push([{ tag: 'text', text: '\n' }]);
+        content.push([{ tag: 'text', text: `${statusLabel}:` }]);
         content.push([{ tag: 'text', text: `└ Node Code: ${nodeCode}` }]);
         content.push([{ tag: 'text', text: `└ ${type === 'return' ? 'Tình trạng' : 'Vấn đề'}: ${nodeName}` }]);
         content.push([{ tag: 'text', text: `└ Mô tả: ${event.process_content}` }]);
@@ -537,8 +534,8 @@ class TrackingCheckpointService {
 
         // Detail labels
         if (nodeLabels && nodeLabels.length > 0) {
-            content.push([{ tag: 'text', text: '' }]);
-            content.push([{ tag: 'text', text: `${detailLabel}:`, style: ['bold'] }]);
+            content.push([{ tag: 'text', text: '\n' }]);
+            content.push([{ tag: 'text', text: `${detailLabel}:` }]);
             nodeLabels.forEach((label, index) => {
                 let labelText = `${index + 1}. ${label.label_name}`;
                 if (label.label_name_en && label.label_name_en !== label.label_name) {
