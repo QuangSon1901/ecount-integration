@@ -103,7 +103,7 @@ class OnosService extends BasePodWarehouse {
             const response = await axios.post(
                 `${this.baseUrl}/order/create`,
                 payload,
-                { headers: this.getHeaders(), timeout: 180000 }
+                { headers: this.getHeaders(), timeout: 500000 }
             );
 
             // ONOS trả HTTP 200 nhưng status: false khi có lỗi

@@ -55,7 +55,7 @@ class PrintpossService extends BasePodWarehouse {
             const response = await axios.post(
                 `${this.baseUrl}/api/v1/seller/orders`,
                 payload,
-                { headers: this.getHeaders(), timeout: 180000 }
+                { headers: this.getHeaders(), timeout: 500000 }
             );
 
             if (!response.data?.success) {
