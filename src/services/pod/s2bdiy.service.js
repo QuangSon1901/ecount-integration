@@ -11,6 +11,10 @@ const logger = require('../../utils/logger');
 const DIRECT_FILE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.pdf', '.svg'];
 const UPLOADS_DIR = path.join(__dirname, '../../../public/uploads/pod');
 
+// File size limits
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;  // 10MB - design images (PNG/JPG/WEBP)
+const MAX_PDF_SIZE = 5 * 1024 * 1024;     // 5MB - shipping label PDF
+
 class S2BDIYService extends BasePodWarehouse {
     constructor(config) {
         super(config);
@@ -218,6 +222,39 @@ class S2BDIYService extends BasePodWarehouse {
     }
 
     /**
+     * Check file size of a remote URL via HEAD request (Content-Length)
+     * Returns size in bytes, or null if unavailable
+     */
+    async getRemoteFileSize(url) {
+        try {
+            const response = await axios.head(url, {
+                timeout: 10000,
+                maxRedirects: 5,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
+            const contentLength = parseInt(response.headers['content-length'], 10);
+            return isNaN(contentLength) ? null : contentLength;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Validate buffer size against limit. Throws descriptive error if exceeded.
+     */
+    validateFileSize(buffer, maxSize, fileType, url) {
+        if (buffer.length > maxSize) {
+            const sizeMB = (buffer.length / (1024 * 1024)).toFixed(2);
+            const limitMB = (maxSize / (1024 * 1024)).toFixed(0);
+            throw new Error(
+                `S2BDIY: ${fileType} file too large (${sizeMB}MB). Maximum allowed: ${limitMB}MB. URL: ${url}`
+            );
+        }
+    }
+
+    /**
      * Extract Google Drive file ID from various URL formats
      * Supports: /file/d/{id}/..., ?id={id}, /open?id={id}
      */
@@ -286,6 +323,11 @@ class S2BDIYService extends BasePodWarehouse {
 
         // Detect file type from content
         const ext = this.detectFileExtension(buffer);
+
+        // Validate file size before saving to disk
+        const maxSize = ext === '.pdf' ? MAX_PDF_SIZE : MAX_IMAGE_SIZE;
+        const fileType = ext === '.pdf' ? 'Design PDF' : 'Design image';
+        this.validateFileSize(buffer, maxSize, fileType, url);
 
         // Generate unique filename
         const hash = crypto.createHash('md5').update(url).digest('hex').substring(0, 12);
@@ -392,6 +434,9 @@ class S2BDIYService extends BasePodWarehouse {
             // Download the shipping label PDF
             const pdfBuffer = await this.downloadFileAsBuffer(labelUrl);
 
+            // Validate label PDF size
+            this.validateFileSize(pdfBuffer, MAX_PDF_SIZE, 'Shipping label PDF', labelUrl);
+
             // Build multipart form data
             const form = new FormData();
             form.append('id', String(orderId));
@@ -471,6 +516,18 @@ class S2BDIYService extends BasePodWarehouse {
                 const designImageUrl = item.print_areas && item.print_areas.length > 0 ? item.print_areas[0].value : '';
                 // Ensure URL has proper file extension for S2BDIY
                 const directImageUrl = designImageUrl ? await this.ensureDirectFileUrl(designImageUrl) : '';
+
+                // For non-Drive URLs (passed through as-is), validate size via HEAD request
+                if (directImageUrl && directImageUrl === designImageUrl) {
+                    const remoteSize = await this.getRemoteFileSize(directImageUrl);
+                    if (remoteSize !== null && remoteSize > MAX_IMAGE_SIZE) {
+                        const sizeMB = (remoteSize / (1024 * 1024)).toFixed(2);
+                        const limitMB = (MAX_IMAGE_SIZE / (1024 * 1024)).toFixed(0);
+                        throw new Error(
+                            `S2BDIY: Design image too large (${sizeMB}MB). Maximum allowed: ${limitMB}MB. URL: ${directImageUrl}`
+                        );
+                    }
+                }
 
                 return {
                     third_product_id: 1,
