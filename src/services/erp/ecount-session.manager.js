@@ -3,12 +3,6 @@ const SessionModel = require('../../models/session.model');
 const logger = require('../../utils/logger');
 const config = require('../../config');
 
-/**
- * Registry: giữ reference tất cả session managers để cross-invalidation
- * Khi account A login lại → invalidate session account B (vì Ecount server kick session cũ từ cùng IP)
- */
-const sessionRegistry = new Map();
-
 class ECountSessionManager {
     constructor(sessionKey = 'ecount:main', sessionType = 'ecount', accountConfig = null) {
         this.sessionKey = sessionKey;
@@ -17,9 +11,6 @@ class ECountSessionManager {
         this.session = null;
         this.sessionExpiry = null;
         this._loginLock = false;
-
-        // Register vào registry
-        sessionRegistry.set(sessionKey, this);
 
         // Auto-load session khi khởi động
         this.initialize();
@@ -93,31 +84,10 @@ class ECountSessionManager {
                 ec_req_sid: urlParams.ec_req_sid?.substring(0, 10) + '...'
             });
 
-            // Cross-invalidation: khi account này login lại,
-            // Ecount server có thể kick session từ account khác cùng IP
-            // → clear session của các account khác để force re-login
-            await this._crossInvalidateOtherSessions();
-
             return sessionData;
         } catch (error) {
             logger.error(`${this.logPrefix} Lỗi lưu session vào database:`, error);
             throw error;
-        }
-    }
-
-    /**
-     * Khi account này vừa login mới → invalidate session các account khác
-     * Vì Ecount server chỉ cho 1 active session per IP/browser
-     */
-    async _crossInvalidateOtherSessions() {
-        for (const [key, manager] of sessionRegistry.entries()) {
-            if (key !== this.sessionKey && manager.isSessionValid()) {
-                logger.warn(`${this.logPrefix} Cross-invalidation: clearing session of [${key}] because new login from this account`, {
-                    thisAccount: this.sessionKey,
-                    otherAccount: key
-                });
-                await manager.clearSession();
-            }
         }
     }
 

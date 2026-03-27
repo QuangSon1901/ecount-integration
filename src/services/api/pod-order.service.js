@@ -105,15 +105,20 @@ class ApiPodOrderService {
             const ordersForPodCreation = [];
             const resultsByOriginalOrder = new Map();
 
+            // ECount groups rows by UPLOAD_SER_NO → resultDetails has 1 entry per unique order,
+            // NOT per ecountRow. Use separate counter to index into resultDetails correctly.
+            let resultDetailIndex = 0;
             for (let i = 0; i < ecountRows.length; i++) {
                 const meta = orderMeta[i];
-                const resultDetail = ecountResult.resultDetails[i];
+
+                // Only process first item of each order (skip subsequent items of same order)
+                if (meta.itemIndex > 0) continue;
+
+                const resultDetail = ecountResult.resultDetails[resultDetailIndex];
                 const slipNo = resultDetail?.slipNo;
+                resultDetailIndex++;
 
                 if (!slipNo) continue;
-
-                // Only create DB record for first item of each order
-                if (meta.itemIndex > 0) continue;
 
                 const order = meta.orderData;
                 const receiver = order.receiver || {};
