@@ -8,4 +8,4 @@ README.md
 .env.example
 .DS_Store
 screenshots
-public/uploads
+public/uploads/pod
