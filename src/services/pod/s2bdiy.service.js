@@ -12,8 +12,8 @@ const DIRECT_FILE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'
 const UPLOADS_DIR = path.join(__dirname, '../../../public/uploads/pod');
 
 // File size limits
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024;  // 10MB - design images (PNG/JPG/WEBP)
-const MAX_PDF_SIZE = 5 * 1024 * 1024;     // 5MB - shipping label PDF
+const MAX_IMAGE_SIZE = 20 * 1024 * 1024;  // 10MB - design images (PNG/JPG/WEBP)
+const MAX_PDF_SIZE = 20 * 1024 * 1024;     // 5MB - shipping label PDF
 
 class S2BDIYService extends BasePodWarehouse {
     constructor(config) {
