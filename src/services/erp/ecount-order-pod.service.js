@@ -175,103 +175,169 @@ class ECountOrderPodService {
         }
     }
 
+    /**
+     * Transform POD order data to ECount format.
+     * POD field mapping is DIFFERENT from Express:
+     *   - U_MEMO1 = address line 2
+     *   - U_MEMO2 = receiver name
+     *   - U_MEMO3 = address line 1
+     *   - U_MEMO5 = province
+     *   - U_MEMO6 (P_DES6) = customer order number
+     *   - ADD_TXT_01_T = postal code
+     *   - ADD_TXT_02_T = email
+     *   - ADD_TXT_04_T = city
+     *   - ADD_TXT_05_T = country code
+     *   - ADD_TXT_10_T = tracking number
+     *   - ADD_TXT_11_T = phone
+     *   - ADD_TXT_12_T = label print link
+     *   - WH_CD = warehouse/carrier code (001/002/004)
+     *   - PJT_CD = shipping method (SBSL, SBTT, etc.)
+     *   - PROD_CD = item SKU
+     *   - PROD_DES = item name
+     *   - QTY = item quantity
+     *   - PRICE = item price
+     *   - ADD_TXT_03 = product size (detail)
+     *   - ADD_TXT_04 = product color (detail)
+     *   - ADD_TXT_07 = design URL (detail)
+     *   - REMARKS = mockup URL (detail)
+     */
     transformToECountFormatSingle(orderData) {
         const {
-            index,
-            customerCode,
-            customerName,
+            index = 0,
+            customerCode = '',
+            customerName = '',
             warehouseCode = '',
             employeeCode = '',
-            orderNumber,
-            orderMemo1 = '',
-            orderMemo2 = '',
-            orderMemo3 = '',
-            orderMemo4 = '',
-            orderMemo5 = '',
+            shippingMethod = '',
+            orderNumber = '',
+            customerOrderNumber = '',
+            internalOrderNumber = '',
+
+            // Receiver
             receiverName = '',
             receiverCountry = '',
             receiverAddress1 = '',
+            receiverAddress2 = '',
             receiverCity = '',
-            receiverState = '',
+            receiverProvince = '',
             receiverZipCode = '',
             receiverPhone = '',
-            customsEORINumber = '',
-            customsIOSSCode = '',
-            customsVAT = '',
-            additionalService = '',
-            serviceType = '',
+            receiverEmail = '',
+
+            // Tracking
             trackingNumber = '',
-            productSize = '',
+            linkPrint = '',
+
+            // Item
+            itemSku = '',
+            itemName = '',
+            itemQuantity = 1,
+            itemPrice = 0,
+            itemSize = '',
+            itemColor = '',
+            designUrl = '',
+            mockupUrl = '',
+
             customFields = {}
         } = orderData;
 
-        const length = customFields.length || '';
-        const width = customFields.width || '';
-        const height = customFields.height || '';
-        const weight = customFields.weight || '';
-        const declaredValue = customFields.declaredValue || '';
-        const sellingPrice = customFields.sellingPrice || '';
-        const productENName = customFields.productENName || '';
-        const productCNName = customFields.productCNName || '';
-        const quantity = customFields.quantity || '';
-
-        const totalWeight = weight && quantity ? (parseFloat(weight) * quantity).toString() : '';
-
         const bulkData = {
+            // Header fields
             IO_DATE: '',
             UPLOAD_SER_NO: index,
             CUST: customerCode,
             CUST_DES: customerName,
             EMP_CD: employeeCode,
-            WH_CD: warehouseCode,
-            IO_TYPE: '', EXCHANGE_TYPE: '', EXCHANGE_RATE: '', SITE: '', PJT_CD: '', TTL_CTT: '',
-            U_MEMO1: orderMemo1,
-            U_MEMO2: orderMemo2,
-            U_MEMO3: orderMemo3,
-            U_MEMO4: orderMemo4,
-            U_MEMO5: orderMemo5,
-            ADD_TXT_01_T: '', ADD_TXT_02_T: '',
-            ADD_TXT_03_T: receiverPhone,
-            ADD_TXT_04_T: '',
-            ADD_TXT_05_T: receiverCountry,
-            ADD_TXT_06_T: receiverAddress1,
-            ADD_TXT_07_T: additionalService,
-            ADD_TXT_08_T: receiverCity,
-            ADD_TXT_09_T: receiverState,
-            ADD_TXT_10_T: customsEORINumber,
-            ADD_NUM_01_T: customsVAT,
-            ADD_NUM_02_T: '', ADD_NUM_03_T: '', ADD_NUM_04_T: '', ADD_NUM_05_T: '',
+            WH_CD: warehouseCode,               // 001/002/004
+            IO_TYPE: '',
+            EXCHANGE_TYPE: '',
+            EXCHANGE_RATE: '',
+            SITE: '',
+            PJT_CD: shippingMethod,              // SBSL, SBTT, etc.
+            TTL_CTT: '',
+
+            // Order memo fields — POD mapping
+            U_MEMO1: receiverAddress2,           // Address line 2
+            U_MEMO2: receiverName,               // Receiver name
+            U_MEMO3: receiverAddress1,           // Address line 1
+            U_MEMO4: '',                        // IOSS number
+            U_MEMO5: receiverProvince,           // Province/State
+
+            // Header additional text fields — POD mapping
+            ADD_TXT_01_T: receiverZipCode,       // Postal code
+            ADD_TXT_02_T: receiverEmail,         // Email
+            ADD_TXT_03_T: '',
+            ADD_TXT_04_T: receiverCity,          // City
+            ADD_TXT_05_T: receiverCountry,       // Country code
+            ADD_TXT_06_T: '',
+            ADD_TXT_07_T: '',
+            ADD_TXT_08_T: '',
+            ADD_TXT_09_T: '',
+            ADD_TXT_10_T: trackingNumber,        // Tracking number
+            ADD_TXT_11_T: '',
+            ADD_TXT_12_T: '',
+
+            // Header additional number fields
+            ADD_NUM_01_T: '', ADD_NUM_02_T: '', ADD_NUM_03_T: '', ADD_NUM_04_T: '', ADD_NUM_05_T: '',
+
+            // Header additional code fields
             ADD_CD_01_T: '', ADD_CD_02_T: '', ADD_CD_03_T: '',
+
+            // Header additional date fields
             ADD_DATE_01_T: '', ADD_DATE_02_T: '', ADD_DATE_03_T: '',
+
+            // Internal reference
             U_TXT1: orderNumber,
-            ADD_LTXT_01_T: trackingNumber,
-            ADD_LTXT_02_T: serviceType,
-            ADD_LTXT_03_T: customsIOSSCode,
-            PROD_CD: process.env.API_PRODUCT_CODE,
-            PROD_DES: process.env.API_PRODUCT_NAME,
-            SIZE_DES: productSize,
+
+            // Header long text fields
+            ADD_LTXT_01: designUrl,              // Design URL
+            ADD_LTXT_01_T: receiverPhone,       // Phone
+            ADD_LTXT_02_T: linkPrint,          // Label print link
+            ADD_LTXT_03_T: '',
+
+            // Detail fields — Item
+            PROD_CD: itemSku,                    // SKU
+            PROD_DES: itemName,                  // Product name
+            SIZE_DES: '',
             UQTY: '',
-            QTY: quantity.toString(),
-            PRICE: '', USER_PRICE_VAT: '', SUPPLY_AMT: '', SUPPLY_AMT_F: '', VAT_AMT: '', REMARKS: '', ITEM_CD: '',
-            P_REMARKS1: '', P_REMARKS2: '', P_REMARKS3: '',
+            QTY: String(itemQuantity),           // Quantity
+            PRICE: String(itemPrice),            // Price
+            USER_PRICE_VAT: '',
+            SUPPLY_AMT: '',
+            SUPPLY_AMT_F: '',
+            VAT_AMT: '',
+            REMARKS: mockupUrl,                  // Mockup URL
+            ITEM_CD: '',
+
+            P_REMARKS1: '',
+            P_REMARKS2: '',
+            P_REMARKS3: '',
+
+            // Detail additional text fields — POD mapping
             ADD_TXT_01: '',
-            ADD_TXT_02: length.toString(),
-            ADD_TXT_03: width.toString(),
-            ADD_TXT_04: height.toString(),
-            ADD_TXT_05: productCNName,
-            ADD_TXT_06: productENName,
+            ADD_TXT_02: '',
+            ADD_TXT_03: itemSize,                // Product size
+            ADD_TXT_04: itemColor,               // Product color
+            ADD_TXT_05: '',
+            ADD_TXT_06: '',
+            ADD_TXT_07: '',
+
+            // Detail relation fields
             REL_DATE: '', REL_NO: '', MAKE_FLAG: '', CUST_AMT: '', P_AMT1: '', P_AMT2: '',
-            ADD_NUM_01: '',
-            ADD_NUM_02: sellingPrice.toString(),
-            ADD_NUM_03: weight.toString(),
-            ADD_NUM_04: totalWeight,
-            ADD_NUM_05: declaredValue.toString(),
+
+            // Detail additional numbers
+            ADD_NUM_01: '', ADD_NUM_02: '', ADD_NUM_03: '', ADD_NUM_04: '', ADD_NUM_05: '',
+
+            // Detail additional codes
             ADD_CD_01: '', ADD_CD_02: '', ADD_CD_03: '',
             ADD_CD_NM_01: '', ADD_CD_NM_02: '', ADD_CD_NM_03: '',
             ADD_CDNM_01: '', ADD_CDNM_02: '', ADD_CDNM_03: '',
+
+            // Detail additional dates
             ADD_DATE_01: '', ADD_DATE_02: '', ADD_DATE_03: ''
         };
 
+        // Override with custom ecountFields if provided
         if (customFields.ecountFields) {
             Object.assign(bulkData, customFields.ecountFields);
         }

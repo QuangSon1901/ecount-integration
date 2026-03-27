@@ -115,12 +115,15 @@
         </div>
         <div class="docs-nav-group">
             <div class="docs-nav-group-title">Orders</div>
-            <a class="docs-nav-link" data-section="create-orders">Create Orders</a>
-            <a class="docs-nav-link" data-section="get-order">Get Order</a>
+            <a class="docs-nav-link" data-section="order-object">Order Object</a>
+            <a class="docs-nav-link" data-section="create-express-orders">Create Express Orders</a>
+            <a class="docs-nav-link" data-section="create-pod-orders">Create POD Orders</a>
+            <a class="docs-nav-link" data-section="get-order">Get Order Details</a>
         </div>
         <div class="docs-nav-group">
             <div class="docs-nav-group-title">Reference Data</div>
-            <a class="docs-nav-link" data-section="get-fields">Services &amp; Warehouses</a>
+            <a class="docs-nav-link" data-section="express-reference">Express Services &amp; Warehouses</a>
+            <a class="docs-nav-link" data-section="pod-reference">POD Warehouses &amp; Shipping</a>
         </div>
         <div class="docs-nav-group">
             <div class="docs-nav-group-title">Webhooks</div>
@@ -138,33 +141,53 @@
         <!-- ──────────────── OVERVIEW ──────────────── -->
         <section id="overview" class="docs-section">
             <h2>Overview</h2>
-            <p>THG-FULFILL Open API allows partners to create shipping orders, track shipments, and receive real-time notifications through webhooks.</p>
+            <p>THG-FULFILL Open API allows partners to create shipping orders (Express &amp; POD), track shipments, and receive real-time notifications through webhooks.</p>
 
             <h4>Base URL</h4>
             <div class="endpoint"><code class="inline">https://express.thgfulfill.com/api/v1</code></div>
 
             <h4>Key Features</h4>
             <ul>
-                <li>Create bulk shipping orders (up to 100 per request)</li>
-                <li>Query order status and tracking information</li>
-                <li>Real-time webhook notifications for tracking updates, status changes, and exceptions</li>
+                <li>Create bulk <strong>Express</strong> shipping orders (up to 100 per request)</li>
+                <li>Create bulk <strong>POD</strong> (Print-on-Demand) orders for production &amp; fulfillment</li>
+                <li>Query order status and tracking (works for both Express &amp; POD)</li>
+                <li>Real-time webhook notifications for status changes and tracking updates</li>
                 <li>OAuth2 Client Credentials authentication</li>
-                <li>Rate limiting with per-hour and per-day quotas</li>
+                <li>Reference data APIs for services, warehouses, and shipping methods</li>
                 <li>Sandbox environment for testing</li>
             </ul>
 
-            <h4>Response Format</h4>
+            <h4>Sandbox Mode</h4>
+            <p>Sandbox accounts create real orders on ECount using the <code class="inline">fortest</code> customer code, allowing you to test the full flow without affecting production data. Both Express and POD orders use the same sandbox mechanism. Contact your account manager to get sandbox credentials.</p>
+
+            <h4>Response Envelope</h4>
             <p>All responses use JSON with a consistent envelope:</p>
             <div class="code-example">
                 <div class="code-blocks">
                     <pre class="code-block active" data-lang="json"><code>{
   "success": true,
-  "message": "Success",
+  "message": "...",
   "data": { ... },
   "timestamp": "2025-01-15T10:30:00.000Z"
 }</code></pre>
                 </div>
             </div>
+
+            <h4>HTTP Status Codes</h4>
+            <table class="param-table">
+                <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>200</strong></td><td>Success</td></tr>
+                    <tr><td><strong>201</strong></td><td>Created (all orders succeeded)</td></tr>
+                    <tr><td><strong>207</strong></td><td>Multi-Status (partial success in bulk)</td></tr>
+                    <tr><td><strong>400</strong></td><td>Bad Request &mdash; invalid or missing parameters</td></tr>
+                    <tr><td><strong>401</strong></td><td>Unauthorized &mdash; invalid or expired token</td></tr>
+                    <tr><td><strong>403</strong></td><td>Forbidden &mdash; insufficient permissions</td></tr>
+                    <tr><td><strong>404</strong></td><td>Not Found</td></tr>
+                    <tr><td><strong>429</strong></td><td>Too Many Requests &mdash; rate limit exceeded</td></tr>
+                    <tr><td><strong>500</strong></td><td>Internal Server Error</td></tr>
+                </tbody>
+            </table>
         </section>
 
         <!-- ──────────────── AUTHENTICATION ──────────────── -->
@@ -271,72 +294,114 @@ $accessToken = $response['data']['access_token'];</code></pre>
             <p>Revoke the current access token.</p>
         </section>
 
-        <!-- ──────────────── CREATE ORDERS ──────────────── -->
-        <section id="create-orders" class="docs-section">
-            <h2>Create Orders</h2>
+        <!-- ──────────────── ORDER OBJECT ──────────────── -->
+        <section id="order-object" class="docs-section">
+            <h2>Order Object (Unified)</h2>
+            <p>All order endpoints (create, get, webhook) return the same <strong>order object</strong> structure. This makes integration simpler &mdash; you only need to parse one format.</p>
+
+            <table class="param-table">
+                <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code class="inline">reference_code</code></td><td>string</td><td>THG internal reference (e.g. <code class="inline">API1770...</code> or <code class="inline">POD-API1770...</code>)</td></tr>
+                    <tr><td><code class="inline">order_number</code></td><td>string</td><td>Your original order number</td></tr>
+                    <tr><td><code class="inline">code_thg</code></td><td>string | null</td><td>ERP order code (populated after processing)</td></tr>
+                    <tr><td><code class="inline">order_type</code></td><td>string</td><td><code class="inline">express</code> or <code class="inline">pod</code></td></tr>
+                    <tr><td><code class="inline">status</code></td><td>string</td><td>Current order status</td></tr>
+                    <tr><td><code class="inline">tracking_number</code></td><td>string | null</td><td>Tracking number (when available)</td></tr>
+                    <tr><td><code class="inline">service_code</code></td><td>string | null</td><td>Express: service type (e.g. <code class="inline">VNTHZXR</code>). POD: shipping method (e.g. <code class="inline">SBSL</code>)</td></tr>
+                    <tr><td><code class="inline">warehouse_code</code></td><td>string | null</td><td>Express: warehouse (e.g. <code class="inline">CNEXP</code>). POD: warehouse code (e.g. <code class="inline">002</code>)</td></tr>
+                    <tr><td><code class="inline">warehouse_name</code></td><td>string | null</td><td>Human-readable warehouse name</td></tr>
+                    <tr><td><code class="inline">receiver</code></td><td>object</td><td>Receiver details (name, phone, email, countryCode, province, city, zipCode, addressLine1, addressLine2)</td></tr>
+                    <tr><td><code class="inline">created_at</code></td><td>datetime</td><td>Order creation timestamp</td></tr>
+                    <tr><td><code class="inline">updated_at</code></td><td>datetime</td><td>Last update timestamp</td></tr>
+                </tbody>
+            </table>
+
+            <h4>Example: Express Order</h4>
+            <div class="code-example">
+                <div class="code-blocks">
+                    <pre class="code-block active" data-lang="json"><code>{
+    "reference_code": "API17708281859424887",
+    "order_number": "ORD-2025-001",
+    "code_thg": "SO-250115-0001",
+    "order_type": "express",
+    "status": "pending",
+    "tracking_number": null,
+    "service_code": "VN-YTYCPREC",
+    "warehouse_code": "CNEXP",
+    "warehouse_name": "CN-THG-EXP",
+    "receiver": {
+        "name": "John Doe",
+        "phone": "+1234567890",
+        "email": "john@example.com",
+        "countryCode": "US",
+        "province": "California",
+        "city": "Los Angeles",
+        "zipCode": "90001",
+        "addressLine1": "123 Main St",
+        "addressLine2": ""
+    },
+    "created_at": "2025-01-15T10:30:00.000Z",
+    "updated_at": "2025-01-15T10:30:00.000Z"
+}</code></pre>
+                </div>
+            </div>
+
+            <h4>Example: POD Order</h4>
+            <div class="code-example">
+                <div class="code-blocks">
+                    <pre class="code-block active" data-lang="json"><code>{
+    "reference_code": "POD-API17708281859424887",
+    "order_number": "POD-2025-001",
+    "code_thg": null,
+    "order_type": "pod",
+    "status": "pod_pending",
+    "tracking_number": null,
+    "service_code": "SBSL",
+    "warehouse_code": "002",
+    "warehouse_name": "VN-POD08",
+    "receiver": {
+        "name": "John Doe",
+        "phone": "+1234567890",
+        "email": "john@example.com",
+        "countryCode": "US",
+        "province": "California",
+        "city": "Los Angeles",
+        "zipCode": "90001",
+        "addressLine1": "123 Main St",
+        "addressLine2": ""
+    },
+    "created_at": "2025-01-15T10:30:00.000Z",
+    "updated_at": "2025-01-15T10:30:00.000Z"
+}</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- ──────────────── CREATE EXPRESS ORDERS ──────────────── -->
+        <section id="create-express-orders" class="docs-section">
+            <h2>Create Express Orders</h2>
             <div class="endpoint">
                 <span class="method method-post">POST</span>
                 <span>/api/v1/orders/bulk</span>
             </div>
-            <p>Create one or more shipping orders. Maximum 100 orders per request.</p>
+            <p>Create one or more Express shipping orders. Maximum 100 orders per request.</p>
 
             <div class="alert alert-info">Requires <code class="inline">bulk_order_enabled</code> permission on your account.</div>
 
-            <h3>Order Object</h3>
+            <h3>Request Body</h3>
             <table class="param-table">
                 <thead><tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr></thead>
                 <tbody>
                     <tr><td><code class="inline">orderNumber</code></td><td>string</td><td><span class="required">Required</span></td><td>Your unique order reference</td></tr>
                     <tr><td><code class="inline">platformOrderNumber</code></td><td>string</td><td><span class="optional">Optional</span></td><td>Platform order number (e.g. Shopify order ID)</td></tr>
-                    <tr><td><code class="inline">serviceType</code></td><td>string</td><td><span class="required">Required</span></td><td>Shipping service code (e.g. <code class="inline">VN-YTYCPREC</code>)</td></tr>
+                    <tr><td><code class="inline">serviceType</code></td><td>string</td><td><span class="required">Required</span></td><td>Shipping service code &mdash; see <a href="#express-reference" style="color:var(--primary)">Express Reference Data</a></td></tr>
                     <tr><td><code class="inline">additionalService</code></td><td>string</td><td><span class="required">Required</span></td><td>Additional service: <code class="inline">G0</code>, <code class="inline">G1</code>, <code class="inline">V0</code>, <code class="inline">V1</code></td></tr>
-                    <tr><td><code class="inline">warehouseCode</code></td><td>string</td><td><span class="required">Required</span></td><td>Warehouse code (e.g. <code class="inline">CNEXP</code>)</td></tr>
-                    <tr><td><code class="inline">receiver</code></td><td>object</td><td><span class="required">Required</span></td><td>Receiver information (see below)</td></tr>
-                    <tr><td><code class="inline">declarationInfo</code></td><td>array</td><td><span class="required">Required</span></td><td>Declaration items (min 1)</td></tr>
-                    <tr><td><code class="inline">packages</code></td><td>array</td><td><span class="required">Required</span></td><td>Package dimensions (min 1)</td></tr>
-                    <tr><td><code class="inline">customsNumber</code></td><td>object</td><td><span class="optional">Optional</span></td><td>Customs numbers (IOSS, VAT, EORI)</td></tr>
-                </tbody>
-            </table>
-
-            <h4>receiver Object</h4>
-            <table class="param-table">
-                <thead><tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr></thead>
-                <tbody>
-                    <tr><td><code class="inline">name</code></td><td>string</td><td><span class="required">Required</span></td><td>Full name of receiver</td></tr>
-                    <tr><td><code class="inline">countryCode</code></td><td>string</td><td><span class="required">Required</span></td><td>2-letter country code (e.g. US, GB)</td></tr>
-                    <tr><td><code class="inline">province</code></td><td>string</td><td><span class="required">Required</span></td><td>State/Province</td></tr>
-                    <tr><td><code class="inline">city</code></td><td>string</td><td><span class="required">Required</span></td><td>City</td></tr>
-                    <tr><td><code class="inline">addressLine1</code></td><td>string</td><td><span class="required">Required</span></td><td>Street address</td></tr>
-                    <tr><td><code class="inline">addressLine2</code></td><td>string</td><td><span class="optional">Optional</span></td><td>Additional address info</td></tr>
-                    <tr><td><code class="inline">zipCode</code></td><td>string</td><td><span class="required">Required</span></td><td>Postal/ZIP code</td></tr>
-                    <tr><td><code class="inline">phone</code></td><td>string</td><td><span class="required">Required</span></td><td>Phone number</td></tr>
-                    <tr><td><code class="inline">email</code></td><td>string</td><td><span class="optional">Optional</span></td><td>Email address</td></tr>
-                </tbody>
-            </table>
-
-            <h4>declarationInfo Item</h4>
-            <table class="param-table">
-                <thead><tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr></thead>
-                <tbody>
-                    <tr><td><code class="inline">nameEn</code></td><td>string</td><td><span class="required">Required</span></td><td>Product name (English)</td></tr>
-                    <tr><td><code class="inline">nameCN</code></td><td>string</td><td><span class="optional">Optional</span></td><td>Product name (Chinese)</td></tr>
-                    <tr><td><code class="inline">quantity</code></td><td>integer</td><td><span class="required">Required</span></td><td>Quantity (default: 1)</td></tr>
-                    <tr><td><code class="inline">unitWeight</code></td><td>number</td><td><span class="required">Required</span></td><td>Unit weight (kg)</td></tr>
-                    <tr><td><code class="inline">unitPrice</code></td><td>number</td><td><span class="required">Required</span></td><td>Declared unit price (USD)</td></tr>
-                    <tr><td><code class="inline">sellingPrice</code></td><td>number</td><td><span class="required">Required</span></td><td>Actual selling price (USD)</td></tr>
-                    <tr><td><code class="inline">hsCode</code></td><td>string</td><td><span class="optional">Optional</span></td><td>HS code</td></tr>
-                    <tr><td><code class="inline">currency</code></td><td>string</td><td><span class="optional">Optional</span></td><td>Currency code (default: USD)</td></tr>
-                </tbody>
-            </table>
-
-            <h4>packages Item</h4>
-            <table class="param-table">
-                <thead><tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr></thead>
-                <tbody>
-                    <tr><td><code class="inline">length</code></td><td>number</td><td><span class="required">Required</span></td><td>Length in cm</td></tr>
-                    <tr><td><code class="inline">width</code></td><td>number</td><td><span class="required">Required</span></td><td>Width in cm</td></tr>
-                    <tr><td><code class="inline">height</code></td><td>number</td><td><span class="required">Required</span></td><td>Height in cm</td></tr>
-                    <tr><td><code class="inline">weight</code></td><td>number</td><td><span class="required">Required</span></td><td>Weight in kg</td></tr>
+                    <tr><td><code class="inline">warehouseCode</code></td><td>string</td><td><span class="required">Required</span></td><td>Warehouse code &mdash; see <a href="#express-reference" style="color:var(--primary)">Express Reference Data</a></td></tr>
+                    <tr><td><code class="inline">receiver</code></td><td>object</td><td><span class="required">Required</span></td><td>Receiver info: <code class="inline">name</code>, <code class="inline">countryCode</code>, <code class="inline">province</code>, <code class="inline">city</code>, <code class="inline">addressLine1</code>, <code class="inline">zipCode</code>, <code class="inline">phone</code> (required), <code class="inline">addressLine2</code>, <code class="inline">email</code> (optional)</td></tr>
+                    <tr><td><code class="inline">declarationInfo</code></td><td>array</td><td><span class="required">Required</span></td><td>Declaration items (min 1): <code class="inline">nameEn</code>, <code class="inline">quantity</code>, <code class="inline">unitWeight</code>, <code class="inline">unitPrice</code>, <code class="inline">sellingPrice</code> (required)</td></tr>
+                    <tr><td><code class="inline">packages</code></td><td>array</td><td><span class="required">Required</span></td><td>Package dimensions (min 1): <code class="inline">length</code>, <code class="inline">width</code>, <code class="inline">height</code>, <code class="inline">weight</code></td></tr>
+                    <tr><td><code class="inline">customsNumber</code></td><td>object</td><td><span class="optional">Optional</span></td><td>Customs: <code class="inline">IOSSCode</code>, <code class="inline">VATCode</code>, <code class="inline">EORINumber</code></td></tr>
                 </tbody>
             </table>
 
@@ -345,7 +410,6 @@ $accessToken = $response['data']['access_token'];</code></pre>
                 <div class="code-tabs">
                     <button class="code-tab active" data-lang="curl">cURL</button>
                     <button class="code-tab" data-lang="nodejs">Node.js</button>
-                    <button class="code-tab" data-lang="php">PHP</button>
                 </div>
                 <div class="code-blocks">
                     <button class="copy-code-btn">Copy</button>
@@ -357,14 +421,17 @@ $accessToken = $response['data']['access_token'];</code></pre>
       "orderNumber": "ORD-2025-001",
       "serviceType": "VN-YTYCPREC",
       "additionalService": "G0",
+      "warehouseCode": "CNEXP",
       "receiver": {
         "name": "John Doe",
         "countryCode": "US",
         "province": "California",
         "city": "Los Angeles",
         "addressLine1": "123 Main St",
+        "addressLine2": "Apt 4B",
         "zipCode": "90001",
-        "phone": "+1234567890"
+        "phone": "+1234567890",
+        "email": "john@example.com"
       },
       "declarationInfo": [{
         "nameEn": "T-Shirt",
@@ -379,7 +446,12 @@ $accessToken = $response['data']['access_token'];</code></pre>
         "width": 20,
         "height": 10,
         "weight": 0.6
-      }]
+      }],
+      "customsNumber": {
+        "IOSSCode": "",
+        "VATCode": "",
+        "EORINumber": ""
+      }
     }]
   }'</code></pre>
                     <pre class="code-block" data-lang="nodejs"><code>const response = await fetch('https://express.thgfulfill.com/api/v1/orders/bulk', {
@@ -393,21 +465,25 @@ $accessToken = $response['data']['access_token'];</code></pre>
       orderNumber: 'ORD-2025-001',
       serviceType: 'VN-YTYCPREC',
       additionalService: 'G0',
+      warehouseCode: 'CNEXP',
       receiver: {
         name: 'John Doe',
         countryCode: 'US',
         province: 'California',
         city: 'Los Angeles',
         addressLine1: '123 Main St',
+        addressLine2: 'Apt 4B',
         zipCode: '90001',
-        phone: '+1234567890'
+        phone: '+1234567890',
+        email: 'john@example.com'
       },
       declarationInfo: [{
         nameEn: 'T-Shirt',
         quantity: 2,
         unitWeight: 0.3,
         unitPrice: 15.00,
-        sellingPrice: 29.99
+        sellingPrice: 29.99,
+        hsCode: '6109100010'
       }],
       packages: [{
         length: 30, width: 20, height: 10, weight: 0.6
@@ -416,42 +492,6 @@ $accessToken = $response['data']['access_token'];</code></pre>
   })
 });
 const data = await response.json();</code></pre>
-                    <pre class="code-block" data-lang="php"><code>$ch = curl_init('https://express.thgfulfill.com/api/v1/orders/bulk');
-curl_setopt_array($ch, [
-    CURLOPT_POST =&gt; true,
-    CURLOPT_HTTPHEADER =&gt; [
-        'Authorization: Bearer YOUR_ACCESS_TOKEN',
-        'Content-Type: application/json',
-    ],
-    CURLOPT_POSTFIELDS =&gt; json_encode([
-        'orders' =&gt; [[
-            'orderNumber' =&gt; 'ORD-2025-001',
-            'serviceType' =&gt; 'VN-YTYCPREC',
-            'additionalService' =&gt; 'G0',
-            'receiver' =&gt; [
-                'name' =&gt; 'John Doe',
-                'countryCode' =&gt; 'US',
-                'province' =&gt; 'California',
-                'city' =&gt; 'Los Angeles',
-                'addressLine1' =&gt; '123 Main St',
-                'zipCode' =&gt; '90001',
-            ],
-            'declarationInfo' =&gt; [[
-                'nameEn' =&gt; 'T-Shirt',
-                'quantity' =&gt; 2,
-                'unitWeight' =&gt; 0.3,
-                'unitPrice' =&gt; 15.00,
-                'sellingPrice' =&gt; 29.99,
-            ]],
-            'packages' =&gt; [[
-                'length' =&gt; 30, 'width' =&gt; 20,
-                'height' =&gt; 10, 'weight' =&gt; 0.6,
-            ]],
-        ]],
-    ]),
-    CURLOPT_RETURNTRANSFER =&gt; true,
-]);
-$response = json_decode(curl_exec($ch), true);</code></pre>
                 </div>
             </div>
 
@@ -465,16 +505,34 @@ $response = json_decode(curl_exec($ch), true);</code></pre>
         "total": 1,
         "successful": 1,
         "failed": 0,
-        "results": [
-            {
-                "success": true,
-                "status": "new",
-                "orders": {
-                    "reference_code": "API17708281859424887",
-                    "status": "pending",
-                }
-            },
-        ],
+        "results": [{
+            "success": true,
+            "status": "new",
+            "orders": {
+                "reference_code": "API17708281859424887",
+                "order_number": "ORD-2025-001",
+                "code_thg": null,
+                "order_type": "express",
+                "status": "pending",
+                "tracking_number": null,
+                "service_code": "VN-YTYCPREC",
+                "warehouse_code": "CNEXP",
+                "warehouse_name": "CN-THG-EXP",
+                "receiver": {
+                    "name": "John Doe",
+                    "phone": "+1234567890",
+                    "email": "john@example.com",
+                    "countryCode": "US",
+                    "province": "California",
+                    "city": "Los Angeles",
+                    "zipCode": "90001",
+                    "addressLine1": "123 Main St",
+                    "addressLine2": "Apt 4B"
+                },
+                "created_at": "2025-01-15T10:30:00.000Z",
+                "updated_at": "2025-01-15T10:30:00.000Z"
+            }
+        }],
         "errors": []
     }
 }</code></pre>
@@ -482,44 +540,180 @@ $response = json_decode(curl_exec($ch), true);</code></pre>
             </div>
         </section>
 
-        <!-- ──────────────── GET ORDER ──────────────── -->
-        <section id="get-order" class="docs-section">
-            <h2>Get Order</h2>
+        <!-- ──────────────── CREATE POD ORDERS ──────────────── -->
+        <section id="create-pod-orders" class="docs-section">
+            <h2>Create POD Orders</h2>
             <div class="endpoint">
-                <span class="method method-get">GET</span>
-                <span>/api/v1/orders/:referenceCode</span>
+                <span class="method method-post">POST</span>
+                <span>/api/v1/orders/pod/bulk</span>
             </div>
-            <p>Retrieve details of a specific order by its order number.</p>
+            <p>Create one or more Print-on-Demand orders. Maximum 100 orders per request.</p>
 
-            <h4>Path Parameters</h4>
+            <div class="alert alert-info">Requires <code class="inline">bulk_order_enabled</code> permission. Uses the same authentication as Express orders.</div>
+
+            <h3>Request Body</h3>
             <table class="param-table">
-                <thead><tr><th>Parameter</th><th>Type</th><th></th><th>Description</th></tr></thead>
+                <thead><tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr></thead>
                 <tbody>
-                    <tr><td><code class="inline">referenceCode</code></td><td>string</td><td><span class="required">Required</span></td><td>The order number</td></tr>
+                    <tr><td><code class="inline">orderNumber</code></td><td>string</td><td><span class="required">Required</span></td><td>Your unique order reference</td></tr>
+                    <tr><td><code class="inline">warehouseCode</code></td><td>string</td><td><span class="required">Required</span></td><td>Warehouse code &mdash; see <a href="#pod-reference" style="color:var(--primary)">POD Reference Data</a></td></tr>
+                    <tr><td><code class="inline">shippingMethod</code></td><td>string</td><td><span class="required">Required</span></td><td>Shipping method &mdash; see <a href="#pod-reference" style="color:var(--primary)">POD Reference Data</a></td></tr>
+                    <tr><td><code class="inline">receiver</code></td><td>object</td><td><span class="required">Required</span></td><td>Receiver info: <code class="inline">name</code>, <code class="inline">countryCode</code>, <code class="inline">province</code>, <code class="inline">city</code>, <code class="inline">addressLine1</code>, <code class="inline">zipCode</code>, <code class="inline">phone</code> (required), <code class="inline">addressLine2</code>, <code class="inline">email</code> (optional)</td></tr>
+                    <tr><td><code class="inline">items</code></td><td>array</td><td><span class="required">Required</span></td><td>Product items (min 1) &mdash; see below</td></tr>
+                    <tr><td><code class="inline">tracking</code></td><td>object</td><td>*</td><td><strong>Required for SBTT</strong>. Optional for others. Contains <code class="inline">trackingNumber</code> and <code class="inline">linkPrint</code></td></tr>
+                    <tr><td><code class="inline">customFields</code></td><td>object</td><td><span class="optional">Optional</span></td><td>Custom ECount field overrides</td></tr>
                 </tbody>
             </table>
 
+            <h4>items Item</h4>
+            <table class="param-table">
+                <thead><tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code class="inline">sku</code></td><td>string</td><td><span class="required">Required</span></td><td>Product SKU code</td></tr>
+                    <tr><td><code class="inline">name</code></td><td>string</td><td><span class="required">Required</span></td><td>Product name</td></tr>
+                    <tr><td><code class="inline">quantity</code></td><td>integer</td><td><span class="required">Required</span></td><td>Quantity (min 1)</td></tr>
+                    <tr><td><code class="inline">price</code></td><td>number</td><td><span class="required">Required</span></td><td>Unit price</td></tr>
+                    <tr><td><code class="inline">productSize</code></td><td>string</td><td><span class="optional">Optional</span></td><td>Size (e.g. S, M, L, XL)</td></tr>
+                    <tr><td><code class="inline">productColor</code></td><td>string</td><td><span class="optional">Optional</span></td><td>Color name</td></tr>
+                    <tr><td><code class="inline">designUrls</code></td><td>array</td><td><span class="optional">Optional</span></td><td>Design files: <code class="inline">[{ key: "front", value: "https://..." }]</code></td></tr>
+                    <tr><td><code class="inline">mockupUrl</code></td><td>string</td><td><span class="optional">Optional</span></td><td>Mockup image URL</td></tr>
+                </tbody>
+            </table>
+
+            <div class="alert alert-warning">
+                <strong>SBTT (Ship by TikTok):</strong> When <code class="inline">shippingMethod</code> is <code class="inline">SBTT</code>, the <code class="inline">tracking</code> object is <strong>required</strong> and must include both <code class="inline">trackingNumber</code> and <code class="inline">linkPrint</code>.
+            </div>
+
+            <h3>Request Example &mdash; SBSL (Ship by Seller)</h3>
             <div class="code-example">
                 <div class="code-tabs">
                     <button class="code-tab active" data-lang="curl">cURL</button>
                     <button class="code-tab" data-lang="nodejs">Node.js</button>
-                    <button class="code-tab" data-lang="php">PHP</button>
                 </div>
                 <div class="code-blocks">
                     <button class="copy-code-btn">Copy</button>
-                    <pre class="code-block active" data-lang="curl"><code>curl https://express.thgfulfill.com/api/v1/orders/ORD-2025-001 \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"</code></pre>
-                    <pre class="code-block" data-lang="nodejs"><code>const response = await fetch(
-  'https://express.thgfulfill.com/api/v1/orders/ORD-2025-001',
-  { headers: { 'Authorization': 'Bearer YOUR_ACCESS_TOKEN' } }
-);
+                    <pre class="code-block active" data-lang="curl"><code>curl -X POST https://express.thgfulfill.com/api/v1/orders/pod/bulk \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orders": [{
+      "orderNumber": "POD-2025-001",
+      "warehouseCode": "002",
+      "shippingMethod": "SBSL",
+      "receiver": {
+        "name": "John Doe",
+        "countryCode": "US",
+        "province": "California",
+        "city": "Los Angeles",
+        "addressLine1": "123 Main St",
+        "addressLine2": "Apt 4B",
+        "zipCode": "90001",
+        "phone": "+1234567890",
+        "email": "john@example.com"
+      },
+      "items": [{
+        "sku": "TSH-BLK-L",
+        "name": "Black T-Shirt",
+        "quantity": 1,
+        "price": 25.00,
+        "productSize": "L",
+        "productColor": "Black",
+        "designUrls": [
+          { "key": "front", "value": "https://example.com/design-front.png" },
+          { "key": "back", "value": "https://example.com/design-back.png" }
+        ],
+        "mockupUrl": "https://example.com/mockup.png"
+      }],
+      "tracking": {
+        "trackingNumber": "",
+        "linkPrint": ""
+      }
+    }]
+  }'</code></pre>
+                    <pre class="code-block" data-lang="nodejs"><code>const response = await fetch('https://express.thgfulfill.com/api/v1/orders/pod/bulk', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    orders: [{
+      orderNumber: 'POD-2025-001',
+      warehouseCode: '002',
+      shippingMethod: 'SBSL',
+      receiver: {
+        name: 'John Doe',
+        countryCode: 'US',
+        province: 'California',
+        city: 'Los Angeles',
+        addressLine1: '123 Main St',
+        addressLine2: 'Apt 4B',
+        zipCode: '90001',
+        phone: '+1234567890',
+        email: 'john@example.com'
+      },
+      items: [{
+        sku: 'TSH-BLK-L',
+        name: 'Black T-Shirt',
+        quantity: 1,
+        price: 25.00,
+        productSize: 'L',
+        productColor: 'Black',
+        designUrls: [
+          { key: 'front', value: 'https://example.com/design-front.png' },
+          { key: 'back', value: 'https://example.com/design-back.png' }
+        ],
+        mockupUrl: 'https://example.com/mockup.png'
+      }],
+      tracking: {
+        trackingNumber: '',
+        linkPrint: ''
+      }
+    }]
+  })
+});
 const data = await response.json();</code></pre>
-                    <pre class="code-block" data-lang="php"><code>$ch = curl_init('https://express.thgfulfill.com/api/v1/orders/ORD-2025-001');
-curl_setopt_array($ch, [
-    CURLOPT_HTTPHEADER =&gt; ['Authorization: Bearer YOUR_ACCESS_TOKEN'],
-    CURLOPT_RETURNTRANSFER =&gt; true,
-]);
-$response = json_decode(curl_exec($ch), true);</code></pre>
+                </div>
+            </div>
+
+            <h3>Request Example &mdash; SBTT (Ship by TikTok)</h3>
+            <p>For <code class="inline">SBTT</code>, <code class="inline">tracking.trackingNumber</code> and <code class="inline">tracking.linkPrint</code> are <strong>required</strong>:</p>
+            <div class="code-example">
+                <div class="code-blocks">
+                    <pre class="code-block active" data-lang="json"><code>{
+    "orders": [{
+        "orderNumber": "POD-TT-2025-001",
+        "warehouseCode": "001",
+        "shippingMethod": "SBTT",
+        "receiver": {
+            "name": "Jane Smith",
+            "countryCode": "US",
+            "province": "New York",
+            "city": "New York",
+            "addressLine1": "456 Broadway",
+            "addressLine2": "",
+            "zipCode": "10013",
+            "phone": "+1987654321",
+            "email": "jane@example.com"
+        },
+        "items": [{
+            "sku": "MUG-WHT-01",
+            "name": "White Ceramic Mug",
+            "quantity": 2,
+            "price": 12.50,
+            "productSize": "",
+            "productColor": "White",
+            "designUrls": [
+                { "key": "wrap", "value": "https://example.com/mug-design.png" }
+            ],
+            "mockupUrl": "https://example.com/mug-mockup.png"
+        }],
+        "tracking": {
+            "trackingNumber": "TT1234567890",
+            "linkPrint": "https://tiktok.com/label/TT1234567890.pdf"
+        }
+    }]
+}</code></pre>
                 </div>
             </div>
 
@@ -528,30 +722,141 @@ $response = json_decode(curl_exec($ch), true);</code></pre>
                 <div class="code-blocks">
                     <pre class="code-block active" data-lang="json"><code>{
     "success": true,
+    "message": "Processed 1 POD orders: 1 successful, 0 failed",
+    "data": {
+        "total": 1,
+        "successful": 1,
+        "failed": 0,
+        "results": [{
+            "success": true,
+            "status": "pod_pending",
+            "orders": {
+                "reference_code": "POD-API17708281859424887",
+                "order_number": "POD-2025-001",
+                "code_thg": null,
+                "order_type": "pod",
+                "status": "pod_pending",
+                "tracking_number": null,
+                "service_code": "SBSL",
+                "warehouse_code": "002",
+                "warehouse_name": "VN-POD08",
+                "receiver": {
+                    "name": "John Doe",
+                    "phone": "+1234567890",
+                    "email": "john@example.com",
+                    "countryCode": "US",
+                    "province": "California",
+                    "city": "Los Angeles",
+                    "zipCode": "90001",
+                    "addressLine1": "123 Main St",
+                    "addressLine2": "Apt 4B"
+                },
+                "created_at": "2025-01-15T10:30:00.000Z",
+                "updated_at": "2025-01-15T10:30:00.000Z"
+            }
+        }],
+        "errors": []
+    }
+}</code></pre>
+                </div>
+            </div>
+
+            <h3>POD Order Lifecycle</h3>
+            <table class="param-table">
+                <thead><tr><th>Status</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code class="inline">pod_pending</code></td><td>Order created, awaiting warehouse processing</td></tr>
+                    <tr><td><code class="inline">pod_processing</code></td><td>Warehouse is processing the order</td></tr>
+                    <tr><td><code class="inline">pod_in_production</code></td><td>Item is being printed/produced</td></tr>
+                    <tr><td><code class="inline">pod_shipped</code></td><td>Order has been shipped with tracking number</td></tr>
+                    <tr><td><code class="inline">pod_delivered</code></td><td>Order delivered to recipient</td></tr>
+                    <tr><td><code class="inline">pod_cancelled</code></td><td>Order was cancelled</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ──────────────── GET ORDER ──────────────── -->
+        <section id="get-order" class="docs-section">
+            <h2>Get Order Details</h2>
+            <div class="endpoint">
+                <span class="method method-get">GET</span>
+                <span>/api/v1/orders/:referenceCode</span>
+            </div>
+            <p>Retrieve details of any order (Express or POD) by its reference code. Returns the unified <a href="#order-object" style="color:var(--primary)">Order Object</a>.</p>
+
+            <h4>Path Parameters</h4>
+            <table class="param-table">
+                <thead><tr><th>Parameter</th><th>Type</th><th></th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code class="inline">referenceCode</code></td><td>string</td><td><span class="required">Required</span></td><td>The <code class="inline">reference_code</code> returned when the order was created</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Request</h3>
+            <div class="code-example">
+                <div class="code-tabs">
+                    <button class="code-tab active" data-lang="curl">cURL</button>
+                    <button class="code-tab" data-lang="nodejs">Node.js</button>
+                </div>
+                <div class="code-blocks">
+                    <button class="copy-code-btn">Copy</button>
+                    <pre class="code-block active" data-lang="curl"><code>curl https://express.thgfulfill.com/api/v1/orders/POD-API17708281859424887 \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"</code></pre>
+                    <pre class="code-block" data-lang="nodejs"><code>const response = await fetch(
+  'https://express.thgfulfill.com/api/v1/orders/POD-API17708281859424887',
+  { headers: { 'Authorization': 'Bearer YOUR_ACCESS_TOKEN' } }
+);
+const data = await response.json();</code></pre>
+                </div>
+            </div>
+
+            <h3>Response</h3>
+            <p>Returns the unified <a href="#order-object" style="color:var(--primary)">Order Object</a> inside the standard envelope:</p>
+            <div class="code-example">
+                <div class="code-blocks">
+                    <pre class="code-block active" data-lang="json"><code>{
+    "success": true,
     "message": "Success",
     "data": {
-        "reference_code": "API17708281859424887",
-        "order_number": "ORDER-001-TEST",
-        "code_thg": null,
-        "status": "pending",
-        "product_code": "VNBKZXR",
+        "reference_code": "POD-API17708281859424887",
+        "order_number": "POD-2025-001",
+        "code_thg": "SO-250115-0042",
+        "order_type": "pod",
+        "status": "pod_shipped",
+        "tracking_number": "TRK1234567890",
+        "service_code": "SBSL",
+        "warehouse_code": "002",
+        "warehouse_name": "VN-POD08",
+        "receiver": {
+            "name": "John Doe",
+            "phone": "+1234567890",
+            "email": "john@example.com",
+            "countryCode": "US",
+            "province": "California",
+            "city": "Los Angeles",
+            "zipCode": "90001",
+            "addressLine1": "123 Main St",
+            "addressLine2": "Apt 4B"
+        },
+        "created_at": "2025-01-15T10:30:00.000Z",
+        "updated_at": "2025-01-16T08:00:00.000Z"
     }
 }</code></pre>
                 </div>
             </div>
         </section>
 
-        <!-- ──────────────── GET FIELDS ──────────────── -->
-        <section id="get-fields" class="docs-section">
-            <h2>Services &amp; Warehouses</h2>
-            <p>Retrieve reference data needed for creating orders.</p>
+        <!-- ──────────────── EXPRESS REFERENCE DATA ──────────────── -->
+        <section id="express-reference" class="docs-section">
+            <h2>Express: Services &amp; Warehouses</h2>
+            <p>Reference data APIs for Express order creation. All require authentication.</p>
 
             <h3>List Shipping Services</h3>
             <div class="endpoint">
                 <span class="method method-get">GET</span>
                 <span>/api/v1/services</span>
             </div>
-            <p>Returns all available shipping service types (e.g. <code class="inline">VN-YTYCPREC</code>, <code class="inline">VNTHZXR</code>).</p>
+            <p>Returns all available Express shipping service codes (used as <code class="inline">serviceType</code>).</p>
 
             <h3>List Additional Services</h3>
             <div class="endpoint">
@@ -560,12 +865,12 @@ $response = json_decode(curl_exec($ch), true);</code></pre>
             </div>
             <p>Returns additional services: <code class="inline">G0</code> (non-EU, no IOSS), <code class="inline">G1</code>, <code class="inline">V0</code> (non-EU), <code class="inline">V1</code> (EU).</p>
 
-            <h3>List Warehouses</h3>
+            <h3>List Express Warehouses</h3>
             <div class="endpoint">
                 <span class="method method-get">GET</span>
                 <span>/api/v1/warehouses</span>
             </div>
-            <p>Returns available warehouse codes:</p>
+            <p>Returns available Express warehouse codes (used as <code class="inline">warehouseCode</code>).</p>
             <table class="param-table">
                 <thead><tr><th>Code</th><th>Name</th></tr></thead>
                 <tbody>
@@ -578,18 +883,60 @@ $response = json_decode(curl_exec($ch), true);</code></pre>
             </table>
         </section>
 
+        <!-- ──────────────── POD REFERENCE DATA ──────────────── -->
+        <section id="pod-reference" class="docs-section">
+            <h2>POD: Warehouses &amp; Shipping Methods</h2>
+            <p>Reference data APIs for POD order creation. All require authentication.</p>
+
+            <h3>List POD Warehouses</h3>
+            <div class="endpoint">
+                <span class="method method-get">GET</span>
+                <span>/api/v1/pod/warehouses</span>
+            </div>
+            <p>Returns available POD warehouse codes (used as <code class="inline">warehouseCode</code>).</p>
+            <table class="param-table">
+                <thead><tr><th>Code</th><th>Name</th></tr></thead>
+                <tbody>
+                    <tr><td><code class="inline">001</code></td><td>US-POD09</td></tr>
+                    <tr><td><code class="inline">002</code></td><td>VN-POD08</td></tr>
+                    <tr><td><code class="inline">004</code></td><td>US-POD13</td></tr>
+                </tbody>
+            </table>
+
+            <h3>List POD Shipping Methods</h3>
+            <div class="endpoint">
+                <span class="method method-get">GET</span>
+                <span>/api/v1/pod/shipping-methods</span>
+            </div>
+            <p>Returns available POD shipping method codes (used as <code class="inline">shippingMethod</code>).</p>
+            <table class="param-table">
+                <thead><tr><th>Code</th><th>Name</th><th>Note</th></tr></thead>
+                <tbody>
+                    <tr><td><code class="inline">SBSL</code></td><td>Ship by Seller</td><td></td></tr>
+                    <tr><td><code class="inline">SBTT</code></td><td>Ship by TikTok</td><td><strong>Requires</strong> <code class="inline">tracking.trackingNumber</code> and <code class="inline">tracking.linkPrint</code></td></tr>
+                    <tr><td><code class="inline">COD</code></td><td>Cash on Delivery</td><td></td></tr>
+                    <tr><td><code class="inline">VNTHZXR</code></td><td>VN Express Shipping</td><td></td></tr>
+                    <tr><td><code class="inline">WEB</code></td><td>Web Order</td><td></td></tr>
+                </tbody>
+            </table>
+
+            <div class="alert alert-warning">
+                <strong>Note:</strong> Contact your account manager to confirm which shipping methods are available for your warehouse. Methods may vary by warehouse and destination country.
+            </div>
+        </section>
+
         <!-- ──────────────── WEBHOOKS ──────────────── -->
         <section id="webhooks" class="docs-section">
             <h2>Webhooks</h2>
-            <p>Receive real-time notifications when events occur on your orders.</p>
+            <p>Receive real-time notifications when events occur on your orders (both Express and POD).</p>
 
             <h3>Available Events</h3>
             <table class="param-table">
-                <thead><tr><th>Event</th><th>Description</th></tr></thead>
+                <thead><tr><th>Event</th><th>Trigger</th></tr></thead>
                 <tbody>
-                    <tr><td><code class="inline">tracking.updated</code></td><td>Tracking status has been updated</td></tr>
-                    <tr><td><code class="inline">order.status</code></td><td>Order status has changed</td></tr>
-                    <tr><td><code class="inline">order.exception</code></td><td>An exception occurred on the order</td></tr>
+                    <tr><td><code class="inline">order.status</code></td><td>Order status changed (e.g. pending &rarr; shipped)</td></tr>
+                    <tr><td><code class="inline">tracking.updated</code></td><td>Tracking number or shipping label received</td></tr>
+                    <tr><td><code class="inline">order.exception</code></td><td>An exception occurred (delivery failed, customs hold, etc.)</td></tr>
                 </tbody>
             </table>
 
@@ -607,13 +954,57 @@ $response = json_decode(curl_exec($ch), true);</code></pre>
                 </tbody>
             </table>
 
+            <h3>Webhook Payload</h3>
+            <p>The webhook body uses the same unified <a href="#order-object" style="color:var(--primary)">Order Object</a>:</p>
+            <div class="code-example">
+                <div class="code-blocks">
+                    <pre class="code-block active" data-lang="json"><code>{
+    "event": "order.status",
+    "data": {
+        "reference_code": "POD-API17708281859424887",
+        "order_number": "POD-2025-001",
+        "code_thg": "SO-250115-0042",
+        "order_type": "pod",
+        "status": "pod_shipped",
+        "tracking_number": "TRK1234567890",
+        "service_code": "SBSL",
+        "warehouse_code": "002",
+        "warehouse_name": "VN-POD08"
+    },
+    "timestamp": "2025-01-16T08:00:00.000Z"
+}</code></pre>
+                </div>
+            </div>
+
+            <div class="code-example">
+                <div class="code-blocks">
+                    <pre class="code-block active" data-lang="json"><code>// tracking.updated event — includes label_url
+{
+    "event": "tracking.updated",
+    "data": {
+        "reference_code": "POD-API17708281859424887",
+        "order_number": "POD-2025-001",
+        "code_thg": "SO-250115-0042",
+        "order_type": "pod",
+        "status": "pod_shipped",
+        "tracking_number": "TRK1234567890",
+        "service_code": "SBSL",
+        "warehouse_code": "002",
+        "warehouse_name": "VN-POD08",
+        "label_url": "https://example.com/label.pdf"
+    },
+    "timestamp": "2025-01-16T08:00:00.000Z"
+}</code></pre>
+                </div>
+            </div>
+
             <h3>Payload Signature</h3>
             <p>Each webhook delivery includes these headers:</p>
             <table class="param-table">
                 <thead><tr><th>Header</th><th>Description</th></tr></thead>
                 <tbody>
-                    <tr><td><code class="inline">X-Webhook-Event</code></td><td>The event type (e.g. <code class="inline">tracking.updated</code>)</td></tr>
-                    <tr><td><code class="inline">X-Webhook-Signature</code></td><td>HMAC-SHA256 signature of the payload</td></tr>
+                    <tr><td><code class="inline">X-Webhook-Event</code></td><td>Event type (e.g. <code class="inline">tracking.updated</code>)</td></tr>
+                    <tr><td><code class="inline">X-Webhook-Signature</code></td><td>HMAC-SHA256 of the full JSON body using your secret</td></tr>
                 </tbody>
             </table>
 
@@ -664,39 +1055,29 @@ function verifyWebhook(payload, signature, secret) {
         <!-- ──────────────── ERRORS ──────────────── -->
         <section id="errors" class="docs-section">
             <h2>Error Codes</h2>
-            <p>The API uses standard HTTP status codes with a consistent error response format.</p>
+            <p>All error responses follow the same envelope format:</p>
 
-            <h4>Error Response Format</h4>
             <div class="code-example">
                 <div class="code-blocks">
                     <pre class="code-block active" data-lang="json"><code>{
-  "success": false,
-  "message": "Validation failed",
-  "data": {
-    "errors": [
-      { "field": "receiver.name", "message": "Receiver name is required" }
-    ]
-  },
-  "timestamp": "2025-01-15T10:30:00.000Z"
+    "success": false,
+    "message": "Validation failed for some orders",
+    "data": {
+        "summary": { "total": 1, "valid": 0, "invalid": 1 },
+        "validationErrors": [{
+            "orderIndex": 0,
+            "orderNumber": "POD-2025-001",
+            "errors": [{
+                "field": "tracking.trackingNumber",
+                "message": "trackingNumber is required for SBTT (Ship by TikTok)",
+                "type": "any.required"
+            }]
+        }]
+    },
+    "timestamp": "2025-01-15T10:30:00.000Z"
 }</code></pre>
                 </div>
             </div>
-
-            <h4>HTTP Status Codes</h4>
-            <table class="param-table">
-                <thead><tr><th>Code</th><th>Description</th></tr></thead>
-                <tbody>
-                    <tr><td><strong>200</strong></td><td>Success</td></tr>
-                    <tr><td><strong>201</strong></td><td>Created successfully</td></tr>
-                    <tr><td><strong>400</strong></td><td>Bad Request - Invalid or missing parameters</td></tr>
-                    <tr><td><strong>401</strong></td><td>Unauthorized - Invalid or expired token</td></tr>
-                    <tr><td><strong>403</strong></td><td>Forbidden - Insufficient permissions</td></tr>
-                    <tr><td><strong>404</strong></td><td>Not Found - Resource does not exist</td></tr>
-                    <tr><td><strong>409</strong></td><td>Conflict - Duplicate resource (e.g. customer code)</td></tr>
-                    <tr><td><strong>429</strong></td><td>Too Many Requests - Rate limit exceeded</td></tr>
-                    <tr><td><strong>500</strong></td><td>Internal Server Error</td></tr>
-                </tbody>
-            </table>
 
             <div class="alert alert-warning">
                 <strong>Rate Limits:</strong> Each customer has hourly and daily rate limits. When exceeded, you'll receive a 429 response with a <code class="inline">Retry-After</code> header.
@@ -706,6 +1087,6 @@ function verifyWebhook(payload, signature, secret) {
     </main>
 </div>
 
-<script src="/js/api-docs.js?2000"></script>
+<script src="/js/api-docs.js?3000"></script>
 </body>
 </html>

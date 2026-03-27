@@ -3,6 +3,14 @@ const OrderModel = require('../../models/order.model');
 const webhookService = require('./webhook.service');
 const logger = require('../../utils/logger');
 
+const EXPRESS_WH_CODE_TO_NAME = {
+    'CNEXP': 'CN-THG-EXP',
+    'CNFFM': 'CN-THG-FFM',
+    'USDRO': 'US-THG-DROP',
+    'VNHCM': 'VN-HCM-THG',
+    'VNHN': 'VN-HN-THG'
+};
+
 class ApiOrderService {
     
     async createBulkOrders(orders, apiCustomer) {
@@ -235,6 +243,11 @@ class ApiOrderService {
             EORINumber
         } = params;
 
+        // Sandbox: override customer code to 'fortest'
+        const isSandbox = apiCustomer.environment === 'sandbox';
+        const effectiveCustomerCode = isSandbox ? 'fortest' : (orderData.customerCode || apiCustomer.customer_code);
+        const effectiveCustomerName = isSandbox ? 'fortest' : (orderData.customerName || apiCustomer.customer_name);
+
         const productENName = declaration.nameEn || '';
         const productCNName = declaration.nameCN || '';
         const quantity = declaration.quantity || 1;
@@ -248,8 +261,8 @@ class ApiOrderService {
         return {
             index: index,
             ioDate: orderData.ioDate,
-            customerCode: orderData.customerCode || apiCustomer.customer_code,
-            customerName: orderData.customerName || apiCustomer.customer_name,
+            customerCode: effectiveCustomerCode,
+            customerName: effectiveCustomerName,
             warehouseCode: orderData.warehouseCode || '',
             employeeCode: orderData.employeeCode || '',
 
@@ -307,10 +320,12 @@ class ApiOrderService {
             reference_code: order.order_number,
             order_number: order.customer_order_number,
             code_thg: order.erp_order_code,
-
+            order_type: 'express',
             status: order.status,
-            product_code: order.product_code,
-
+            tracking_number: order.tracking_number || null,
+            service_code: order.product_code || null,
+            warehouse_code: order.warehouse_code || null,
+            warehouse_name: EXPRESS_WH_CODE_TO_NAME[order.warehouse_code] || null,
             receiver: {
                 name: order.receiver_name,
                 phone: order.receiver_phone,
@@ -322,7 +337,6 @@ class ApiOrderService {
                 addressLine1: order.receiver_address_line1,
                 addressLine2: order.receiver_address_line2,
             },
-
             created_at: order.created_at,
             updated_at: order.updated_at
         };

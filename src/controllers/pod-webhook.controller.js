@@ -186,6 +186,18 @@ class PodWebhookController {
             }
         }
 
+        // ── 5. Dispatch customer webhook ──
+        const updatedOrder = await OrderModel.findById(order.id);
+        if (statusChanged) {
+            await this.dispatchCustomerWebhook(updatedOrder, 'order.status');
+        }
+        if (trackingChanged) {
+            await this.dispatchCustomerWebhook(updatedOrder, 'tracking.updated', {
+                tracking_number: trackingNumber,
+                label_url: labelUrl || null
+            });
+        }
+
         logger.info(`[POD Webhook] Order ${order.id} processed`, { actions });
 
         return { orderId: order.id, processingResult: 'success', actions };
@@ -367,9 +379,56 @@ class PodWebhookController {
             }
         }
 
+        // ── 5. Dispatch customer webhook ──
+        const updatedPrintpossOrder = await OrderModel.findById(order.id);
+        if (statusChanged) {
+            await this.dispatchCustomerWebhook(updatedPrintpossOrder, 'order.status');
+        }
+        if (trackingChanged) {
+            await this.dispatchCustomerWebhook(updatedPrintpossOrder, 'tracking.updated', {
+                tracking_number: trackingNumber,
+                label_url: labelUrl || null
+            });
+        }
+
         logger.info(`[POD Webhook] PrintPoss order ${order.id} processed`, { actions });
 
         return { orderId: order.id, processingResult: 'success', actions };
+    }
+
+    /**
+     * Dispatch customer webhook if the order belongs to an API customer
+     */
+    async dispatchCustomerWebhook(order, event, extraPayload = {}) {
+        try {
+            if (!order.partner_id) return;
+
+            const ApiCustomerModel = require('../models/api-customer.model');
+            const webhookService = require('../services/api/webhook.service');
+
+            const WH_CODE_TO_NAME = { '001': 'US-POD09', '002': 'VN-POD08', '004': 'US-POD13' };
+
+            const customer = await ApiCustomerModel.findByCode(order.partner_id);
+            if (!customer || !customer.webhook_enabled) return;
+
+            const payload = {
+                reference_code: order.order_number,
+                order_number: order.customer_order_number,
+                code_thg: order.erp_order_code,
+                order_type: 'pod',
+                status: order.pod_status || order.status,
+                tracking_number: order.tracking_number || null,
+                service_code: order.pod_shipping_method || null,
+                warehouse_code: order.product_code || null,
+                warehouse_name: WH_CODE_TO_NAME[order.product_code] || null,
+                ...extraPayload
+            };
+
+            await webhookService.dispatch(event, customer.id, order.id, payload);
+            logger.info(`[POD Webhook] Dispatched customer webhook '${event}' for order ${order.id}`);
+        } catch (error) {
+            logger.error(`[POD Webhook] Failed to dispatch customer webhook for order ${order.id}:`, error.message);
+        }
     }
 
     mapPodStatusToEcountStatus(podStatus) {

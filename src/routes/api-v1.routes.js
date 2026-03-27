@@ -82,26 +82,37 @@ router.get('/warehouses', apiAuthMiddleware, (req, res) => {
     res.json({
         success: true,
         data: [
-            {
-                'code': 'CNEXP',
-                'name': 'CN-THG-EXP',
-            },
-            {
-                'code': 'CNFFM',
-                'name': 'CN-THG-FFM',
-            },
-            {
-                'code': 'USDRO',
-                'name': 'US-THG-DROP',
-            },
-            {
-                'code': 'VNHCM',
-                'name': 'VN-HCM-THG',
-            },
-            {
-                'code': 'VNHN',
-                'name': 'VN-HN-THG',
-            }
+            { code: 'CNEXP', name: 'CN-THG-EXP' },
+            { code: 'CNFFM', name: 'CN-THG-FFM' },
+            { code: 'USDRO', name: 'US-THG-DROP' },
+            { code: 'VNHCM', name: 'VN-HCM-THG' },
+            { code: 'VNHN', name: 'VN-HN-THG' },
+        ],
+        timestamp: new Date().toISOString(),
+    });
+});
+
+router.get('/pod/warehouses', apiAuthMiddleware, (req, res) => {
+    res.json({
+        success: true,
+        data: [
+            { code: '001', name: 'US-POD09' },
+            { code: '002', name: 'VN-POD08' },
+            { code: '004', name: 'US-POD13' },
+        ],
+        timestamp: new Date().toISOString(),
+    });
+});
+
+router.get('/pod/shipping-methods', apiAuthMiddleware, (req, res) => {
+    res.json({
+        success: true,
+        data: [
+            { code: 'SBSL', name: 'Ship by Seller' },
+            { code: 'SBTT', name: 'Ship by TikTok', note: 'Requires trackingNumber and linkPrint in tracking object' },
+            { code: 'COD', name: 'Cash on Delivery' },
+            { code: 'VNTHZXR', name: 'VN Express Shipping' },
+            { code: 'WEB', name: 'Web Order' },
         ],
         timestamp: new Date().toISOString(),
     });
