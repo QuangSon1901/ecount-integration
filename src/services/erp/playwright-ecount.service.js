@@ -299,9 +299,9 @@ class PlaywrightECountService {
      */
     async getBrowserWithSession(ecountLink) {
         const session = await sessionManager.getSession();
-        
+
         const browser = await chromium.launch(this.playwrightConfig.launchOptions);
-        
+
         try {
             const context = await browser.newContext(this.playwrightConfig.contextOptions);
             const page = await context.newPage();
@@ -310,7 +310,8 @@ class PlaywrightECountService {
             page.setDefaultTimeout(this.playwrightConfig.timeout);
 
             if (session) {
-                logger.info('Đang sử dụng session có sẵn', {
+                logger.info('[EXPRESS] Đang sử dụng session có sẵn', {
+                    account: 'ecount:main',
                     ttl: sessionManager.getSessionTTL() + 's',
                     cookiesCount: session.cookies.length
                 });
@@ -338,7 +339,7 @@ class PlaywrightECountService {
                 });
 
                 await context.addCookies(cookiesToSet);
-                logger.info('Cookies set successfully');
+                logger.info('[EXPRESS] Cookies set successfully');
 
                 await page.goto(sessionUrl, {
                     waitUntil: 'domcontentloaded',
@@ -349,27 +350,37 @@ class PlaywrightECountService {
 
                 const currentUrl = page.url();
                 if (!currentUrl.includes('ec_req_sid')) {
-                    logger.warn('Session không còn hợp lệ, cần login lại');
+                    logger.warn('[EXPRESS] Session không còn hợp lệ (có thể bị kick bởi POD login), cần login lại');
                     await sessionManager.clearSession();
                     throw new Error('SESSION_EXPIRED');
                 }
 
-                logger.info('Đã sử dụng session thành công');
+                logger.info('[EXPRESS] Đã sử dụng session thành công');
 
             } else {
-                logger.info('Không có session, đang login...');
-                await this.login(page);
+                logger.info('[EXPRESS] Không có session, đang login...');
 
-                const cookies = await context.cookies();
-                const currentUrl = page.url();
-                const urlObj = new URL(currentUrl);
-                const urlParams = {
-                    w_flag: urlObj.searchParams.get('w_flag'),
-                    ec_req_sid: urlObj.searchParams.get('ec_req_sid')
-                };
+                // Acquire login lock để tránh Express + POD login đồng thời
+                if (!sessionManager.acquireLoginLock()) {
+                    throw new Error('SESSION_LOGIN_LOCKED');
+                }
 
-                await sessionManager.saveSession(cookies, urlParams, 30);
-                await this.navigateToOrderManagement(page, ecountLink);
+                try {
+                    await this.login(page);
+
+                    const cookies = await context.cookies();
+                    const currentUrl = page.url();
+                    const urlObj = new URL(currentUrl);
+                    const urlParams = {
+                        w_flag: urlObj.searchParams.get('w_flag'),
+                        ec_req_sid: urlObj.searchParams.get('ec_req_sid')
+                    };
+
+                    await sessionManager.saveSession(cookies, urlParams, 30);
+                    await this.navigateToOrderManagement(page, ecountLink);
+                } finally {
+                    sessionManager.releaseLoginLock();
+                }
             }
 
             return { browser, context, page };

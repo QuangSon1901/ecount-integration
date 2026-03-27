@@ -275,35 +275,43 @@ class ECountService {
                 logger.info('Current URL after navigation: ' + currentUrl);
 
                 if (!currentUrl.includes('ec_req_sid')) {
-                    logger.warn('Session không còn hợp lệ, cần login lại');
+                    logger.warn('[EXPRESS] Session không còn hợp lệ (có thể bị kick bởi POD login), cần login lại');
                     await sessionManager.clearSession();
                     throw new Error('SESSION_EXPIRED');
                 }
 
-                logger.info('Đã sử dụng session thành công');
+                logger.info('[EXPRESS] Đã sử dụng session thành công');
 
             } else {
-                logger.info('Không có session, đang login...');
+                logger.info('[EXPRESS] Không có session, đang login...');
 
-                await this.login(page);
+                if (!sessionManager.acquireLoginLock()) {
+                    throw new Error('SESSION_LOGIN_LOCKED');
+                }
 
-                // Lưu session mới
-                const cookies = await page.cookies();
-                const currentUrl = page.url();
-                const urlObj = new URL(currentUrl);
-                const urlParams = {
-                    w_flag: urlObj.searchParams.get('w_flag'),
-                    ec_req_sid: urlObj.searchParams.get('ec_req_sid')
-                };
+                try {
+                    await this.login(page);
 
-                logger.info('Lưu session mới...', {
-                    w_flag: urlParams.w_flag,
-                    ec_req_sid: urlParams.ec_req_sid?.substring(0, 10) + '...',
-                    cookiesCount: cookies.length
-                });
+                    // Lưu session mới
+                    const cookies = await page.cookies();
+                    const currentUrl = page.url();
+                    const urlObj = new URL(currentUrl);
+                    const urlParams = {
+                        w_flag: urlObj.searchParams.get('w_flag'),
+                        ec_req_sid: urlObj.searchParams.get('ec_req_sid')
+                    };
 
-                await sessionManager.saveSession(cookies, urlParams, 30);
-                await this.navigateToOrderManagement(page, ecountLink);
+                    logger.info('[EXPRESS] Lưu session mới...', {
+                        w_flag: urlParams.w_flag,
+                        ec_req_sid: urlParams.ec_req_sid?.substring(0, 10) + '...',
+                        cookiesCount: cookies.length
+                    });
+
+                    await sessionManager.saveSession(cookies, urlParams, 30);
+                    await this.navigateToOrderManagement(page, ecountLink);
+                } finally {
+                    sessionManager.releaseLoginLock();
+                }
             }
 
             return { browser, page };

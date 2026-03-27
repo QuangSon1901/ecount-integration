@@ -103,6 +103,7 @@ class ApiOrderController {
                 const latestOrder = await OrderModel.findLatestByErpOrderCode(order.erp_order_code);
                 if (latestOrder && latestOrder.partner_id === req.auth.customer_code) {
                     order = latestOrder;
+                    order.order_number = referenceCode; // Preserve original reference code in response
                 }
             }
 

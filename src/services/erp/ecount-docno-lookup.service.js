@@ -1,13 +1,27 @@
 // src/services/erp/ecount-docno-lookup.service.js
 const { chromium } = require('playwright');
 const sessionManager = require('./ecount-session.manager');
+const { podSessionManager } = require('./ecount-session.manager');
 const logger = require('../../utils/logger');
 const config = require('../../config');
 
 class ECountDocNoLookupService {
-    constructor() {
+    /**
+     * @param {'express'|'pod'} accountType
+     */
+    constructor(accountType = 'express') {
+        this.accountType = accountType;
         this.playwrightConfig = config.playwright;
-        this.ecountConfig = config.ecount;
+
+        if (accountType === 'pod') {
+            this.ecountConfig = config.ecount_pod;
+            this.sessionManager = podSessionManager;
+            this.logPrefix = '[POD]';
+        } else {
+            this.ecountConfig = config.ecount;
+            this.sessionManager = sessionManager;
+            this.logPrefix = '[EXPRESS]';
+        }
     }
 
     /**
@@ -23,12 +37,12 @@ class ECountDocNoLookupService {
         let browser, context, page;
 
         try {
-            logger.info('Starting DOC_NO lookup', { slipNos });
+            logger.info(`${this.logPrefix} Starting DOC_NO lookup`, { slipNos, account: this.accountType });
 
             // Parse date từ SlipNo đầu tiên
             const firstSlipNo = slipNos[0];
             const dateMatch = firstSlipNo.match(/^(\d{4})(\d{2})(\d{2})-/);
-            
+
             if (!dateMatch) {
                 throw new Error(`Invalid SlipNo format: ${firstSlipNo}`);
             }
@@ -42,7 +56,7 @@ class ECountDocNoLookupService {
             context = result.context;
             page = result.page;
 
-            logger.info('Browser ready, searching for orders', { searchDate });
+            logger.info(`${this.logPrefix} Browser ready, searching for orders`, { searchDate });
 
             await this.executeSearch(page);
             // Mở form search
@@ -54,16 +68,17 @@ class ECountDocNoLookupService {
             // Lấy mapping SlipNo -> DOC_NO
             const mapping = await this.extractDocNoMapping(page, slipNos, searchDate);
 
-            logger.info('DOC_NO lookup completed', { 
+            logger.info(`${this.logPrefix} DOC_NO lookup completed`, {
                 found: Object.keys(mapping).length,
                 total: slipNos.length,
-                mapping 
+                mapping,
+                account: this.accountType
             });
 
             return mapping;
 
         } catch (error) {
-            logger.error('Failed to lookup DOC_NO:', error);
+            logger.error(`${this.logPrefix} Failed to lookup DOC_NO:`, error);
             throw error;
         } finally {
             if (browser) {
@@ -76,9 +91,9 @@ class ECountDocNoLookupService {
      * Get browser với session
      */
     async getBrowserWithSession() {
-        const session = await sessionManager.getSession();
+        const session = await this.sessionManager.getSession();
         const browser = await chromium.launch(this.playwrightConfig.launchOptions);
-        
+
         try {
             const context = await browser.newContext(this.playwrightConfig.contextOptions);
             const page = await context.newPage();
@@ -89,7 +104,7 @@ class ECountDocNoLookupService {
             const ecountLink = this.ecountConfig.hashLink;
 
             if (session) {
-                logger.debug('Using existing session');
+                logger.debug(`${this.logPrefix} Using existing session`);
 
                 const urlParams = session.url_params;
                 const baseUrl = this.ecountConfig.baseUrl.replace('login.ecount.com', 'loginia.ecount.com');
@@ -119,39 +134,48 @@ class ECountDocNoLookupService {
 
                 const currentUrl = page.url();
                 if (!currentUrl.includes('ec_req_sid')) {
-                    logger.warn('Session expired, need re-login');
-                    await sessionManager.clearSession();
+                    logger.warn(`${this.logPrefix} Session expired, need re-login`);
+                    await this.sessionManager.clearSession();
                     throw new Error('SESSION_EXPIRED');
                 }
 
             } else {
-                logger.info('No session found, logging in...');
-                
-                await this.login(page);
+                logger.info(`${this.logPrefix} No session found, logging in...`);
 
-                const cookies = await context.cookies();
-                const currentUrl = page.url();
-                const urlObj = new URL(currentUrl);
-                const urlParams = {
-                    w_flag: urlObj.searchParams.get('w_flag'),
-                    ec_req_sid: urlObj.searchParams.get('ec_req_sid')
-                };
+                // Acquire login lock
+                if (!this.sessionManager.acquireLoginLock()) {
+                    throw new Error('SESSION_LOGIN_LOCKED');
+                }
 
-                await sessionManager.saveSession(cookies, urlParams, 30);
+                try {
+                    await this.login(page);
 
-                const baseUrl = this.ecountConfig.baseUrl.replace('login.ecount.com', 'loginia.ecount.com');
-                const targetUrl = `${baseUrl}/ec5/view/erp?w_flag=${urlParams.w_flag}&ec_req_sid=${urlParams.ec_req_sid}${ecountLink}`;
+                    const cookies = await context.cookies();
+                    const currentUrl = page.url();
+                    const urlObj = new URL(currentUrl);
+                    const urlParams = {
+                        w_flag: urlObj.searchParams.get('w_flag'),
+                        ec_req_sid: urlObj.searchParams.get('ec_req_sid')
+                    };
 
-                if (!currentUrl.includes(ecountLink)) {
-                    await page.goto(targetUrl, {
-                        waitUntil: 'domcontentloaded',
-                        timeout: this.playwrightConfig.timeout
-                    });
+                    await this.sessionManager.saveSession(cookies, urlParams, 30);
 
-                    await page.waitForFunction(() => {
-                        const frames = window.frames;
-                        return document.readyState === 'complete' && frames.length > 0;
-                    }, null, { timeout: this.playwrightConfig.timeout });
+                    const baseUrl = this.ecountConfig.baseUrl.replace('login.ecount.com', 'loginia.ecount.com');
+                    const targetUrl = `${baseUrl}/ec5/view/erp?w_flag=${urlParams.w_flag}&ec_req_sid=${urlParams.ec_req_sid}${ecountLink}`;
+
+                    if (!currentUrl.includes(ecountLink)) {
+                        await page.goto(targetUrl, {
+                            waitUntil: 'domcontentloaded',
+                            timeout: this.playwrightConfig.timeout
+                        });
+
+                        await page.waitForFunction(() => {
+                            const frames = window.frames;
+                            return document.readyState === 'complete' && frames.length > 0;
+                        }, null, { timeout: this.playwrightConfig.timeout });
+                    }
+                } finally {
+                    this.sessionManager.releaseLoginLock();
                 }
             }
 
@@ -167,13 +191,13 @@ class ECountDocNoLookupService {
      * Login ECount
      */
     async login(page) {
-        logger.info('Logging in to ECount...');
+        logger.info(`${this.logPrefix} Logging in to ECount...`);
 
         await page.goto(
             `${this.ecountConfig.baseUrl}/?xurl_rd=Y&login_lantype=&lan_type=vi-VN`,
-            { 
+            {
                 waitUntil: 'networkidle',
-                timeout: this.playwrightConfig.timeout 
+                timeout: this.playwrightConfig.timeout
             }
         );
 
@@ -184,20 +208,20 @@ class ECountDocNoLookupService {
             await page.fill('#passwd', this.ecountConfig.password);
 
             await Promise.all([
-                page.waitForNavigation({ 
+                page.waitForNavigation({
                     waitUntil: 'networkidle',
-                    timeout: this.playwrightConfig.timeout 
+                    timeout: this.playwrightConfig.timeout
                 }),
                 page.click('button#save')
             ]);
 
             // Đóng popup nếu có
             try {
-                const hasPopup = await page.waitForSelector('#toolbar_sid_toolbar_item_non_regist', { 
+                const hasPopup = await page.waitForSelector('#toolbar_sid_toolbar_item_non_regist', {
                     state: 'visible',
-                    timeout: 3000 
+                    timeout: 3000
                 }).catch(() => null);
-                
+
                 if (hasPopup) {
                     await page.click('#toolbar_sid_toolbar_item_non_regist');
                     await page.waitForTimeout(1000);
@@ -212,7 +236,7 @@ class ECountDocNoLookupService {
      * Mở form search
      */
     async openSearchForm(page) {
-        logger.info('Mở form search...');
+        logger.info(`${this.logPrefix} Mở form search...`);
         await page.waitForTimeout(2000);
         const frame = await this.findFrameWithSelector(page, '#search');
 
@@ -239,7 +263,7 @@ class ECountDocNoLookupService {
         });
 
         await frame2.click('button[data-id="1"]');
-        logger.info('Form search đã mở');
+        logger.info(`${this.logPrefix} Form search đã mở`);
         await page.waitForTimeout(3000);
     }
 
@@ -247,7 +271,7 @@ class ECountDocNoLookupService {
      * Execute search
      */
     async executeSearch(page) {
-        logger.info('Thực hiện search...');
+        logger.info(`${this.logPrefix} Thực hiện search...`);
 
         // Chờ loading biến mất và có kết quả
         const frame = await this.findFrameWithSelector(page, '#app-root .wrapper-frame-body .contents tbody tr');
@@ -258,7 +282,7 @@ class ECountDocNoLookupService {
                 if (loading && window.getComputedStyle(loading).display !== 'none') {
                     return false;
                 }
-                
+
                 const firstRow = document.querySelector('#app-root .wrapper-frame-body .contents tbody tr');
                 return firstRow !== null;
             },
@@ -266,7 +290,7 @@ class ECountDocNoLookupService {
             { timeout: this.playwrightConfig.timeout }
         );
 
-        logger.info('Search hoàn tất, có kết quả');
+        logger.info(`${this.logPrefix} Search hoàn tất, có kết quả`);
     }
 
     /**
@@ -279,7 +303,7 @@ class ECountDocNoLookupService {
         const slipNoPatterns = slipNos.map(slipNo => {
             const match = slipNo.match(/^(\d{4})(\d{2})(\d{2})-(\d+)$/);
             if (!match) return null;
-            
+
             const [, year, month, day, id] = match;
             return {
                 original: slipNo,
@@ -289,11 +313,11 @@ class ECountDocNoLookupService {
             };
         }).filter(p => p !== null);
 
-        logger.debug('SlipNo patterns:', slipNoPatterns);
+        logger.debug(`${this.logPrefix} SlipNo patterns:`, slipNoPatterns);
 
         const mapping = await frame.evaluate(({ patterns }) => {
             const headers = Array.from(document.querySelectorAll('#app-root .wrapper-frame-body .contents thead th'));
-            
+
             // Map vị trí các cột
             const columnMap = {
                 date: headers.findIndex(th => th.textContent.trim().normalize('NFC') === 'Date'),
@@ -309,7 +333,7 @@ class ECountDocNoLookupService {
 
             rows.forEach(row => {
                 const cells = row.querySelectorAll('td');
-                
+
                 // Lấy giá trị Date và Code-THG
                 const dateCell = cells[columnMap.date]?.textContent || '';
                 const codeThg = cells[columnMap.codeThg]?.textContent.trim() || '';
@@ -322,7 +346,7 @@ class ECountDocNoLookupService {
                 // So sánh với các pattern
                 patterns.forEach(pattern => {
                     const normalizedPattern = pattern.pattern.replace(/\s+/g, '');
-                    
+
                     if (normalizedDate === normalizedPattern) {
                         result[pattern.original] = codeThg;
                     }
@@ -359,8 +383,14 @@ class ECountDocNoLookupService {
             await page.waitForTimeout(100);
         }
 
-        throw new Error(`Frame with selector not found: ${selector}`);
+        throw new Error(`${this.logPrefix} Frame with selector not found: ${selector}`);
     }
 }
 
-module.exports = new ECountDocNoLookupService();
+// Export 2 instances cho Express và POD
+const expressDocNoLookup = new ECountDocNoLookupService('express');
+const podDocNoLookup = new ECountDocNoLookupService('pod');
+
+module.exports = expressDocNoLookup;
+module.exports.podDocNoLookup = podDocNoLookup;
+module.exports.ECountDocNoLookupService = ECountDocNoLookupService;

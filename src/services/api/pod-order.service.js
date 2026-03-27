@@ -138,6 +138,7 @@ class ApiPodOrderService {
                         receiverAddress1: receiver.addressLine1 || null,
                         receiverAddress2: receiver.addressLine2 || null,
                         trackingNumber: tracking.trackingNumber || null,
+                        labelUrl: tracking.linkPrint || null,
                         itemsCount: order.items?.length || 0,
                         declarationItems: order.items || [],
                         status: 'pod_pending',
@@ -205,7 +206,8 @@ class ApiPodOrderService {
                     await jobService.addLookupDocNoJob(
                         ordersForLookup.map(o => o.slipNo),
                         ordersForLookup.map(o => o.orderId),
-                        30
+                        30,
+                        'pod'  // Dùng Ecount POD account
                     );
                 } catch (jobError) {
                     logger.error('[POD API] Failed to add lookup DOC_NO job:', jobError);
@@ -238,6 +240,8 @@ class ApiPodOrderService {
             order_type: 'pod',
             status: order.pod_status || order.status,
             tracking_number: order.tracking_number || null,
+            waybill_number: order.waybill_number || null,
+            label_url: this._resolveLabelUrl(order),
             service_code: order.pod_shipping_method || null,
             warehouse_code: order.product_code || null,
             warehouse_name: WH_CODE_TO_NAME[order.product_code] || null,
@@ -255,6 +259,20 @@ class ApiPodOrderService {
             created_at: order.created_at,
             updated_at: order.updated_at
         };
+    }
+
+    /**
+     * Resolve label URL: ưu tiên short link qua access key, fallback label_url gốc
+     */
+    _resolveLabelUrl(order) {
+        if (!order.label_url) return null;
+
+        if (order.label_access_key && process.env.SHORT_LINK_LABEL === 'true') {
+            const baseUrl = process.env.BASE_URL || '';
+            return `${baseUrl}/api/labels/${order.label_access_key}`;
+        }
+
+        return order.label_url;
     }
 
     generateOrderNumber() {

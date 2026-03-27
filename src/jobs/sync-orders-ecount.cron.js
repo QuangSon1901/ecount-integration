@@ -252,7 +252,7 @@ class SyncOrdersECountCron {
             const ecountLink = this.ecountConfig.hashLink;
 
             if (session) {
-                logger.info('Sử dụng session có sẵn');
+                logger.info('[EXPRESS] Sử dụng session có sẵn');
 
                 const urlParams = session.url_params;
                 const baseUrl = this.ecountConfig.baseUrl.replace('login.ecount.com', 'loginia.ecount.com');
@@ -282,47 +282,56 @@ class SyncOrdersECountCron {
 
                 const currentUrl = page.url();
                 if (!currentUrl.includes('ec_req_sid')) {
-                    logger.warn('Session expired');
+                    logger.warn('[EXPRESS] Session expired (có thể bị kick bởi POD login)');
                     await sessionManager.clearSession();
                     throw new Error('SESSION_EXPIRED');
                 }
 
-                logger.info('Đã sử dụng session thành công');
+                logger.info('[EXPRESS] Đã sử dụng session thành công');
 
             } else {
-                logger.info('Không có session, đang login...');
-                
-                await this.login(page);
+                logger.info('[EXPRESS] Không có session, đang login...');
 
-                const cookies = await context.cookies();
-                const currentUrl = page.url();
-                const urlObj = new URL(currentUrl);
-                const urlParams = {
-                    w_flag: urlObj.searchParams.get('w_flag'),
-                    ec_req_sid: urlObj.searchParams.get('ec_req_sid')
-                };
-
-                logger.info('Lưu session mới...');
-                await sessionManager.saveSession(cookies, urlParams, 30);
-
-                const baseUrl = this.ecountConfig.baseUrl.replace('login.ecount.com', 'loginia.ecount.com');
-                const targetUrl = `${baseUrl}/ec5/view/erp?w_flag=${urlParams.w_flag}&ec_req_sid=${urlParams.ec_req_sid}${ecountLink}`;
-                
-                logger.info('Navigate đến order management');
-
-                if (!currentUrl.includes(ecountLink)) {
-                    await page.goto(targetUrl, {
-                        waitUntil: 'domcontentloaded',
-                        timeout: this.playwrightConfig.timeout
-                    });
-
-                    await page.waitForFunction(() => {
-                        const frames = window.frames;
-                        return document.readyState === 'complete' && frames.length > 0;
-                    }, null, { timeout: this.playwrightConfig.timeout });
+                // Acquire login lock để tránh Express + POD login đồng thời
+                if (!sessionManager.acquireLoginLock()) {
+                    throw new Error('SESSION_LOGIN_LOCKED');
                 }
 
-                logger.info('Đã login và navigate thành công');
+                try {
+                    await this.login(page);
+
+                    const cookies = await context.cookies();
+                    const currentUrl = page.url();
+                    const urlObj = new URL(currentUrl);
+                    const urlParams = {
+                        w_flag: urlObj.searchParams.get('w_flag'),
+                        ec_req_sid: urlObj.searchParams.get('ec_req_sid')
+                    };
+
+                    logger.info('[EXPRESS] Lưu session mới...');
+                    await sessionManager.saveSession(cookies, urlParams, 30);
+
+                    const baseUrl = this.ecountConfig.baseUrl.replace('login.ecount.com', 'loginia.ecount.com');
+                    const targetUrl = `${baseUrl}/ec5/view/erp?w_flag=${urlParams.w_flag}&ec_req_sid=${urlParams.ec_req_sid}${ecountLink}`;
+
+                    logger.info('[EXPRESS] Navigate đến order management');
+
+                    if (!currentUrl.includes(ecountLink)) {
+                        await page.goto(targetUrl, {
+                            waitUntil: 'domcontentloaded',
+                            timeout: this.playwrightConfig.timeout
+                        });
+
+                        await page.waitForFunction(() => {
+                            const frames = window.frames;
+                            return document.readyState === 'complete' && frames.length > 0;
+                        }, null, { timeout: this.playwrightConfig.timeout });
+                    }
+
+                    logger.info('[EXPRESS] Đã login và navigate thành công');
+                } finally {
+                    sessionManager.releaseLoginLock();
+                }
             }
 
             return { browser, context, page };

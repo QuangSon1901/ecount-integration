@@ -323,6 +323,8 @@ class ApiOrderService {
             order_type: 'express',
             status: order.status,
             tracking_number: order.tracking_number || null,
+            waybill_number: order.waybill_number || null,
+            label_url: this._resolveLabelUrl(order),
             service_code: order.product_code || null,
             warehouse_code: order.warehouse_code || null,
             warehouse_name: EXPRESS_WH_CODE_TO_NAME[order.warehouse_code] || null,
@@ -340,6 +342,20 @@ class ApiOrderService {
             created_at: order.created_at,
             updated_at: order.updated_at
         };
+    }
+
+    /**
+     * Resolve label URL: ưu tiên short link qua access key, fallback label_url gốc
+     */
+    _resolveLabelUrl(order) {
+        if (!order.label_url) return null;
+
+        if (order.label_access_key && process.env.SHORT_LINK_LABEL === 'true') {
+            const baseUrl = process.env.BASE_URL || '';
+            return `${baseUrl}/api/labels/${order.label_access_key}`;
+        }
+
+        return order.label_url;
     }
 
     /**

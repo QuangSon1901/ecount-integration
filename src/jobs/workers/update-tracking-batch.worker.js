@@ -367,16 +367,22 @@ class UpdateTrackingBatchWorker extends BaseWorker {
 
                 const currentUrl = page.url();
                 if (!currentUrl.includes('ec_req_sid')) {
-                    logger.warn('Session expired');
+                    logger.warn('[EXPRESS] Session expired (có thể bị kick bởi POD login)');
                     await sessionManager.clearSession();
                     throw new Error('SESSION_EXPIRED');
                 }
 
-                logger.info('Đã sử dụng session thành công');
+                logger.info('[EXPRESS] Đã sử dụng session thành công');
 
             } else {
-                logger.info('Không có session, đang login...');
-                
+                logger.info('[EXPRESS] Không có session, đang login...');
+
+                // Acquire login lock để tránh Express + POD login đồng thời
+                if (!sessionManager.acquireLoginLock()) {
+                    throw new Error('SESSION_LOGIN_LOCKED');
+                }
+
+                try {
                 // Login
                 await this.login(page);
 
@@ -389,12 +395,12 @@ class UpdateTrackingBatchWorker extends BaseWorker {
                     ec_req_sid: urlObj.searchParams.get('ec_req_sid')
                 };
 
-                logger.info('Lưu session mới...', {
+                logger.info('[EXPRESS] Lưu session mới...', {
                     w_flag: urlParams.w_flag,
                     ec_req_sid: urlParams.ec_req_sid?.substring(0, 10) + '...'
                 });
 
-                // Lưu session
+                // Lưu session (sẽ cross-invalidate POD session)
                 await sessionManager.saveSession(cookies, urlParams, 30);
 
                 // Navigate đến order management với ecountLink CỤ THỂ
@@ -417,7 +423,10 @@ class UpdateTrackingBatchWorker extends BaseWorker {
                     }, null, { timeout: this.playwrightConfig.timeout });
                 }
 
-                logger.info('Đã login và navigate thành công');
+                logger.info('[EXPRESS] Đã login và navigate thành công');
+                } finally {
+                    sessionManager.releaseLoginLock();
+                }
             }
 
             return { browser, context, page };

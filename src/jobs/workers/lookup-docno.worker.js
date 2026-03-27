@@ -1,7 +1,8 @@
 // src/jobs/workers/lookup-docno.worker.js
 const BaseWorker = require('./base.worker');
 const OrderModel = require('../../models/order.model');
-const docNoLookupService = require('../../services/erp/ecount-docno-lookup.service');
+const expressDocNoLookup = require('../../services/erp/ecount-docno-lookup.service');
+const { podDocNoLookup } = require('../../services/erp/ecount-docno-lookup.service');
 const logger = require('../../utils/logger');
 
 class LookupDocNoWorker extends BaseWorker {
@@ -13,21 +14,26 @@ class LookupDocNoWorker extends BaseWorker {
     }
 
     async processJob(job) {
-        const { slipNos, orderIds } = job.payload;
+        const { slipNos, orderIds, accountType } = job.payload;
 
-        logger.info(`Looking up DOC_NO for ${slipNos.length} orders`, {
+        // Chọn đúng service theo accountType
+        const docNoLookupService = accountType === 'pod' ? podDocNoLookup : expressDocNoLookup;
+        const logPrefix = accountType === 'pod' ? '[POD]' : '[EXPRESS]';
+
+        logger.info(`${logPrefix} Looking up DOC_NO for ${slipNos.length} orders`, {
             slipNos,
-            orderIds
+            orderIds,
+            accountType: accountType || 'express'
         });
 
         try {
             // Lookup DOC_NO từ SlipNos
             const mapping = await docNoLookupService.lookupDocNos(slipNos);
 
-            logger.info('DOC_NO lookup completed', { 
+            logger.info(`${logPrefix} DOC_NO lookup completed`, {
                 found: Object.keys(mapping).length,
                 total: slipNos.length,
-                mapping 
+                mapping
             });
 
             // Update từng order với DOC_NO tương ứng
@@ -39,14 +45,14 @@ class LookupDocNoWorker extends BaseWorker {
                     await OrderModel.update(orderId, {
                         erpOrderCode: docNo
                     });
-                    
-                    logger.info(`Updated order ${orderId} with DOC_NO: ${docNo}`, {
+
+                    logger.info(`${logPrefix} Updated order ${orderId} with DOC_NO: ${docNo}`, {
                         orderId,
                         slipNo,
                         docNo
                     });
                 } else {
-                    logger.warn(`No DOC_NO found for order ${orderId}`, {
+                    logger.warn(`${logPrefix} No DOC_NO found for order ${orderId}`, {
                         orderId,
                         slipNo
                     });
@@ -63,15 +69,19 @@ class LookupDocNoWorker extends BaseWorker {
             };
 
         } catch (error) {
-            logger.error('Failed to lookup DOC_NO:', error);
+            logger.error(`${logPrefix} Failed to lookup DOC_NO:`, error);
             throw error;
         }
     }
 
     async onJobMaxAttemptsReached(job, error) {
-        logger.error('DOC_NO lookup failed permanently', {
+        const accountType = job.payload?.accountType || 'express';
+        const logPrefix = accountType === 'pod' ? '[POD]' : '[EXPRESS]';
+
+        logger.error(`${logPrefix} DOC_NO lookup failed permanently`, {
             slipNos: job.payload.slipNos,
             orderIds: job.payload.orderIds,
+            accountType,
             error: error.message
         });
     }

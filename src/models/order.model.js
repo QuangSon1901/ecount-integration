@@ -233,7 +233,7 @@ class OrderModel {
 
         try {
             const [rows] = await connection.query(
-                'SELECT * FROM orders WHERE erp_order_code = ? ORDER BY created_at DESC LIMIT 1',
+                'SELECT * FROM orders WHERE erp_order_code = ? ORDER BY id DESC LIMIT 1',
                 [erpOrderCode]
             );
 

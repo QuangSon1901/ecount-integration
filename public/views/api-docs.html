@@ -115,7 +115,6 @@
         </div>
         <div class="docs-nav-group">
             <div class="docs-nav-group-title">Orders</div>
-            <a class="docs-nav-link" data-section="order-object">Order Object</a>
             <a class="docs-nav-link" data-section="create-express-orders">Create Express Orders</a>
             <a class="docs-nav-link" data-section="create-pod-orders">Create POD Orders</a>
             <a class="docs-nav-link" data-section="get-order">Get Order Details</a>
@@ -295,89 +294,6 @@ $accessToken = $response['data']['access_token'];</code></pre>
         </section>
 
         <!-- ──────────────── ORDER OBJECT ──────────────── -->
-        <section id="order-object" class="docs-section">
-            <h2>Order Object (Unified)</h2>
-            <p>All order endpoints (create, get, webhook) return the same <strong>order object</strong> structure. This makes integration simpler &mdash; you only need to parse one format.</p>
-
-            <table class="param-table">
-                <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
-                <tbody>
-                    <tr><td><code class="inline">reference_code</code></td><td>string</td><td>THG internal reference (e.g. <code class="inline">API1770...</code> or <code class="inline">POD-API1770...</code>)</td></tr>
-                    <tr><td><code class="inline">order_number</code></td><td>string</td><td>Your original order number</td></tr>
-                    <tr><td><code class="inline">code_thg</code></td><td>string | null</td><td>ERP order code (populated after processing)</td></tr>
-                    <tr><td><code class="inline">order_type</code></td><td>string</td><td><code class="inline">express</code> or <code class="inline">pod</code></td></tr>
-                    <tr><td><code class="inline">status</code></td><td>string</td><td>Current order status</td></tr>
-                    <tr><td><code class="inline">tracking_number</code></td><td>string | null</td><td>Tracking number (when available)</td></tr>
-                    <tr><td><code class="inline">service_code</code></td><td>string | null</td><td>Express: service type (e.g. <code class="inline">VNTHZXR</code>). POD: shipping method (e.g. <code class="inline">SBSL</code>)</td></tr>
-                    <tr><td><code class="inline">warehouse_code</code></td><td>string | null</td><td>Express: warehouse (e.g. <code class="inline">CNEXP</code>). POD: warehouse code (e.g. <code class="inline">002</code>)</td></tr>
-                    <tr><td><code class="inline">warehouse_name</code></td><td>string | null</td><td>Human-readable warehouse name</td></tr>
-                    <tr><td><code class="inline">receiver</code></td><td>object</td><td>Receiver details (name, phone, email, countryCode, province, city, zipCode, addressLine1, addressLine2)</td></tr>
-                    <tr><td><code class="inline">created_at</code></td><td>datetime</td><td>Order creation timestamp</td></tr>
-                    <tr><td><code class="inline">updated_at</code></td><td>datetime</td><td>Last update timestamp</td></tr>
-                </tbody>
-            </table>
-
-            <h4>Example: Express Order</h4>
-            <div class="code-example">
-                <div class="code-blocks">
-                    <pre class="code-block active" data-lang="json"><code>{
-    "reference_code": "API17708281859424887",
-    "order_number": "ORD-2025-001",
-    "code_thg": "SO-250115-0001",
-    "order_type": "express",
-    "status": "pending",
-    "tracking_number": null,
-    "service_code": "VN-YTYCPREC",
-    "warehouse_code": "CNEXP",
-    "warehouse_name": "CN-THG-EXP",
-    "receiver": {
-        "name": "John Doe",
-        "phone": "+1234567890",
-        "email": "john@example.com",
-        "countryCode": "US",
-        "province": "California",
-        "city": "Los Angeles",
-        "zipCode": "90001",
-        "addressLine1": "123 Main St",
-        "addressLine2": ""
-    },
-    "created_at": "2025-01-15T10:30:00.000Z",
-    "updated_at": "2025-01-15T10:30:00.000Z"
-}</code></pre>
-                </div>
-            </div>
-
-            <h4>Example: POD Order</h4>
-            <div class="code-example">
-                <div class="code-blocks">
-                    <pre class="code-block active" data-lang="json"><code>{
-    "reference_code": "POD-API17708281859424887",
-    "order_number": "POD-2025-001",
-    "code_thg": null,
-    "order_type": "pod",
-    "status": "pod_pending",
-    "tracking_number": null,
-    "service_code": "SBSL",
-    "warehouse_code": "002",
-    "warehouse_name": "VN-POD08",
-    "receiver": {
-        "name": "John Doe",
-        "phone": "+1234567890",
-        "email": "john@example.com",
-        "countryCode": "US",
-        "province": "California",
-        "city": "Los Angeles",
-        "zipCode": "90001",
-        "addressLine1": "123 Main St",
-        "addressLine2": ""
-    },
-    "created_at": "2025-01-15T10:30:00.000Z",
-    "updated_at": "2025-01-15T10:30:00.000Z"
-}</code></pre>
-                </div>
-            </div>
-        </section>
-
         <!-- ──────────────── CREATE EXPRESS ORDERS ──────────────── -->
         <section id="create-express-orders" class="docs-section">
             <h2>Create Express Orders</h2>
@@ -782,7 +698,7 @@ const data = await response.json();</code></pre>
                 <span class="method method-get">GET</span>
                 <span>/api/v1/orders/:referenceCode</span>
             </div>
-            <p>Retrieve details of any order (Express or POD) by its reference code. Returns the unified <a href="#order-object" style="color:var(--primary)">Order Object</a>.</p>
+            <p>Retrieve details of any order (Express or POD) by its reference code.</p>
 
             <h4>Path Parameters</h4>
             <table class="param-table">
@@ -811,7 +727,7 @@ const data = await response.json();</code></pre>
             </div>
 
             <h3>Response</h3>
-            <p>Returns the unified <a href="#order-object" style="color:var(--primary)">Order Object</a> inside the standard envelope:</p>
+            <p>Returns the order details inside the standard envelope:</p>
             <div class="code-example">
                 <div class="code-blocks">
                     <pre class="code-block active" data-lang="json"><code>{
@@ -824,6 +740,8 @@ const data = await response.json();</code></pre>
         "order_type": "pod",
         "status": "pod_shipped",
         "tracking_number": "TRK1234567890",
+        "waybill_number": "WB9876543210",
+        "label_url": "https://express.thgfulfill.com/api/labels/a1b2c3d4e5f6",
         "service_code": "SBSL",
         "warehouse_code": "002",
         "warehouse_name": "VN-POD08",
@@ -955,7 +873,7 @@ const data = await response.json();</code></pre>
             </table>
 
             <h3>Webhook Payload</h3>
-            <p>The webhook body uses the same unified <a href="#order-object" style="color:var(--primary)">Order Object</a>:</p>
+            <p>The webhook body contains the order data:</p>
             <div class="code-example">
                 <div class="code-blocks">
                     <pre class="code-block active" data-lang="json"><code>{

@@ -106,12 +106,19 @@ class JobService {
      * @param {number[]} orderIds - Array of Order IDs tương ứng
      * @param {number} delaySeconds - Delay trước khi xử lý
      */
-    async addLookupDocNoJob(slipNos, orderIds, delaySeconds = 30) {
+    /**
+     * @param {string[]} slipNos
+     * @param {number[]} orderIds
+     * @param {number} delaySeconds
+     * @param {'express'|'pod'} accountType - Ecount account to use
+     */
+    async addLookupDocNoJob(slipNos, orderIds, delaySeconds = 30, accountType = 'express') {
         return await JobModel.create(
             'lookup_docno',
             {
                 slipNos,
-                orderIds
+                orderIds,
+                accountType
             },
             delaySeconds,
             3 // max 3 attempts

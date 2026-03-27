@@ -287,7 +287,7 @@ class PodUpdateStatusBatchWorker extends BaseWorker {
                 await page.goto(sessionUrl, { waitUntil: 'domcontentloaded', timeout: this.playwrightConfig.timeout });
 
                 if (!page.url().includes('ec_req_sid')) {
-                    logger.warn('[POD] Session expired');
+                    logger.warn('[POD] Session expired (có thể bị kick bởi Express login)');
                     await this.sessionManager.clearSession();
                     throw new Error('SESSION_EXPIRED');
                 }
@@ -296,27 +296,38 @@ class PodUpdateStatusBatchWorker extends BaseWorker {
 
             } else {
                 logger.info('[POD] Không có session, đang login...');
-                await this.login(page);
 
-                const cookies = await context.cookies();
-                const currentUrl = page.url();
-                const urlObj = new URL(currentUrl);
-                const urlParams = {
-                    w_flag: urlObj.searchParams.get('w_flag'),
-                    ec_req_sid: urlObj.searchParams.get('ec_req_sid')
-                };
-
-                await this.sessionManager.saveSession(cookies, urlParams, 30);
-
-                const baseUrl = this.ecountConfig.baseUrl.replace('login.ecount.com', 'loginia.ecount.com');
-                const targetUrl = `${baseUrl}/ec5/view/erp?w_flag=${urlParams.w_flag}&ec_req_sid=${urlParams.ec_req_sid}${ecountLink}`;
-
-                if (!currentUrl.includes(ecountLink)) {
-                    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: this.playwrightConfig.timeout });
-                    await page.waitForFunction(() => document.readyState === 'complete' && window.frames.length > 0, null, { timeout: this.playwrightConfig.timeout });
+                // Acquire login lock để tránh Express + POD login đồng thời
+                if (!this.sessionManager.acquireLoginLock()) {
+                    throw new Error('SESSION_LOGIN_LOCKED');
                 }
 
-                logger.info('[POD] Đã login và navigate thành công');
+                try {
+                    await this.login(page);
+
+                    const cookies = await context.cookies();
+                    const currentUrl = page.url();
+                    const urlObj = new URL(currentUrl);
+                    const urlParams = {
+                        w_flag: urlObj.searchParams.get('w_flag'),
+                        ec_req_sid: urlObj.searchParams.get('ec_req_sid')
+                    };
+
+                    // Lưu session (sẽ cross-invalidate Express session)
+                    await this.sessionManager.saveSession(cookies, urlParams, 30);
+
+                    const baseUrl = this.ecountConfig.baseUrl.replace('login.ecount.com', 'loginia.ecount.com');
+                    const targetUrl = `${baseUrl}/ec5/view/erp?w_flag=${urlParams.w_flag}&ec_req_sid=${urlParams.ec_req_sid}${ecountLink}`;
+
+                    if (!currentUrl.includes(ecountLink)) {
+                        await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: this.playwrightConfig.timeout });
+                        await page.waitForFunction(() => document.readyState === 'complete' && window.frames.length > 0, null, { timeout: this.playwrightConfig.timeout });
+                    }
+
+                    logger.info('[POD] Đã login và navigate thành công');
+                } finally {
+                    this.sessionManager.releaseLoginLock();
+                }
             }
 
             return { browser, context, page };
