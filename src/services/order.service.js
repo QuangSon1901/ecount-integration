@@ -1164,7 +1164,7 @@ class OrderService {
                         -- Subquery để lấy order mới nhất cho mỗi erp_order_code
                         SELECT erp_order_code, MAX(id) as max_id
                         FROM orders
-                        WHERE erp_order_code IN (${placeholders}) AND orders.order_number NOT LIKE 'POD-API%'
+                        WHERE erp_order_code IN (${placeholders}) AND orders.order_number NOT LIKE '%API%'
                         GROUP BY erp_order_code
                     ) latest
                     
