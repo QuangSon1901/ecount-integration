@@ -1,5 +1,6 @@
 const ecountOrderPodService = require('../erp/ecount-order-pod.service');
 const OrderModel = require('../../models/order.model');
+const UrlProxyModel = require('../../models/url-proxy.model');
 const logger = require('../../utils/logger');
 
 // Warehouse code → display name mapping
@@ -89,6 +90,24 @@ class ApiPodOrderService {
 
                 if (sharedIndex !== null) {
                     globalIndex++;
+                }
+            }
+
+            // Tạo proxy short URL cho mockup/design/label nếu URL dài hơn 200 ký tự
+            if (process.env.SHORT_LINK_LABEL === 'true') {
+                for (const row of ecountRows) {
+                    if (row.designUrl && row.designUrl.length > 200) {
+                        const { shortUrl } = await UrlProxyModel.createShortUrl(row.designUrl, 'design');
+                        row.designUrl = shortUrl;
+                    }
+                    if (row.mockupUrl && row.mockupUrl.length > 200) {
+                        const { shortUrl } = await UrlProxyModel.createShortUrl(row.mockupUrl, 'mockup');
+                        row.mockupUrl = shortUrl;
+                    }
+                    if (row.linkPrint && row.linkPrint.length > 200) {
+                        const { shortUrl } = await UrlProxyModel.createShortUrl(row.linkPrint, 'label');
+                        row.linkPrint = shortUrl;
+                    }
                 }
             }
 

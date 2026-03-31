@@ -1003,6 +1003,24 @@ const migrations = [
             ALTER TABLE api_customers
                 ADD COLUMN lark_group_ids VARCHAR(500) NULL COMMENT 'Lark group chat IDs (comma-separated)' AFTER telegram_group_ids;
         `
+    },
+    {
+        version: 40,
+        name: 'create_url_proxies_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS url_proxies (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                access_key VARCHAR(32) NOT NULL UNIQUE,
+                original_url TEXT NOT NULL COMMENT 'URL gốc (dài)',
+                url_type ENUM('label', 'mockup', 'design') NOT NULL COMMENT 'Loại URL',
+                order_id INT NULL COMMENT 'Liên kết với order (optional)',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_access_key (access_key),
+                INDEX idx_order_id (order_id),
+                INDEX idx_url_type (url_type)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='Bảng proxy URL ngắn cho mockup/design/label';
+        `
     }
 
 ];

@@ -13,6 +13,7 @@ const authRoutes = require('./routes/auth.routes');
 const telegramRoutes = require('./routes/telegram.routes');
 const larkRoutes = require('./routes/lark.routes');
 const podWebhookRoutes = require('./routes/pod-webhook.routes');
+const proxyRoutes = require('./routes/proxy.routes');
 
 const apiV1Routes = require('./routes/api-v1.routes');
 
@@ -135,6 +136,7 @@ app.use('/api/v1', apiV1Routes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/ecount', ecountRoutes);
 app.use('/api/labels', labelRoutes);
+app.use('/api/proxy', proxyRoutes);
 app.use('/extensions', extensionRoutes);
 app.use('/api/telegram', telegramRoutes);
 app.use('/api/lark', larkRoutes);
