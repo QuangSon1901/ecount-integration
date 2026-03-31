@@ -1164,7 +1164,7 @@ class OrderService {
                         -- Subquery để lấy order mới nhất cho mỗi erp_order_code
                         SELECT erp_order_code, MAX(id) as max_id
                         FROM orders
-                        WHERE erp_order_code IN (${placeholders})
+                        WHERE erp_order_code IN (${placeholders}) AND orders.order_number NOT LIKE 'POD-API%'
                         GROUP BY erp_order_code
                     ) latest
                     
@@ -1185,8 +1185,6 @@ class OrderService {
                     LEFT JOIN jobs j_update_status ON j_update_status.job_type = 'update_status_ecount'
                         AND JSON_EXTRACT(j_update_status.payload, '$.orderId') = o.id
                         AND j_update_status.status IN ('pending', 'processing')
-
-                    WHERE o.order_number NOT LIKE 'POD-API%'
                 `;
 
                 const [orders] = await connection.query(query, erpOrderCodes);
