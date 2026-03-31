@@ -1185,6 +1185,8 @@ class OrderService {
                     LEFT JOIN jobs j_update_status ON j_update_status.job_type = 'update_status_ecount'
                         AND JSON_EXTRACT(j_update_status.payload, '$.orderId') = o.id
                         AND j_update_status.status IN ('pending', 'processing')
+
+                    WHERE o.order_number NOT LIKE 'POD-API%'
                 `;
 
                 const [orders] = await connection.query(query, erpOrderCodes);
