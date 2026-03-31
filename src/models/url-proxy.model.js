@@ -1,4 +1,5 @@
 const db = require('../database/connection');
+const path = require('path');
 const KeyGenerator = require('../utils/key-generator');
 
 class UrlProxyModel {
@@ -47,12 +48,27 @@ class UrlProxyModel {
 
     /**
      * Tạo short URL từ original URL
+     * Tự detect đuôi file từ URL gốc, mặc định .png nếu không detect được
+     * Ví dụ: https://domain.com/api/proxy/abc123.png
      * @returns {{ accessKey: string, shortUrl: string }}
      */
     static async createShortUrl(originalUrl, urlType, orderId = null) {
         const accessKey = await this.create(originalUrl, urlType, orderId);
         const baseUrl = process.env.BASE_URL || '';
-        const shortUrl = `${baseUrl}/api/proxy/${accessKey}`;
+
+        // Detect extension từ URL gốc
+        let ext = '.png'; // default cho design/mockup (ảnh)
+        try {
+            const urlPath = new URL(originalUrl).pathname;
+            const detectedExt = path.extname(urlPath).toLowerCase();
+            if (['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.pdf'].includes(detectedExt)) {
+                ext = detectedExt;
+            }
+        } catch {
+            // Google Drive hoặc URL không parse được → giữ default
+        }
+
+        const shortUrl = `${baseUrl}/api/proxy/${accessKey}${ext}`;
 
         return { accessKey, shortUrl };
     }
