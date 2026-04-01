@@ -38,12 +38,16 @@ class S2BDIYService extends BasePodWarehouse {
         this.DEFAULT_LOGISTICS_ID = 391;
     }
 
-    async getToken() {
-        if (this.token && this.tokenExpiry && Date.now() < this.tokenExpiry) {
+    async getToken(forceRefresh = false) {
+        if (!forceRefresh && this.token && this.tokenExpiry && Date.now() < this.tokenExpiry) {
             return this.token;
         }
 
         try {
+            // Clear cached token
+            this.token = null;
+            this.tokenExpiry = null;
+
             const response = await axios.post(
                 `${this.baseUrl}/getToken`,
                 `app_key=${this.appKey}&app_secret=${this.appSecret}`,
@@ -62,11 +66,48 @@ class S2BDIYService extends BasePodWarehouse {
             this.token = token;
             this.tokenExpiry = Date.now() + this.TOKEN_TTL_MS;
 
-            logger.info('[S2BDIY] Token obtained');
+            logger.info('[S2BDIY] Token obtained', { forceRefresh });
             return this.token;
         } catch (error) {
             logger.error('[S2BDIY] getToken failed:', error.message);
             throw new Error(`S2BDIY authentication failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Check if error is an authentication error (token expired/invalid)
+     */
+    isUnauthenticatedError(error) {
+        const msg = error.response?.data?.msg || error.message || '';
+        const statusCode = error.response?.data?.status_code;
+        return msg.includes('Unauthenticated') || statusCode === 401 || error.response?.status === 401;
+    }
+
+    /**
+     * Force refresh token and retry — clear cache, get new token
+     */
+    async refreshTokenAndRetry() {
+        logger.warn('[S2BDIY] Token expired/invalid, forcing refresh...');
+        await this.getToken(true);
+    }
+
+    /**
+     * Execute an API call with auto-retry on Unauthenticated error.
+     * If first attempt fails with Unauthenticated, refresh token and retry once.
+     * @param {string} label - Log label for this operation (e.g. 'getBasicProducts')
+     * @param {Function} apiCall - Async function that makes the API call (receives no args)
+     * @returns {Promise<*>} - Result of the API call
+     */
+    async withAuthRetry(label, apiCall) {
+        try {
+            return await apiCall();
+        } catch (error) {
+            if (this.isUnauthenticatedError(error)) {
+                logger.warn(`[S2BDIY] ${label}: Unauthenticated, refreshing token and retrying...`);
+                await this.refreshTokenAndRetry();
+                return await apiCall();
+            }
+            throw error;
         }
     }
 
@@ -100,18 +141,27 @@ class S2BDIYService extends BasePodWarehouse {
 
         const codesStr = codes.join(',');
         try {
-            const response = await axios.get(
-                `${this.baseUrl}/v1/basicProduct?codes=${codesStr}&per_page=100`,
-                { headers: this.getHeaders(), timeout: 30000 }
-            );
+            return await this.withAuthRetry('getBasicProducts', async () => {
+                const response = await axios.get(
+                    `${this.baseUrl}/v1/basicProduct?codes=${codesStr}&per_page=100`,
+                    { headers: this.getHeaders(), timeout: 30000 }
+                );
 
-            const products = response.data?.data?.data;
-            if (!Array.isArray(products)) {
-                throw new Error(`S2BDIY basicProduct API returned unexpected format for codes: ${codesStr}`);
-            }
+                const products = response.data?.data?.data;
+                if (!Array.isArray(products)) {
+                    // S2BDIY có thể trả "Unauthenticated" trong body thay vì HTTP 401
+                    const msg = response.data?.msg || '';
+                    if (msg.includes('Unauthenticated')) {
+                        const err = new Error('Unauthenticated');
+                        err.response = response;
+                        throw err;
+                    }
+                    throw new Error(`S2BDIY basicProduct API returned unexpected format for codes: ${codesStr}`);
+                }
 
-            logger.info(`[S2BDIY] Fetched ${products.length} products for codes: ${codesStr}`);
-            return products;
+                logger.info(`[S2BDIY] Fetched ${products.length} products for codes: ${codesStr}`);
+                return products;
+            });
         } catch (error) {
             logger.error('[S2BDIY] getBasicProducts failed:', { codes: codesStr, error: error.response?.data || error.message });
             throw new Error(`S2BDIY getBasicProducts failed: ${error.response?.data?.msg || error.message}`);
@@ -430,53 +480,51 @@ class S2BDIYService extends BasePodWarehouse {
     async uploadTrackingLabel(orderId, trackingNumber, labelUrl) {
         await this.getToken();
 
+        // Download PDF trước (không phụ thuộc token S2BDIY)
+        const pdfBuffer = await this.downloadFileAsBuffer(labelUrl);
+        this.validateFileSize(pdfBuffer, MAX_PDF_SIZE, 'Shipping label PDF', labelUrl);
+
         try {
-            // Download the shipping label PDF
-            const pdfBuffer = await this.downloadFileAsBuffer(labelUrl);
+            return await this.withAuthRetry('uploadTrackingLabel', async () => {
+                const form = new FormData();
+                form.append('id', String(orderId));
+                form.append('track_number', trackingNumber || '');
+                form.append('file', pdfBuffer, {
+                    filename: `label_${orderId}.pdf`,
+                    contentType: 'application/pdf'
+                });
 
-            // Validate label PDF size
-            this.validateFileSize(pdfBuffer, MAX_PDF_SIZE, 'Shipping label PDF', labelUrl);
+                const response = await axios.post(
+                    `${this.baseUrl}/v1/order/${orderId}/logistics`,
+                    form,
+                    {
+                        headers: {
+                            'Authorization': this.token,
+                            ...form.getHeaders()
+                        },
+                        timeout: 60000
+                    }
+                );
 
-            // Build multipart form data
-            const form = new FormData();
-            form.append('id', String(orderId));
-            form.append('track_number', trackingNumber || '');
-            form.append('file', pdfBuffer, {
-                filename: `label_${orderId}.pdf`,
-                contentType: 'application/pdf'
-            });
-
-            const response = await axios.post(
-                `${this.baseUrl}/v1/order/${orderId}/logistics`,
-                form,
-                {
-                    headers: {
-                        'Authorization': this.token,
-                        ...form.getHeaders()
-                    },
-                    timeout: 60000
+                if (response.data?.status !== 'success' && response.data?.status_code !== 200) {
+                    const msg = response.data?.msg || 'Unknown error';
+                    if (msg.includes('Unauthenticated')) {
+                        const err = new Error('Unauthenticated');
+                        err.response = response;
+                        throw err;
+                    }
+                    throw new Error(`Upload tracking label failed: ${msg}`);
                 }
-            );
 
-            if (response.data?.status !== 'success' && response.data?.status_code !== 200) {
-                throw new Error(`Upload tracking label failed: ${response.data?.msg || 'Unknown error'}`);
-            }
+                logger.info('[S2BDIY] Tracking label uploaded successfully', {
+                    orderId, trackingNumber, labelUrl
+                });
 
-            logger.info('[S2BDIY] Tracking label uploaded successfully', {
-                orderId,
-                trackingNumber,
-                labelUrl
+                return { success: true, rawResponse: response.data };
             });
-
-            return {
-                success: true,
-                rawResponse: response.data
-            };
         } catch (error) {
             logger.error('[S2BDIY] Upload tracking label failed:', {
-                orderId,
-                trackingNumber,
-                labelUrl,
+                orderId, trackingNumber, labelUrl,
                 error: error.response?.data || error.message
             });
             throw new Error(`S2BDIY upload tracking label failed: ${error.response?.data?.msg || error.message}`);
@@ -565,55 +613,62 @@ class S2BDIYService extends BasePodWarehouse {
                 payload: JSON.stringify(payload)
             });
 
-            const response = await axios.post(
-                `${this.baseUrl}/v1/order/createWithDesign`,
-                payload,
-                { headers: this.getHeaders(), timeout: 500000 }
-            );
+            return await this.withAuthRetry('createOrder', async () => {
+                const response = await axios.post(
+                    `${this.baseUrl}/v1/order/createWithDesign`,
+                    payload,
+                    { headers: this.getHeaders(), timeout: 500000 }
+                );
 
-            const data = response.data?.data;
+                const data = response.data?.data;
 
-            if (response.data?.status !== 'success' && response.data?.status_code !== 200) {
-                logger.error('[S2BDIY] Create order API error', {
-                    response: response.data,
-                    thirdOrderId: orderData.thirdOrderId
+                if (response.data?.status !== 'success' && response.data?.status_code !== 200) {
+                    const msg = response.data?.msg || 'Unknown error';
+                    if (msg.includes('Unauthenticated')) {
+                        const err = new Error('Unauthenticated');
+                        err.response = response;
+                        throw err;
+                    }
+                    logger.error('[S2BDIY] Create order API error', {
+                        response: response.data,
+                        thirdOrderId: orderData.thirdOrderId
+                    });
+                    throw new Error(`S2BDIY create order failed: ${msg}`);
+                }
+
+                const warehouseOrderId = String(data?.id || '');
+
+                logger.info('[S2BDIY] Order created', {
+                    s2bdiyOrderId: warehouseOrderId,
+                    thirdOrderId: orderData.thirdOrderId,
+                    shippingMethod,
+                    logisticsId
                 });
-                throw new Error(`S2BDIY create order failed: ${response.data?.msg || 'Unknown error'}`);
-            }
 
-            const warehouseOrderId = String(data?.id || '');
+                // SBTT: Don't upload tracking label immediately - S2BDIY order needs to be paid first
+                // The cron job (pod-fetch-tracking) will check pay_status and upload when ready
+                const isSBTT = shippingMethod.toUpperCase() === 'SBTT';
+                const tracking = orderData.tracking;
 
-            logger.info('[S2BDIY] Order created', {
-                s2bdiyOrderId: warehouseOrderId,
-                thirdOrderId: orderData.thirdOrderId,
-                shippingMethod,
-                logisticsId
+                if (isSBTT && tracking) {
+                    logger.info('[S2BDIY] SBTT order created - tracking label will be uploaded by cron after payment', {
+                        orderId: warehouseOrderId,
+                        trackingNumber: tracking.trackingNumber,
+                        linkPrint: tracking.linkPrint
+                    });
+                }
+
+                return {
+                    success: true,
+                    warehouseOrderId,
+                    tracking: isSBTT && tracking ? {
+                        tracking: tracking.trackingNumber || null,
+                        carrier: tracking.carrier || 'USPS',
+                        shipping_label: tracking.linkPrint || null
+                    } : null,
+                    rawResponse: response?.data || ''
+                };
             });
-
-            // SBTT: Don't upload tracking label immediately - S2BDIY order needs to be paid first
-            // The cron job (pod-fetch-tracking) will check pay_status and upload when ready
-            const isSBTT = shippingMethod.toUpperCase() === 'SBTT';
-            const tracking = orderData.tracking;
-
-            if (isSBTT && tracking) {
-                logger.info('[S2BDIY] SBTT order created - tracking label will be uploaded by cron after payment', {
-                    orderId: warehouseOrderId,
-                    trackingNumber: tracking.trackingNumber,
-                    linkPrint: tracking.linkPrint
-                });
-            }
-
-            return {
-                success: true,
-                warehouseOrderId,
-                // Pass tracking through for SBTT orders so worker can save to DB
-                tracking: isSBTT && tracking ? {
-                    tracking: tracking.trackingNumber || null,
-                    carrier: tracking.carrier || 'USPS',
-                    shipping_label: tracking.linkPrint || null
-                } : null,
-                rawResponse: response?.data || ''
-            };
         } catch (error) {
             logger.error('[S2BDIY] Create order failed:', {
                 error: error.response?.data || error.message,
@@ -632,40 +687,49 @@ class S2BDIYService extends BasePodWarehouse {
         await this.getToken();
 
         try {
-            const response = await axios.get(
-                `${this.baseUrl}/v1/order/${warehouseOrderId}`,
-                { headers: this.getHeaders(), timeout: 30000 }
-            );
+            return await this.withAuthRetry('getOrder', async () => {
+                const response = await axios.get(
+                    `${this.baseUrl}/v1/order/${warehouseOrderId}`,
+                    { headers: this.getHeaders(), timeout: 30000 }
+                );
 
-            const order = response.data?.data;
+                const order = response.data?.data;
 
-            if (!order) {
-                throw new Error(`S2BDIY order ${warehouseOrderId} not found`);
-            }
+                // Check Unauthenticated in body
+                if (!order && response.data?.msg?.includes('Unauthenticated')) {
+                    const err = new Error('Unauthenticated');
+                    err.response = response;
+                    throw err;
+                }
 
-            return {
-                success: true,
-                data: {
-                    id: order.id,
-                    thirdOrderId: order.third_order_id,
-                    status: order.status,
-                    statusText: order.status_text,
-                    payStatus: order.pay_status,         // 1:Pending 2:In progress 3:Completed 4:Failed
-                    payStatusText: order.pay_status_text,
-                    trackingNumber: order.order_logistics?.logisticss_track_number || null,
-                    labelUrl: order.order_logistics?.oss_file_src || null,
-                    labelBarcode: order.order_logistics?.label_barcode || null,
-                    logisticsTime: order.order_logistics?.logisticss_time || null,
-                    logisticsStatus: order.order_logistics?.logisticss_status || null, // 1:Awaiting 2:In transit 3:Arrived 4:Delivered 5:Delayed 6:Failed 7:Anomaly
-                    logisticsPlatform: order.logistics_platform,
-                    producedTime: order.produced_time,
-                    deliveryTime: order.delivery_time,
-                    productAmount: order.product_amount,
-                    shippingAmount: order.shipping_amount,
-                    totalAmount: order.total_amount,
-                },
-                rawResponse: response.data
-            };
+                if (!order) {
+                    throw new Error(`S2BDIY order ${warehouseOrderId} not found`);
+                }
+
+                return {
+                    success: true,
+                    data: {
+                        id: order.id,
+                        thirdOrderId: order.third_order_id,
+                        status: order.status,
+                        statusText: order.status_text,
+                        payStatus: order.pay_status,
+                        payStatusText: order.pay_status_text,
+                        trackingNumber: order.order_logistics?.logisticss_track_number || null,
+                        labelUrl: order.order_logistics?.oss_file_src || null,
+                        labelBarcode: order.order_logistics?.label_barcode || null,
+                        logisticsTime: order.order_logistics?.logisticss_time || null,
+                        logisticsStatus: order.order_logistics?.logisticss_status || null,
+                        logisticsPlatform: order.logistics_platform,
+                        producedTime: order.produced_time,
+                        deliveryTime: order.delivery_time,
+                        productAmount: order.product_amount,
+                        shippingAmount: order.shipping_amount,
+                        totalAmount: order.total_amount,
+                    },
+                    rawResponse: response.data
+                };
+            });
         } catch (error) {
             logger.error('[S2BDIY] Get order failed:', error.message);
             throw new Error(`S2BDIY get order failed: ${error.message}`);
@@ -676,26 +740,28 @@ class S2BDIYService extends BasePodWarehouse {
         await this.getToken();
 
         try {
-            // First get order details to find third_order_id
+            // getOrder đã có withAuthRetry bên trong
             const orderResult = await this.getOrder(warehouseOrderId);
             const order = orderResult.data;
             const orderNo = order.thirdOrderId || warehouseOrderId;
 
-            const response = await axios.get(
-                `${this.baseUrl}/logistics/orderLogisticsTracking?order_no=${orderNo}`,
-                { headers: this.getHeaders(), timeout: 30000 }
-            );
+            return await this.withAuthRetry('getTracking', async () => {
+                const response = await axios.get(
+                    `${this.baseUrl}/logistics/orderLogisticsTracking?order_no=${orderNo}`,
+                    { headers: this.getHeaders(), timeout: 30000 }
+                );
 
-            const data = response.data?.data;
+                const data = response.data?.data;
 
-            return {
-                trackingNumber: order.trackingNumber || null,
-                labelUrl: order.labelUrl || null,
-                carrier: null, // S2BDIY doesn't return carrier name directly
-                trackingUrl: null,
-                shipmentStatus: null,
-                events: Array.isArray(data) ? data : []
-            };
+                return {
+                    trackingNumber: order.trackingNumber || null,
+                    labelUrl: order.labelUrl || null,
+                    carrier: null,
+                    trackingUrl: null,
+                    shipmentStatus: null,
+                    events: Array.isArray(data) ? data : []
+                };
+            });
         } catch (error) {
             logger.error('[S2BDIY] Get tracking failed:', error.message);
             throw new Error(`S2BDIY get tracking failed: ${error.message}`);
@@ -706,13 +772,15 @@ class S2BDIYService extends BasePodWarehouse {
         await this.getToken();
 
         try {
-            const response = await axios.post(
-                `${this.baseUrl}/order/cancelOrders`,
-                { ids: parseInt(warehouseOrderId) },
-                { headers: this.getHeaders(), timeout: 30000 }
-            );
+            return await this.withAuthRetry('cancelOrder', async () => {
+                const response = await axios.post(
+                    `${this.baseUrl}/order/cancelOrders`,
+                    { ids: parseInt(warehouseOrderId) },
+                    { headers: this.getHeaders(), timeout: 30000 }
+                );
 
-            return { success: true, rawResponse: response.data };
+                return { success: true, rawResponse: response.data };
+            });
         } catch (error) {
             logger.error('[S2BDIY] Cancel order failed:', error.message);
             throw new Error(`S2BDIY cancel order failed: ${error.message}`);
