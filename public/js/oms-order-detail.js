@@ -156,11 +156,7 @@ function render(row) {
     setText('vShippingPartner', row.route_shipping_partner);
     setText('vAddressIndex', row.address_index != null ? row.address_index : '—');
 
-    // ─── Package (edit) ────────────────────────────────────────────────────
-    setVal('packageWeight', row.package_weight);
-    setVal('packageLength', row.package_length);
-    setVal('packageWidth', row.package_width);
-    setVal('packageHeight', row.package_height);
+    // ─── Package (edit) — only partner + addressIndex; weight/dims are auto ──
     setVal('routeShippingPartner', row.route_shipping_partner);
     setVal('addressIndex', row.address_index);
 
@@ -259,6 +255,37 @@ function buildItcPayload(row) {
         taxNumber: row.receiver_tax_number || '',
         addressIndex: row.address_index != null ? Number(row.address_index) : 0,
         items,
+    };
+}
+
+// ─── Compute package weight / dims from items list ───────────────────────────
+// Rules:
+//   packageWeight = sum of (item.weight * item.quantity) for all items
+//   packageLength = sum of (item.length * item.quantity) for all items
+//   packageWidth  = sum of (item.width  * item.quantity) for all items
+//   packageHeight = sum of (item.height * item.quantity) for all items
+// Any field that sums to 0 (i.e. no values entered) is returned as null.
+function computePackageTotalsFromItems(items) {
+    let weight = 0;
+    let length = 0;
+    let width  = 0;
+    let height = 0;
+
+    for (const it of items) {
+        const qty = Number(it.quantity) || 0;
+        weight += (Number(it.weight) || 0) * qty;
+        length += (Number(it.length) || 0) * qty;
+        width  += (Number(it.width)  || 0) * qty;
+        height += (Number(it.height) || 0) * qty;
+    }
+
+    // Round to 3 decimal places; return null when nothing was entered
+    const round3 = n => Math.round(n * 1000) / 1000;
+    return {
+        packageWeight: weight > 0 ? round3(weight) : null,
+        packageLength: length > 0 ? round3(length) : null,
+        packageWidth:  width  > 0 ? round3(width)  : null,
+        packageHeight: height > 0 ? round3(height) : null,
     };
 }
 
@@ -380,9 +407,9 @@ function collectItemsEdit() {
             return el ? el.value : '';
         };
         const num = (field) => {
-            const v = get(field);
-            if (v === '' || v === null) return null;
-            const n = Number(v);
+            const val = get(field);
+            if (val === '' || val === null) return null;
+            const n = Number(val);
             return Number.isFinite(n) ? n : null;
         };
         const sku = get('sku');
@@ -452,22 +479,48 @@ async function saveReceiver() {
     if (ok) toggleEdit('receiver', false);
 }
 
+// Package save — weight/dims are NOT editable here; only partner + address index.
 async function savePackage() {
     const ok = await patch({
-        packageWeight: numOrNull('packageWeight'),
-        packageLength: numOrNull('packageLength'),
-        packageWidth: numOrNull('packageWidth'),
-        packageHeight: numOrNull('packageHeight'),
         routeShippingPartner: v('routeShippingPartner'),
         addressIndex: numOrNull('addressIndex'),
     }, 'Package saved');
     if (ok) toggleEdit('package', false);
 }
 
+// Items save — after persisting items, recompute package weight/dims from the
+// collected rows and send a second PATCH to update the package fields.
 async function saveItems() {
     const items = collectItemsEdit();
-    const ok = await patch({ items }, 'Items saved');
-    if (ok) toggleEdit('items', false);
+
+    // Step 1: save items
+    const itemsOk = await patch({ items }, 'Items saved');
+    if (!itemsOk) return;
+
+    // Step 2: compute package totals from the saved items
+    const packageTotals = computePackageTotalsFromItems(items);
+
+    // Only send the second patch when at least one dimension was computed
+    const hasAnyTotal = Object.values(packageTotals).some(val => val !== null);
+    if (!hasAnyTotal) {
+        toggleEdit('items', false);
+        return;
+    }
+
+    try {
+        const r = await fetchJson('/api/v1/admin/oms-orders/' + ID, {
+            method: 'PATCH',
+            body: JSON.stringify(packageTotals),
+        });
+        currentRow = r.data;
+        render(r.data);
+        toast('Items saved · package dimensions updated');
+    } catch (e) {
+        // Items were already saved successfully; just warn about the dims patch
+        toast('Items saved, but failed to update package dimensions: ' + e.message, false);
+    }
+
+    toggleEdit('items', false);
 }
 
 async function savePricing() {
