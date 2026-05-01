@@ -324,8 +324,7 @@ function renderItemsRead(items, currency) {
             <tr>
                 <td class="text-center">${i + 1}</td>
                 <td>
-                    <div class="product-name">${escapeHtml(it.productName || '—')}</div>
-                    <div class="product-desc">${escapeHtml(it.itemDescription || '—')}</div>
+                    <div class="product-name">${escapeHtml(it.productName || '—')} ${it.itemDescription ? `<span class="product-desc"> — ${escapeHtml(it.itemDescription)}</span>` : ''}</div>
                     <div class="product-meta">
                         ${sku ? `SKU: ${escapeHtml(sku)}` : ''}
                         ${url}

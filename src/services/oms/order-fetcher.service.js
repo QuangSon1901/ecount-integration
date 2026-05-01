@@ -15,12 +15,18 @@
 //      → package dimensions (weight, length, width, height) from units[0]
 //      → also resolves customerId / customerCode via partnerCode → api_customers
 //
+// Optimization (Step 2.5):
+//   Before any detail/dimension API calls, bulk-check DB for existing omsOrderIds.
+//   Only NEW orders (not yet in oms_orders table) proceed to enrichment.
+//   This avoids N*3 redundant HTTP calls for orders already synced.
+//
 // The browser is never opened here — auth token comes from the cron's
 // Playwright login flow (sync-oms-orders.cron.js).
 
 const axios = require('axios');
 const logger = require('../../utils/logger');
 const omsProductFetcher = require('./product-fetcher.service');
+const OmsOrderModel = require('../../models/oms-order.model');
 
 const BASE_URL        = 'https://client-api.vnfai.com';
 const ORDERS_ENDPOINT = `${BASE_URL}/OutboundRequests/search`;
@@ -42,6 +48,13 @@ class OmsOrderFetcherService {
      *   - full detail + structured address (two extra calls per order)
      *   - package dimensions via per-customer product API
      *   - customerId / customerCode resolved from partnerCode → api_customers
+     *
+     * Flow:
+     *   1. Paginated list fetch from OMS
+     *   2. Filter: status = "New" AND no trackingCode
+     *   2.5. Bulk DB check → discard orders already in oms_orders (NEW STEP)
+     *   3. Enrich ONLY new orders (detail + address API calls)
+     *   4. Enrich dimensions + resolve customerId via product API
      *
      * @param {object} options
      * @param {string}  options.accessToken        - REQUIRED
@@ -134,9 +147,25 @@ class OmsOrderFetcherService {
             return { orders: [], pagesFetched, rawCount: allRaw.length };
         }
 
-        // ─── Step 3: enrich each candidate with detail + address ──────────────
-        const orders = await this._enrichBatch(candidates, headers);
+        // ─── Step 2.5: loại bỏ những đơn đã tồn tại trong DB ─────────────────
+        // Bulk-check TRƯỚC khi gọi bất kỳ detail API nào.
+        // Nếu 90/100 đơn đã có trong DB → tiết kiệm 90 × 3 = 270 HTTP calls.
+        const newCandidates = await this._filterExistingOrders(candidates);
 
+        logger.info('[OMS-FETCHER] pre-enrich DB filter', {
+            candidateCount: candidates.length,
+            alreadyInDb:    candidates.length - newCandidates.length,
+            toEnrich:       newCandidates.length,
+        });
+
+        if (newCandidates.length === 0) {
+            logger.info('[OMS-FETCHER] all candidates already in DB, nothing to enrich');
+            return { orders: [], pagesFetched, rawCount: allRaw.length };
+        }
+
+        // ─── Step 3: enrich CHỈ những đơn chưa có trong DB ───────────────────
+        const orders = await this._enrichBatch(newCandidates, headers);
+        
         // ─── Step 4: enrich dimensions + resolve customerId per partner ────────
         // omsProductFetcher groups orders by partnerCode internally, auths once
         // per partner, then fetches SKU dimensions and writes customerId back.
@@ -144,10 +173,56 @@ class OmsOrderFetcherService {
 
         logger.info('[OMS-FETCHER] enrichment complete', {
             candidateCount: candidates.length,
+            newCandidates:  newCandidates.length,
             enrichedCount:  orders.length,
         });
 
         return { orders, pagesFetched, rawCount: allRaw.length };
+    }
+
+    // ─── Pre-enrich DB filter ─────────────────────────────────────────────────
+
+    /**
+     * Nhận vào list raw orders từ OMS list endpoint,
+     * trả về CHỈ những đơn chưa tồn tại trong oms_orders table.
+     *
+     * Dùng một bulk query IN(...) duy nhất thay vì N lần findByOmsId
+     * để tránh N+1 DB round trips.
+     *
+     * Safe degradation: nếu DB check lỗi → fallback trả về toàn bộ raws
+     * (worst case enrich thừa như cũ, không mất data).
+     *
+     * @param {object[]} raws  - raw list-endpoint rows (cần có .orId)
+     * @returns {Promise<object[]>}
+     */
+    async _filterExistingOrders(raws) {
+        if (raws.length === 0) return [];
+
+        const omsIds = raws.map(r => r.orId).filter(id => id != null);
+        if (omsIds.length === 0) return raws;
+
+        try {
+            const existingIds = await OmsOrderModel.findExistingOmsIds(omsIds);
+
+            // Normalize về string để tránh type mismatch (DB trả string, OMS trả number)
+            const existingSet = new Set(existingIds.map(id => String(id)));
+
+            const filtered = raws.filter(r => !existingSet.has(String(r.orId)));
+
+            if (existingIds.length > 0) {
+                logger.debug('[OMS-FETCHER] skipped existing orders', {
+                    existingCount:  existingIds.length,
+                    remainingCount: filtered.length,
+                });
+            }
+
+            return filtered;
+        } catch (err) {
+            logger.warn('[OMS-FETCHER] DB pre-filter failed, falling back to enrich all candidates', {
+                error: err.message,
+            });
+            return raws;
+        }
     }
 
     // ─── Detail enrichment ────────────────────────────────────────────────────

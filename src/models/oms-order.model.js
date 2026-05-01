@@ -82,6 +82,31 @@ class OmsOrderModel {
     }
 
     /**
+     * Bulk-check: nhận vào mảng omsOrderId, trả về mảng những id đã tồn tại trong DB.
+     *
+     * Dùng một câu IN(...) duy nhất thay vì N lần findByOmsId — O(1) DB round trip
+     * thay vì O(N). Được gọi ở order-fetcher trước khi enrich để tránh HTTP calls thừa.
+     *
+     * @param {(string|number)[]} omsIds  - mảng oms_order_id cần kiểm tra
+     * @returns {Promise<(string|number)[]>}  - mảng những id ĐÃ tồn tại
+     */
+    static async findExistingOmsIds(omsIds) {
+        if (!omsIds || omsIds.length === 0) return [];
+
+        const conn = await db.getConnection();
+        try {
+            const placeholders = omsIds.map(() => '?').join(', ');
+            const [rows] = await conn.query(
+                `SELECT oms_order_id FROM oms_orders WHERE oms_order_id IN (${placeholders})`,
+                omsIds
+            );
+            return rows.map(r => r.oms_order_id);
+        } finally {
+            conn.release();
+        }
+    }
+
+    /**
      * Insert a new oms_orders row from a normalized OMS order.
      * @param {object} payload — column-shaped row (caller pre-maps from normalized form)
      * @returns {Promise<number>} insertId
