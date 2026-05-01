@@ -49,28 +49,28 @@
         .topbar {
             background: var(--bg-panel);
             border-bottom: 1px solid var(--border);
-            padding: 10px 24px;
+            padding: 0 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             position: sticky; top: 0; z-index: 50;
-            height: 52px;
+            height: 44px;
         }
         .topbar-left {
-            display: flex; align-items: center; gap: 16px;
+            display: flex; align-items: center; gap: 14px;
         }
         .topbar-brand {
-            font-weight: 800; font-size: 15px;
+            font-weight: 800; font-size: 13px;
             letter-spacing: 1.2px;
             color: var(--text-primary);
         }
         .topbar-brand small {
-            font-size: 9px; display: block; line-height: 1;
+            font-size: 8px; display: block; line-height: 1;
             color: var(--text-secondary); font-weight: 600; letter-spacing: 2px;
         }
         .topbar-crumbs {
-            display: flex; align-items: center; gap: 8px;
-            font-size: 13px;
+            display: flex; align-items: center; gap: 6px;
+            font-size: 12px;
         }
         .topbar-crumbs a { color: var(--text-secondary); text-decoration: none; }
         .topbar-crumbs a:hover { color: var(--primary); }
@@ -78,24 +78,24 @@
         .topbar-crumbs .current { color: var(--text-primary); font-weight: 600; }
 
         .topbar-right {
-            display: flex; align-items: center; gap: 16px;
-            font-size: 12px; color: var(--text-secondary);
+            display: flex; align-items: center; gap: 12px;
+            font-size: 11px; color: var(--text-secondary);
         }
-        .topbar-right .divider { width: 1px; height: 20px; background: var(--border); }
+        .topbar-right .divider { width: 1px; height: 18px; background: var(--border); }
         .topbar-right .user {
-            display: flex; align-items: center; gap: 8px;
+            display: flex; align-items: center; gap: 6px;
             color: var(--text-primary); font-weight: 600;
         }
         .topbar-right .avatar {
-            width: 28px; height: 28px; border-radius: 50%;
+            width: 24px; height: 24px; border-radius: 50%;
             background: var(--warning); color: white;
             display: inline-flex; align-items: center; justify-content: center;
-            font-size: 13px; font-weight: 700;
+            font-size: 11px; font-weight: 700;
         }
 
         /* ─── Page Layout ─── */
         .page {
-            padding: 16px;
+            padding: 10px 14px;
             max-width: 1600px;
             margin: 0 auto;
         }
@@ -104,30 +104,30 @@
         .page-head {
             background: var(--bg-panel);
             border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: 14px 20px;
+            border-radius: var(--radius);
+            padding: 8px 14px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 16px;
+            gap: 10px;
+            margin-bottom: 10px;
             flex-wrap: wrap;
         }
         .page-head-left {
-            display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
         }
         .page-head h1 {
-            font-size: 17px;
-            font-weight: 600;
+            font-size: 14px;
+            font-weight: 700;
             color: var(--text-link);
         }
-        .page-head-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .page-head-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
         /* Main grid */
         .layout {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 320px;
-            gap: 16px;
+            grid-template-columns: minmax(0, 1fr) 280px;
+            gap: 10px;
             align-items: start;
         }
 
@@ -135,26 +135,26 @@
         .panel {
             background: var(--bg-panel);
             border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            margin-bottom: 16px;
+            border-radius: var(--radius);
+            margin-bottom: 10px;
             overflow: hidden;
         }
-        .panel-body { padding: 18px 20px; }
-        .panel-body.compact { padding: 14px 20px; }
+        .panel-body { padding: 12px 14px; }
+        .panel-body.compact { padding: 8px 14px; }
 
         .panel-head {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 12px 20px;
+            padding: 6px 14px;
             border-bottom: 1px solid var(--border);
             background: var(--bg-muted);
-            gap: 12px;
+            gap: 10px;
         }
         .panel-head h3 {
-            font-size: 13px;
-            font-weight: 600;
+            font-size: 11px;
+            font-weight: 700;
             color: var(--text-link);
             text-transform: uppercase;
-            letter-spacing: .5px;
+            letter-spacing: .6px;
         }
         .panel-head-actions { display: flex; gap: 6px; align-items: center; }
 
@@ -162,28 +162,30 @@
         .side-section {
             background: var(--bg-panel);
             border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            margin-bottom: 16px;
+            border-radius: var(--radius);
+            margin-bottom: 10px;
             overflow: hidden;
         }
         .side-head {
-            padding: 12px 16px;
+            padding: 6px 12px;
             border-bottom: 1px solid var(--border);
             background: var(--bg-muted);
             display: flex; justify-content: space-between; align-items: center;
         }
         .side-head h3 {
-            font-size: 13px; font-weight: 600; color: var(--text-link);
-            text-transform: uppercase; letter-spacing: .5px;
+            font-size: 11px; font-weight: 700; color: var(--text-link);
+            text-transform: uppercase; letter-spacing: .6px;
         }
-        .side-body { padding: 8px 16px 12px; }
+        .side-body { padding: 4px 12px 8px; }
 
         .side-row {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 7px 0;
-            font-size: 13px;
-            gap: 10px;
+            padding: 4px 0;
+            font-size: 12px;
+            gap: 8px;
+            border-bottom: 1px solid var(--bg-muted);
         }
+        .side-row:last-child { border-bottom: none; }
         .side-row .label {
             color: var(--text-secondary); flex-shrink: 0;
         }
@@ -198,35 +200,35 @@
 
         /* ─── Order code header (sidebar top) ─── */
         .order-code-card {
-            padding: 16px;
+            padding: 10px 12px;
             border-bottom: 1px solid var(--border);
             background: linear-gradient(135deg, var(--primary-light) 0%, #ffffff 100%);
         }
         .order-code-card .order-label {
-            font-size: 11px; color: var(--text-secondary);
+            font-size: 10px; color: var(--text-secondary);
             text-transform: uppercase; letter-spacing: 1px;
-            margin-bottom: 4px; font-weight: 600;
+            margin-bottom: 2px; font-weight: 600;
         }
         .order-code-card .order-row {
             display: flex; align-items: center; justify-content: space-between;
             gap: 8px;
         }
         .order-code-card .code {
-            font-size: 18px; font-weight: 700; color: var(--text-link);
+            font-size: 15px; font-weight: 700; color: var(--text-link);
             font-family: 'SF Mono', Menlo, Consolas, monospace;
             letter-spacing: -.3px;
         }
         .order-code-card .copy-icon {
-            color: var(--text-muted); cursor: pointer; padding: 4px;
-            background: none; border: none; font-size: 14px;
+            color: var(--text-muted); cursor: pointer; padding: 2px;
+            background: none; border: none; font-size: 13px;
         }
         .order-code-card .copy-icon:hover { color: var(--primary); }
         .order-code-card .status-row {
-            margin-top: 10px; display: flex; justify-content: space-between;
+            margin-top: 6px; display: flex; justify-content: space-between;
             align-items: center; gap: 8px;
         }
         .order-code-card .status-row .status-label {
-            font-size: 11px; color: var(--text-secondary);
+            font-size: 10px; color: var(--text-secondary);
             text-transform: uppercase; letter-spacing: 1px; font-weight: 600;
         }
 
@@ -235,36 +237,37 @@
         table.data {
             width: 100%;
             border-collapse: collapse;
-            font-size: 13px;
+            font-size: 12px;
         }
         table.data th, table.data td {
-            padding: 10px 12px;
+            padding: 7px 10px;
             text-align: left;
             border-bottom: 1px solid var(--border);
-            vertical-align: top;
+            vertical-align: middle;
         }
         table.data thead th {
             background: var(--bg-table-head);
             color: var(--text-secondary);
             font-weight: 600;
-            font-size: 12px;
+            font-size: 11px;
             border-bottom: 1px solid var(--border);
             white-space: nowrap;
         }
         table.data tbody tr:last-child td { border-bottom: none; }
+        table.data tbody tr:hover td { background: var(--bg-muted); }
         table.data .text-right { text-align: right; }
         table.data .text-center { text-align: center; }
         table.data .product-name {
             color: var(--text-link); font-weight: 600;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
         }
         table.data .product-meta {
-            font-size: 12px; color: var(--text-secondary); line-height: 1.5;
+            font-size: 11px; color: var(--text-secondary); line-height: 1.4;
         }
         table.data .product-dims {
-            font-size: 11px; color: var(--text-muted);
+            font-size: 10px; color: var(--text-muted);
             font-family: 'SF Mono', Menlo, Consolas, monospace;
-            margin-top: 2px;
+            margin-top: 1px;
         }
         table.data .total-row td {
             background: var(--bg-muted); font-weight: 600;
@@ -311,12 +314,12 @@
 
         /* ─── Buttons ─── */
         .btn {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 7px 14px;
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 5px 11px;
             border: 1px solid var(--border-strong);
             border-radius: var(--radius);
-            font-size: 12px; font-weight: 600;
-            text-transform: uppercase; letter-spacing: .5px;
+            font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: .4px;
             cursor: pointer;
             background: var(--bg-panel);
             color: var(--text-primary);
@@ -328,7 +331,7 @@
         .btn:hover { background: var(--bg-muted); }
         .btn:disabled { opacity: .5; cursor: not-allowed; pointer-events: none; }
 
-        .btn-sm { padding: 5px 10px; font-size: 11px; }
+        .btn-sm { padding: 3px 8px; font-size: 11px; }
 
         .btn-primary  { background: var(--primary); color: white; border-color: var(--primary); }
         .btn-primary:hover  { background: var(--primary-dark); }
@@ -375,16 +378,20 @@
         /* ─── Read-mode info grid ─── */
         .info-grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px 28px;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px 16px;
         }
         .info-item {
-            display: flex; flex-direction: column; gap: 2px;
+            display: flex; flex-direction: column; gap: 1px;
             min-width: 0;
+            background: var(--bg-muted);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 6px 8px;
         }
         .info-item .info-label {
-            font-size: 11px;
-            color: var(--text-secondary);
+            font-size: 10px;
+            color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: .5px;
             font-weight: 600;
@@ -482,12 +489,12 @@
             background: var(--bg-muted);
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            padding: 14px 18px;
+            padding: 10px 14px;
         }
         .total-line {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 6px 0;
-            font-size: 13px;
+            padding: 4px 0;
+            font-size: 12px;
         }
         .total-line .label { color: var(--text-secondary); }
         .total-line .value {
@@ -496,11 +503,11 @@
         }
         .total-line.grand {
             border-top: 1px solid var(--border-strong);
-            padding-top: 10px; margin-top: 6px;
-            font-size: 14px;
+            padding-top: 7px; margin-top: 4px;
+            font-size: 13px;
         }
         .total-line.grand .value {
-            color: var(--text-link); font-size: 15px;
+            color: var(--text-link); font-size: 14px;
         }
 
         /* Layout helpers */
@@ -520,10 +527,12 @@
         /* Status select inline */
         .status-bar {
             display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-            padding: 12px 20px;
+            padding: 8px 12px;
+            background: var(--bg-muted);
+            border-top: 1px solid var(--border);
         }
         .status-bar .label {
-            font-size: 12px; font-weight: 600;
+            font-size: 11px; font-weight: 600;
             color: var(--text-secondary);
             text-transform: uppercase; letter-spacing: .5px;
         }
@@ -560,29 +569,30 @@
         /* Section divider inside panel */
         .section-divider {
             height: 1px; background: var(--border);
-            margin: 18px 0;
+            margin: 10px 0;
         }
         .section-subhead {
-            font-size: 11px; font-weight: 700;
+            font-size: 10px; font-weight: 700;
             color: var(--text-secondary);
             text-transform: uppercase; letter-spacing: 1px;
-            margin-bottom: 10px;
-            padding-bottom: 6px;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
             border-bottom: 1px dashed var(--border);
         }
 
         /* Responsive */
         @media (max-width: 1100px) {
             .layout { grid-template-columns: 1fr; }
+            .info-grid { grid-template-columns: repeat(2, 1fr); }
             .label-box { grid-template-columns: repeat(2, 1fr); }
             .form-grid-3 { grid-template-columns: repeat(2, 1fr); }
             .form-grid-4 { grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 640px) {
-            .topbar { padding: 8px 12px; }
+            .topbar { padding: 6px 10px; }
             .topbar-crumbs { display: none; }
-            .page { padding: 8px; }
-            .panel-body { padding: 14px; }
+            .page { padding: 6px; }
+            .panel-body { padding: 10px; }
             .info-grid, .form-grid { grid-template-columns: 1fr; }
             .label-box { grid-template-columns: 1fr; }
             .form-grid-3, .form-grid-4 { grid-template-columns: 1fr; }
@@ -855,6 +865,7 @@
                             <thead>
                                 <tr>
                                     <th class="col-mid">SKU</th>
+                                    <th>Product Name</th>
                                     <th>Description</th>
                                     <th class="col-narrow">Qty</th>
                                     <th class="col-narrow">Price</th>
@@ -890,8 +901,8 @@
 
                 <!-- Read view -->
                 <div class="panel-body" id="pricingView">
-                    <div style="display:grid; grid-template-columns: 1fr 320px; gap:24px; align-items:flex-start;">
-                        <div class="info-grid">
+                    <div style="display:grid; grid-template-columns: 1fr 260px; gap:16px; align-items:flex-start;">
+                        <div class="info-grid" style="grid-template-columns: repeat(3, 1fr)">
                             <div class="info-item">
                                 <span class="info-label">Shipping Fee — Purchase</span>
                                 <span class="info-value mono" id="vShippingPurchase">—</span>
@@ -1076,6 +1087,6 @@
     </div>
 </div>
 
-<script src="/js/oms-order-detail.js?v=2125"></script>
+<script src="/js/oms-order-detail.js?v=2131"></script>
 </body>
 </html>

@@ -12,6 +12,17 @@
 //
 // Dimensions are taken from units[0] (the primary/default unit).
 // Weight is in grams (as returned by OMS) — stored as-is; callers may convert.
+//
+// Dimension assignment strategy:
+//   - Each item in order.items[] gets its own { weight, length, width, height, weightUnit, sizeUnit }
+//     set from the product API response for that item's SKU.
+//   - Package-level dimensions (order.weight / length / width / height) are then
+//     AGGREGATED from all items:
+//       • weight  → sum of (item.weight × item.quantity) across all items that have weight
+//       • length  → max of all item lengths   (longest side drives box size)
+//       • width   → max of all item widths
+//       • height  → sum of all item heights   (stacked assumption)
+//     If NO item has any dimension, package fields stay null.
 
 const axios = require('axios');
 const omsAuth = require('./auth.service');
@@ -131,10 +142,66 @@ class OmsProductFetcherService {
     }
 
     /**
-     * Enrich a batch of normalized orders with product dimensions.
-     * Mutates each order in-place (weight, length, width, height, weightUnit).
-     * Orders without a resolvable customer or matching product keep null dims.
+     * Aggregate item-level dimensions into package-level dimensions.
      *
+     * Strategy:
+     *   weight → sum of (item.weight × item.quantity) for items that have weight
+     *   length → max across all items (longest side)
+     *   width  → max across all items
+     *   height → sum across all items × quantity (stacked)
+     *
+     * Returns null for any field where no item has a value.
+     *
+     * @param {object[]} items  - order.items[] after per-item dims are applied
+     * @returns {{ weight, length, width, height, weightUnit, sizeUnit }}
+     */
+    _aggregatePackageDimensions(items) {
+        let totalWeight = null;
+        let maxLength   = null;
+        let maxWidth    = null;
+        let totalHeight = null;
+
+        for (const item of items) {
+            if (item.weight == null && item.length == null
+                && item.width == null && item.height == null) {
+                continue;
+            }
+
+            const qty = (item.quantity != null && item.quantity > 0) ? item.quantity : 1;
+
+            if (item.weight != null) {
+                totalWeight = (totalWeight ?? 0) + item.weight * qty;
+            }
+            if (item.length != null) {
+                maxLength = Math.max(maxLength ?? 0, item.length);
+            }
+            if (item.width != null) {
+                maxWidth = Math.max(maxWidth ?? 0, item.width);
+            }
+            if (item.height != null) {
+                totalHeight = (totalHeight ?? 0) + item.height * qty;
+            }
+        }
+
+        return {
+            weight:     totalWeight,
+            length:     maxLength,
+            width:      maxWidth,
+            height:     totalHeight,
+            weightUnit: 'G',
+            sizeUnit:   'CM',
+        };
+    }
+
+    /**
+     * Enrich a batch of normalized orders with product dimensions.
+     *
+     * Flow:
+     *   1. For each partner, fetch product dims for every unique SKU.
+     *   2. Write dims onto the matching item objects inside order.items[].
+     *   3. Aggregate item dims → package-level fields on the order.
+     *
+     * Orders without a resolvable customer or matching product keep null dims.
      * Groups orders by partnerCode so we only auth once per partner per batch.
      *
      * @param {object[]} orders  - normalized order objects (post _enrichBatch)
@@ -159,7 +226,6 @@ class OmsProductFetcherService {
                     partnerCode,
                     orderCount: partnerOrders.length,
                 });
-                // Attach resolved customerId = null (already null, nothing to do)
                 continue;
             }
 
@@ -170,20 +236,22 @@ class OmsProductFetcherService {
                 order.customerCode = customer.customer_code || null;
             }
 
-            // Collect unique SKUs across all orders for this partner
-            const skuToOrders = new Map(); // sku → order[]
+            // Build a flat map: sku → Set<item references> across all orders
+            // We need item references (not order references) so we can write
+            // dims directly onto each item.
+            const skuToItems = new Map(); // sku → item[]
             for (const order of partnerOrders) {
                 for (const item of (order.items || [])) {
                     const sku = item.sku || item.partnerSku;
                     if (!sku) continue;
-                    if (!skuToOrders.has(sku)) skuToOrders.set(sku, []);
-                    skuToOrders.get(sku).push(order);
+                    if (!skuToItems.has(sku)) skuToItems.set(sku, []);
+                    skuToItems.get(sku).push(item);
                 }
             }
 
-            const skus = [...skuToOrders.keys()];
+            const skus = [...skuToItems.keys()];
 
-            // Fetch product details in parallel batches of PRODUCT_CONCURRENCY
+            // ── Fetch product dims in parallel batches ──────────────────────
             for (let i = 0; i < skus.length; i += PRODUCT_CONCURRENCY) {
                 const slice = skus.slice(i, i + PRODUCT_CONCURRENCY);
                 await Promise.all(
@@ -193,20 +261,30 @@ class OmsProductFetcherService {
 
                         if (!dimensions) return;
 
-                        // Apply dimensions to all orders that carry this SKU.
-                        // If an order has multiple SKUs, the last one wins —
-                        // acceptable for now; a multi-SKU aggregation strategy
-                        // can be added later.
-                        for (const order of skuToOrders.get(sku)) {
-                            order.weight     = dimensions.weight;
-                            order.length     = dimensions.length;
-                            order.width      = dimensions.width;
-                            order.height     = dimensions.height;
-                            order.weightUnit = dimensions.weightUnit;
-                            order.sizeUnit   = dimensions.sizeUnit;
+                        // ── Apply dims to each item that carries this SKU ──
+                        for (const item of skuToItems.get(sku)) {
+                            item.weight     = dimensions.weight;
+                            item.length     = dimensions.length;
+                            item.width      = dimensions.width;
+                            item.height     = dimensions.height;
+                            item.weightUnit = dimensions.weightUnit;
+                            item.sizeUnit   = dimensions.sizeUnit;
                         }
                     })
                 );
+            }
+
+            // ── Aggregate item dims → package-level dims per order ──────────
+            // Runs after ALL SKU fetches for this partner are complete so every
+            // item has had a chance to receive its dimensions first.
+            for (const order of partnerOrders) {
+                const pkg = this._aggregatePackageDimensions(order.items || []);
+                order.weight     = pkg.weight;
+                order.length     = pkg.length;
+                order.width      = pkg.width;
+                order.height     = pkg.height;
+                order.weightUnit = pkg.weightUnit;
+                order.sizeUnit   = pkg.sizeUnit;
             }
 
             logger.debug('[OMS-PRODUCT] dimensions enriched for partner', {

@@ -230,7 +230,8 @@ function render(row) {
 function buildItcPayload(row) {
     const items = (row.items || []).map(it => ({
         skuNumber: it.sku || it.skuNumber || '',
-        itemDescription: it.name || it.itemDescription || '',
+        productName: it.productName || '',
+        itemDescription: it.itemDescription || '',
         quantity: Number(it.quantity || 0),
         itemWeight: Number(it.itemWeight || it.weight || 0),
         itemWidth: Number(it.itemWidth || it.width || 0),
@@ -286,9 +287,9 @@ function renderItemsRead(items, currency) {
         const sku = it.sku || it.skuNumber || '';
         const url = it.saleUrl ? `<br><a href="${escapeHtml(it.saleUrl)}" target="_blank" rel="noopener" style="font-size:11px;">🔗 Sale URL</a>` : '';
         const dimsBits = [];
-        if (it.itemWeight) dimsBits.push(`W:${it.itemWeight}kg`);
-        if (it.itemLength || it.itemWidth || it.itemHeight) {
-            dimsBits.push(`${it.itemLength || 0}×${it.itemWidth || 0}×${it.itemHeight || 0}cm`);
+        if (it.weight) dimsBits.push(`W:${it.weight}kg`);
+        if (it.length || it.width || it.height) {
+            dimsBits.push(`${it.length || 0}×${it.width || 0}×${it.height || 0}cm`);
         }
         const dimsLine = dimsBits.length ? `<div class="product-dims">${dimsBits.join(' · ')}</div>` : '';
 
@@ -296,7 +297,8 @@ function renderItemsRead(items, currency) {
             <tr>
                 <td class="text-center">${i + 1}</td>
                 <td>
-                    <div class="product-name">${escapeHtml(it.productName || it.itemDescription || '—')}</div>
+                    <div class="product-name">${escapeHtml(it.productName || '—')}</div>
+                    <div class="product-desc">${escapeHtml(it.itemDescription || '—')}</div>
                     <div class="product-meta">
                         ${sku ? `SKU: ${escapeHtml(sku)}` : ''}
                         ${url}
@@ -338,13 +340,14 @@ function itemRowHtml(it) {
     return `
         <tr>
             <td><input type="text" data-field="sku" value="${escapeHtml(it.sku || it.skuNumber || '')}" placeholder="SKU-001"></td>
-            <td><input type="text" data-field="name" value="${escapeHtml(it.name || it.itemDescription || '')}" placeholder="Item description"></td>
+            <td><input type="text" data-field="productName" value="${escapeHtml(it.productName || '')}" placeholder="Product Name"></td>
+            <td><input type="text" data-field="itemDescription" value="${escapeHtml(it.itemDescription || '')}" placeholder="Item Description"></td>
             <td><input type="number" class="num" data-field="quantity" value="${it.quantity ?? ''}" min="0" step="1"></td>
             <td><input type="number" class="num" data-field="unitPrice" value="${it.unitPrice ?? ''}" min="0" step="0.01"></td>
-            <td><input type="number" class="num" data-field="itemWeight" value="${it.itemWeight ?? ''}" min="0" step="0.001" placeholder="kg"></td>
-            <td><input type="number" class="num" data-field="itemLength" value="${it.itemLength ?? ''}" min="0" step="0.1" placeholder="cm"></td>
-            <td><input type="number" class="num" data-field="itemWidth" value="${it.itemWidth ?? ''}" min="0" step="0.1" placeholder="cm"></td>
-            <td><input type="number" class="num" data-field="itemHeight" value="${it.itemHeight ?? ''}" min="0" step="0.1" placeholder="cm"></td>
+            <td><input type="number" class="num" data-field="weight" value="${it.weight ?? ''}" min="0" step="0.001" placeholder="kg"></td>
+            <td><input type="number" class="num" data-field="length" value="${it.length ?? ''}" min="0" step="0.1" placeholder="cm"></td>
+            <td><input type="number" class="num" data-field="width" value="${it.width ?? ''}" min="0" step="0.1" placeholder="cm"></td>
+            <td><input type="number" class="num" data-field="height" value="${it.height ?? ''}" min="0" step="0.1" placeholder="cm"></td>
             <td><input type="url" data-field="saleUrl" value="${escapeHtml(it.saleUrl || '')}" placeholder="https://..."></td>
             <td class="col-action"><button type="button" class="btn-remove" title="Remove">×</button></td>
         </tr>
@@ -383,18 +386,20 @@ function collectItemsEdit() {
             return Number.isFinite(n) ? n : null;
         };
         const sku = get('sku');
-        const name = get('name');
+        const productName = get('productName');
+        const itemDescription = get('itemDescription');
         // skip empty rows
-        if (!sku && !name) return;
+        if (!sku) return;
         items.push({
             sku: sku,
-            name: name,
+            productName: productName,
+            itemDescription: itemDescription,
             quantity: num('quantity'),
             unitPrice: num('unitPrice'),
-            itemWeight: num('itemWeight'),
-            itemLength: num('itemLength'),
-            itemWidth: num('itemWidth'),
-            itemHeight: num('itemHeight'),
+            weight: num('weight'),
+            length: num('length'),
+            width: num('width'),
+            height: num('height'),
             saleUrl: get('saleUrl'),
         });
     });
