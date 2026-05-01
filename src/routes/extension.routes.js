@@ -71,6 +71,20 @@ router.get('/tool-express', requireAdmin, serveView('ecount-extension.html'));
  */
 router.get('/pod-products', requireAdmin, serveView('pod-products.html'));
 
+/**
+ * @route   GET /extensions/oms-orders
+ * @desc    OMS Orders — Outbound Request management (Phase 8)
+ * @access  Private (Admin only)
+ */
+router.get('/oms-orders', requireAdmin, serveView('oms-orders.html'));
+
+/**
+ * @route   GET /extensions/oms-orders/:id
+ * @desc    OMS Order detail (edit / buy label / pricing / status)
+ * @access  Private (Admin only)
+ */
+router.get('/oms-orders/:id', requireAdmin, serveView('oms-order-detail.html'));
+
 // ─── Public Pages ────────────────────────────────────────────────
 
 /**

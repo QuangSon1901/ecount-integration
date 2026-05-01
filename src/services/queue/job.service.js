@@ -213,6 +213,29 @@ class JobService {
         );
     }
 
+    // ========== OMS Jobs (Phase 6) ==========
+
+    /**
+     * Push tracking + label back to a customer's OMS.
+     * Worker: src/jobs/workers/oms-update-logistic.worker.js
+     *
+     * @param {number} omsOrderId — oms_orders.id
+     * @param {object} [options]
+     * @param {string} [options.tplCode] — override; defaults to row.product_code at run time
+     * @param {number} [delaySeconds=0]
+     */
+    async addOmsUpdateLogisticJob(omsOrderId, options = {}, delaySeconds = 0) {
+        return await JobModel.create(
+            'oms_update_logistic',
+            {
+                omsOrderId,
+                tplCode: options.tplCode || null,
+            },
+            delaySeconds,
+            5 // max attempts — backoff: 5s, 10s, 20s, 40s, 80s
+        );
+    }
+
     /**
      * Lấy stats
      */

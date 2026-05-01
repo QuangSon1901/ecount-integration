@@ -39,6 +39,12 @@ router.patch('/:customerId',
     apiCustomerController.updateCustomer.bind(apiCustomerController)
 );
 
+/** PUT /api/v1/admin/customers/:customerId/markup — Edit shipping markup % only */
+router.put('/:customerId/markup',
+    requireRole('admin'),
+    apiCustomerController.setMarkup.bind(apiCustomerController)
+);
+
 /** POST /api/v1/admin/customers/:customerId/credentials — Generate credentials */
 router.post('/:customerId/credentials',
     requireRole('admin'),

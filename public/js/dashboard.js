@@ -1,5 +1,5 @@
 /**
- * dashboard.js — Main dashboard logic with clean RBAC
+ * dashboard.js — Main dashboard logic with RBAC + OMS Orders integrated
  * No inline JS. All handlers attached via addEventListener.
  */
 var API = '/api/v1';
@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (currentUser) {
             if (currentUser.role === 'admin') {
                 loadCustomers();
+                initOmsSection();
             } else if (currentUser.role === 'customer') {
                 loadClientData();
             }
@@ -52,20 +53,20 @@ function fetchCurrentUser() {
 
 function renderUserUI() {
     if (!currentUser) return;
-    var nameEl = document.getElementById('userName');
-    var roleEl = document.getElementById('userRole');
-    var avatarEl = document.getElementById('userAvatar');
+    var nameEl    = document.getElementById('userName');
+    var roleEl    = document.getElementById('userRole');
+    var avatarEl  = document.getElementById('userAvatar');
     var subtitleEl = document.getElementById('sidebarSubtitle');
 
     if (currentUser.role === 'admin') {
-        nameEl.textContent = currentUser.fullName || currentUser.username;
-        roleEl.textContent = 'Administrator';
-        avatarEl.textContent = (currentUser.username || 'A')[0].toUpperCase();
+        nameEl.textContent    = currentUser.fullName || currentUser.username;
+        roleEl.textContent    = 'Administrator';
+        avatarEl.textContent  = (currentUser.username || 'A')[0].toUpperCase();
         subtitleEl.textContent = 'Admin Dashboard';
     } else {
-        nameEl.textContent = currentUser.customerName || currentUser.customerCode;
-        roleEl.textContent = 'Customer';
-        avatarEl.textContent = (currentUser.customerCode || 'C')[0].toUpperCase();
+        nameEl.textContent    = currentUser.customerName || currentUser.customerCode;
+        roleEl.textContent    = 'Customer';
+        avatarEl.textContent  = (currentUser.customerCode || 'C')[0].toUpperCase();
         subtitleEl.textContent = 'Customer Portal';
     }
 }
@@ -74,16 +75,11 @@ function applyRBAC() {
     if (!currentUser) return;
     var role = currentUser.role;
 
-    // Show elements for this role
     var els = document.querySelectorAll('[data-role="' + role + '"]');
     for (var i = 0; i < els.length; i++) {
         els[i].classList.add('role-visible');
     }
 
-    // Show shared sections (no data-role)
-    // They're always visible by CSS
-
-    // Set initial active section
     if (role === 'admin') {
         navigateToSection('admin-overview');
     } else {
@@ -101,7 +97,7 @@ function initNavigation() {
     }
 }
 
-function handleNavClick(e) {
+function handleNavClick() {
     var section = this.getAttribute('data-section');
     if (section) {
         navigateToSection(section);
@@ -110,25 +106,22 @@ function handleNavClick(e) {
 }
 
 function navigateToSection(sectionId) {
-    // Hide all sections
     var sections = document.querySelectorAll('.content-section');
     for (var i = 0; i < sections.length; i++) {
         sections[i].classList.remove('active');
     }
 
-    // Show target
     var target = document.getElementById(sectionId);
     if (target) {
         target.classList.add('active');
         updatePageTitle(sectionId);
 
-        // Lazy-load data
-        if (sectionId === 'admin-customers') loadCustomers();
+        if (sectionId === 'admin-customers')    loadCustomers();
+        if (sectionId === 'admin-oms-orders')   { omsPage = 0; loadOmsOrders(); }
         if (sectionId === 'client-credentials') loadCredentials();
-        if (sectionId === 'client-webhooks') loadWebhooks();
+        if (sectionId === 'client-webhooks')    loadWebhooks();
     }
 
-    // Update nav highlight
     var navLink = document.querySelector('.nav-link[data-section="' + sectionId + '"]');
     if (navLink) setActiveNav(navLink);
 
@@ -147,6 +140,7 @@ var pageTitles = {
     'admin-overview':        { t: 'Dashboard Overview',   s: 'System overview and quick actions' },
     'admin-customers':       { t: 'API Customers',        s: 'Manage API customers' },
     'admin-create-customer': { t: 'Create Customer',      s: 'Create new API customer' },
+    'admin-oms-orders':      { t: 'OMS Orders',           s: 'Outbound request management' },
     'admin-tools':           { t: 'Internal Tools',       s: 'Admin-only tools and extensions' },
     'client-overview':       { t: 'Account Overview',     s: 'Your account information' },
     'client-credentials':    { t: 'API Credentials',      s: 'Your Client ID and Secret Key' },
@@ -157,10 +151,8 @@ var pageTitles = {
 
 function updatePageTitle(sectionId) {
     var info = pageTitles[sectionId] || { t: 'Dashboard', s: '' };
-    var titleEl = document.getElementById('pageTitle');
-    var subEl = document.getElementById('pageSubtitle');
-    if (titleEl) titleEl.textContent = info.t;
-    if (subEl) subEl.textContent = info.s;
+    setText('pageTitle',    info.t);
+    setText('pageSubtitle', info.s);
 }
 
 // ════════════════════════════════════════════
@@ -180,37 +172,24 @@ function initQuickAccessCards() {
 // EVENT LISTENERS
 // ════════════════════════════════════════════
 function initEventListeners() {
-    // Admin: reload customers
+    // Admin: customers
     addClick('btnReloadCustomers', function () { loadCustomers(); });
     addClick('btnGoCreateCustomer', function () { navigateToSection('admin-create-customer'); });
 
     // Admin: create customer form
     var form = document.getElementById('createCustomerForm');
     if (form) form.addEventListener('submit', handleCreateCustomer);
+
     addClick('btnCopyPortalPw', function () {
         var pw = document.getElementById('resultPortalPassword');
-        if (pw && pw.textContent) {
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(pw.textContent).then(function () {
-                    showAlert('Portal password copied!', 'success');
-                });
-            } else {
-                var ta = document.createElement('textarea');
-                ta.value = pw.textContent;
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                document.body.removeChild(ta);
-                showAlert('Portal password copied!', 'success');
-            }
-        }
+        if (pw && pw.textContent) copyText(pw.textContent, 'Portal password copied!');
     });
 
     // Client: credentials
-    addClick('btnCopyClientId', function () { copyField('credClientId'); });
+    addClick('btnCopyClientId',  function () { copyField('credClientId'); });
     addClick('btnCopyNewSecret', function () { copyField('newSecretValue'); });
-    addClick('btnCopySecret', function () { copyField('credClientSecret'); });
-    addClick('btnShowSecret', function () {
+    addClick('btnCopySecret',    function () { copyField('credClientSecret'); });
+    addClick('btnShowSecret',    function () {
         showAlert('Secret key is not stored. It is only shown when newly generated.', 'info');
     });
     addClick('btnResetSecret', handleResetSecret);
@@ -218,18 +197,16 @@ function initEventListeners() {
     // Client: change password
     addClick('btnChangePassword', handleChangePassword);
 
-    // Client: webhooks
+    // Client: webhooks modal
     addClick('btnAddWebhook', function () {
         document.getElementById('webhookModal').classList.add('show');
     });
     addClick('btnCancelWebhook', function () {
         document.getElementById('webhookModal').classList.remove('show');
     });
-
     var whForm = document.getElementById('webhookForm');
     if (whForm) whForm.addEventListener('submit', handleAddWebhook);
 
-    // Modal overlay click-to-close
     var overlay = document.getElementById('webhookModal');
     if (overlay) {
         overlay.addEventListener('click', function (e) {
@@ -247,6 +224,24 @@ function initEventListeners() {
             if (e.target === testPickerOverlay) testPickerOverlay.classList.remove('show');
         });
     }
+
+    // OMS Orders: filters + pagination + bulk buy + refresh
+    addChange('filterCustomer', function () { omsPage = 0; loadOmsOrders(); });
+    addChange('filterStatus',   function () { omsPage = 0; loadOmsOrders(); });
+    addClick('prevPage',    function () { omsPage = Math.max(0, omsPage - 1); loadOmsOrders(); });
+    addClick('nextPage',    function () { omsPage++; loadOmsOrders(); });
+    addClick('bulkBuyBtn',  bulkBuyLabels);
+    addClick('refreshBtn',  function () { loadOmsOrders(); });
+
+    var selectAll = document.getElementById('selectAll');
+    if (selectAll) {
+        selectAll.addEventListener('change', function (e) {
+            document.querySelectorAll('.rowSel:not([disabled])').forEach(function (cb) {
+                cb.checked = e.target.checked;
+            });
+            updateSelCount();
+        });
+    }
 }
 
 function addClick(id, fn) {
@@ -254,12 +249,17 @@ function addClick(id, fn) {
     if (el) el.addEventListener('click', fn);
 }
 
+function addChange(id, fn) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', fn);
+}
+
 // ════════════════════════════════════════════
 // ADMIN: CUSTOMER MANAGEMENT
 // ════════════════════════════════════════════
 function loadCustomers() {
     var loading = document.getElementById('loadingCustomers');
-    var tbody = document.getElementById('customersTableBody');
+    var tbody   = document.getElementById('customersTableBody');
     if (!tbody) return;
 
     if (loading) loading.classList.add('show');
@@ -272,7 +272,7 @@ function loadCustomers() {
                 var customers = result.data.customers;
                 updateStats(customers);
                 if (customers.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-secondary);">No customers yet</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-secondary);">No customers yet</td></tr>';
                 } else {
                     renderCustomerRows(customers, tbody);
                 }
@@ -286,7 +286,7 @@ function loadCustomers() {
 
 function renderCustomerRows(customers, tbody) {
     for (var i = 0; i < customers.length; i++) {
-        var c = customers[i];
+        var c  = customers[i];
         var tr = document.createElement('tr');
         tr.innerHTML =
             '<td>' + c.id + '</td>' +
@@ -298,11 +298,10 @@ function renderCustomerRows(customers, tbody) {
             '<td>' + formatTelegramGroups(c.telegram_group_ids) + '</td>' +
             '<td>' + formatLarkGroups(c.lark_group_ids) + '</td>' +
             '<td>' + fmtDate(c.created_at) + '</td>' +
-            '<td><button class="btn btn-sm view-btn" data-id="' + c.id + '" data-code="' + esc(c.customer_code) + '">View</button></td>';
+            '<td><button class="btn btn-sm view-btn" data-id="' + c.id + '">View</button></td>';
         tbody.appendChild(tr);
     }
 
-    // Attach view buttons
     var btns = tbody.querySelectorAll('.view-btn');
     for (var j = 0; j < btns.length; j++) {
         btns[j].addEventListener('click', function () {
@@ -313,35 +312,67 @@ function renderCustomerRows(customers, tbody) {
 }
 
 function updateStats(customers) {
-    var total = customers.length;
+    var total  = customers.length;
     var active = 0;
     for (var i = 0; i < customers.length; i++) {
         if (customers[i].status === 'active') active++;
     }
-    setText('navCustomerCount', total);
+    setText('navCustomerCount',  total);
     setText('statsCustomerCount', total);
-    setText('statsActiveCount', active + ' Active');
+    setText('statsActiveCount',   active + ' Active');
 }
 
 function handleCreateCustomer(e) {
     e.preventDefault();
 
+    var omsRealm        = val('formOmsRealm').trim();
+    var omsClientId     = val('formOmsClientId').trim();
+    var omsClientSecret = val('formOmsClientSecret');
+    var omsUrlAuth      = val('formOmsUrlAuth').trim();
+    var omsUrlApi       = val('formOmsUrlApi').trim();
+    var markupRaw       = val('formShippingMarkupPercent').trim();
+
+    var urlRe = /^https?:\/\/\S+$/i;
+    if (omsUrlAuth && !urlRe.test(omsUrlAuth)) {
+        showAlert('OMS URL Auth must be a valid http/https URL', 'error');
+        return;
+    }
+    if (omsUrlApi && !urlRe.test(omsUrlApi)) {
+        showAlert('OMS URL API must be a valid http/https URL', 'error');
+        return;
+    }
+
+    var markupVal;
+    if (markupRaw !== '') {
+        markupVal = Number(markupRaw);
+        if (!isFinite(markupVal) || markupVal < 0 || markupVal > 100) {
+            showAlert('Shipping markup must be a number between 0 and 100', 'error');
+            return;
+        }
+    }
+
     var data = {
-        customer_code: val('formCustomerCode'),
-        customer_name: val('formCustomerName'),
-        email: val('formEmail') || undefined,
-        phone: val('formPhone') || undefined,
-        environment: val('formEnvironment'),
-        rate_limit_per_hour: parseInt(val('formRateLimitHourly')),
-        rate_limit_per_day: parseInt(val('formRateLimitDaily')),
-        webhook_enabled: document.getElementById('formWebhookEnabled').checked,
-        bulk_order_enabled: document.getElementById('formBulkOrderEnabled').checked
+        customer_code:        val('formCustomerCode'),
+        customer_name:        val('formCustomerName'),
+        email:                val('formEmail')    || undefined,
+        phone:                val('formPhone')    || undefined,
+        environment:          val('formEnvironment'),
+        rate_limit_per_hour:  parseInt(val('formRateLimitHourly')),
+        rate_limit_per_day:   parseInt(val('formRateLimitDaily')),
+        webhook_enabled:      document.getElementById('formWebhookEnabled').checked,
+        bulk_order_enabled:   document.getElementById('formBulkOrderEnabled').checked,
+        oms_realm:            omsRealm        || undefined,
+        oms_client_id:        omsClientId     || undefined,
+        oms_client_secret:    omsClientSecret || undefined,
+        oms_url_auth:         omsUrlAuth      || undefined,
+        oms_url_api:          omsUrlApi       || undefined
     };
+    if (markupVal !== undefined) data.shipping_markup_percent = markupVal;
 
     fetch(API + '/admin/customers', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        body:    JSON.stringify(data)
     })
     .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
     .then(function (res) {
@@ -349,8 +380,6 @@ function handleCreateCustomer(e) {
             showAlert('Customer created successfully!', 'success');
             displayCreateSuccess(res.data.data);
             document.getElementById('createCustomerForm').reset();
-            document.getElementById('formWebhookEnabled').checked = true;
-            document.getElementById('formBulkOrderEnabled').checked = true;
         } else {
             showAlert(res.data.message || 'Error creating customer', 'error');
         }
@@ -359,11 +388,208 @@ function handleCreateCustomer(e) {
 }
 
 function displayCreateSuccess(data) {
-    setText('resultCustomerCode', data.customer_code);
+    setText('resultCustomerCode',   data.customer_code);
     setText('resultPortalPassword', data.portal_password || '');
     var link = document.getElementById('resultViewLink');
     if (link) link.href = '/extensions/customer/' + data.customer_id;
     document.getElementById('createSuccessResult').classList.remove('hidden');
+}
+
+// ════════════════════════════════════════════
+// ADMIN: OMS ORDERS
+// ════════════════════════════════════════════
+var OMS_PAGE_SIZE = 25;
+var omsPage = 0;
+var omsLastRows = [];
+
+function initOmsSection() {
+    loadOmsCustomersDropdown();
+}
+
+function loadOmsCustomersDropdown() {
+    fetch(API + '/admin/customers?limit=200')
+        .then(function (r) { return r.json(); })
+        .then(function (r) {
+            var sel = document.getElementById('filterCustomer');
+            if (!sel) return;
+            var customers = (r.data && r.data.customers) || [];
+            customers.forEach(function (c) {
+                var opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.customer_code + ' — ' + c.customer_name;
+                sel.appendChild(opt);
+            });
+        })
+        .catch(function (e) { console.warn('OMS customer dropdown failed', e); });
+}
+
+function loadOmsOrders() {
+    var customer = val('filterCustomer');
+    var status   = val('filterStatus');
+    var params   = new URLSearchParams({ limit: OMS_PAGE_SIZE, offset: omsPage * OMS_PAGE_SIZE });
+    if (customer) params.set('customer_id', customer);
+    if (status)   params.set('internal_status', status);
+
+    var paginationInfo = document.getElementById('paginationInfo');
+    if (paginationInfo) paginationInfo.textContent = 'Loading...';
+
+    fetch(API + '/admin/oms-orders?' + params.toString(), { credentials: 'include' })
+        .then(function (r) {
+            if (r.status === 401) { location.href = '/login'; return null; }
+            return r.json();
+        })
+        .then(function (r) {
+            if (!r) return;
+            omsLastRows = (r.data && r.data.orders) || [];
+            renderOmsRows(omsLastRows);
+            computeOmsStats(omsLastRows);
+
+            var offset = omsPage * OMS_PAGE_SIZE;
+            if (paginationInfo) paginationInfo.textContent = omsLastRows.length + ' order(s) on this page';
+            setText('pageInfo',  'Page ' + (omsPage + 1));
+
+            var prevBtn = document.getElementById('prevPage');
+            var nextBtn = document.getElementById('nextPage');
+            if (prevBtn) prevBtn.disabled = omsPage === 0;
+            if (nextBtn) nextBtn.disabled = omsLastRows.length < OMS_PAGE_SIZE;
+
+            var emptyState = document.getElementById('emptyState');
+            if (emptyState) emptyState.style.display = omsLastRows.length ? 'none' : 'block';
+        })
+        .catch(function (e) { showAlert('Failed to load orders: ' + e.message, 'error'); });
+}
+
+function computeOmsStats(rows) {
+    var counts = { pending: 0, selected: 0, label_purchased: 0, oms_updated: 0, error: 0 };
+    rows.forEach(function (r) {
+        if (r.internal_status === 'pending')          counts.pending++;
+        else if (r.internal_status === 'selected')    counts.selected++;
+        else if (r.internal_status === 'label_purchased') counts.label_purchased++;
+        else if (r.internal_status === 'oms_updated') counts.oms_updated++;
+        else if (r.internal_status === 'error' || r.internal_status === 'failed') counts.error++;
+    });
+    setText('statPending',        counts.pending);
+    setText('statSelected',       counts.selected);
+    setText('statLabelPurchased', counts.label_purchased);
+    setText('statOmsUpdated',     counts.oms_updated);
+    setText('statError',          counts.error);
+}
+
+function renderOmsRows(rows) {
+    var tbody = document.getElementById('orderRows');
+    if (!tbody) return;
+
+    var selectAll = document.getElementById('selectAll');
+    if (selectAll) selectAll.checked = false;
+
+    if (!rows.length) {
+        tbody.innerHTML = '';
+        updateSelCount();
+        return;
+    }
+
+    tbody.innerHTML = rows.map(function (r) {
+        var canSelect = r.internal_status === 'pending' || r.internal_status === 'selected';
+        var profitVal;
+        if (r.gross_profit !== null && r.gross_profit !== undefined) {
+            var cls = Number(r.gross_profit) >= 0 ? 'money-profit' : 'money-loss';
+            profitVal = '<span class="' + cls + '">' + fmtMoney(r.gross_profit) + '</span>';
+        } else {
+            profitVal = '<span style="color:var(--text-secondary)">—</span>';
+        }
+
+        return '<tr>' +
+            '<td><input type="checkbox" class="rowSel" data-id="' + r.id + '"' + (canSelect ? '' : ' disabled') + '></td>' +
+            '<td><a class="order-link" href="/extensions/oms-orders/' + r.id + '">' + esc(r.order_number) + '</a></td>' +
+            '<td><span class="cust-badge">#' + esc(r.customer_id) + '</span></td>' +
+            '<td class="mono-sm">' + esc(r.oms_order_id || '—') + '</td>' +
+            '<td>' + omsBadge(r.internal_status) + '</td>' +
+            '<td class="mono-sm">' + (esc(r.tracking_number) || '<span style="color:var(--text-secondary)">—</span>') + '</td>' +
+            '<td>' +
+                '<div class="receiver-name">' + esc(r.receiver_name || '—') + '</div>' +
+                '<div class="receiver-location">' + esc(r.receiver_country || '') + ' ' + esc(r.receiver_city || '') + '</div>' +
+            '</td>' +
+            '<td>' +
+                '<div class="money-cell">' +
+                    '<div>Cost: <strong>' + fmtMoney(r.shipping_fee_purchase) + '</strong></div>' +
+                    '<div>Sell: <strong>' + fmtMoney(r.shipping_fee_selling) + '</strong></div>' +
+                    '<div>Profit: ' + profitVal + '</div>' +
+                '</div>' +
+            '</td>' +
+            '<td class="date-sm">' + fmtDatetime(r.created_at) + '</td>' +
+            '<td><a href="/extensions/oms-orders/' + r.id + '" class="btn btn-sm btn-primary">View</a></td>' +
+        '</tr>';
+    }).join('');
+
+    document.querySelectorAll('.rowSel').forEach(function (cb) {
+        cb.addEventListener('change', updateSelCount);
+    });
+    updateSelCount();
+}
+
+function omsBadge(status) {
+    var map = {
+        pending:          'badge-warning',
+        selected:         'badge-info',
+        label_purchasing: 'badge-info',
+        label_purchased:  'badge-info',
+        oms_updated:      'badge-success',
+        shipped:          'badge-success',
+        delivered:        'badge-success',
+        cancelled:        'badge-danger',
+        failed:           'badge-danger',
+        error:            'badge-danger'
+    };
+    var cls = map[status] || 'badge-info';
+    return '<span class="badge ' + cls + '">' + esc(status.replace(/_/g, ' ')) + '</span>';
+}
+
+function updateSelCount() {
+    var ids = getSelectedIds();
+    setText('selCount', ids.length);
+    var bulkBar = document.getElementById('bulkBar');
+    if (bulkBar) bulkBar.classList.toggle('show', ids.length > 0);
+}
+
+function getSelectedIds() {
+    return Array.from(document.querySelectorAll('.rowSel:checked')).map(function (cb) {
+        return parseInt(cb.dataset.id);
+    });
+}
+
+function bulkBuyLabels() {
+    var ids = getSelectedIds();
+    if (!ids.length) return;
+    if (!confirm('Buy labels for ' + ids.length + ' order(s)? This calls ITC and is not reversible.')) return;
+
+    var btn = document.getElementById('bulkBuyBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Processing...'; }
+
+    fetch(API + '/admin/oms-orders/buy-labels-bulk', {
+        method:      'POST',
+        credentials: 'include',
+        headers:     { 'Content-Type': 'application/json' },
+        body:        JSON.stringify({ ids: ids })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (r) {
+        var succ    = (r.data && r.data.succeeded) || 0;
+        var fail    = (r.data && r.data.failed)    || 0;
+        var results = (r.data && r.data.results)   || [];
+        var failDetails = results
+            .filter(function (x) { return !x.success; })
+            .map(function (x)    { return '#' + x.id + ': ' + x.error; })
+            .join('\n');
+
+        showAlert('Done — ' + succ + ' succeeded, ' + fail + ' failed', fail > 0 ? 'error' : 'success');
+        if (failDetails) alert('Failed orders:\n' + failDetails);
+        loadOmsOrders();
+    })
+    .catch(function (e) { showAlert('Bulk buy failed: ' + e.message, 'error'); })
+    .finally(function () {
+        if (btn) { btn.disabled = false; btn.textContent = '🏷 Buy labels for selected'; }
+        updateSelCount();
+    });
 }
 
 // ════════════════════════════════════════════
@@ -372,44 +598,40 @@ function displayCreateSuccess(data) {
 function loadClientData() {
     if (!currentUser || currentUser.role !== 'customer') return;
 
-    // Account info (read-only)
-    setText('infoCustomerCode', currentUser.customerCode || '-');
-    setText('infoCustomerName', currentUser.customerName || '-');
-    setText('infoEmail', currentUser.email || '-');
-    setText('infoPhone', currentUser.phone || '-');
-    setText('infoEnvironment', currentUser.environment || '-');
-    setText('infoStatus', currentUser.status || '-');
+    setText('infoCustomerCode', currentUser.customerCode  || '-');
+    setText('infoCustomerName', currentUser.customerName  || '-');
+    setText('infoEmail',        currentUser.email         || '-');
+    setText('infoPhone',        currentUser.phone         || '-');
+    setText('infoEnvironment',  currentUser.environment   || '-');
+    setText('infoStatus',       currentUser.status        || '-');
 
-    // Sandbox customers cannot reset secret key — only admin can
     if (currentUser.environment === 'sandbox') {
         var resetBtn = document.getElementById('btnResetSecret');
         if (resetBtn) {
-            resetBtn.disabled = true;
-            resetBtn.textContent = 'Reset disabled (Sandbox)';
-            resetBtn.title = 'Sandbox customers cannot reset secret keys. Contact admin.';
+            resetBtn.disabled     = true;
+            resetBtn.textContent  = 'Reset disabled (Sandbox)';
+            resetBtn.title        = 'Sandbox customers cannot reset secret keys. Contact admin.';
         }
     }
 
-    // Webhook feature disabled — hide content, show notice
     if (!currentUser.webhookEnabled) {
-        var whNotice = document.getElementById('webhookDisabledNotice');
+        var whNotice    = document.getElementById('webhookDisabledNotice');
         var whContainer = document.getElementById('webhooksContainer');
-        var whAddBtn = document.getElementById('btnAddWebhook');
-        if (whNotice) whNotice.classList.remove('hidden');
+        var whAddBtn    = document.getElementById('btnAddWebhook');
+        if (whNotice)    whNotice.classList.remove('hidden');
         if (whContainer) whContainer.classList.add('hidden');
-        if (whAddBtn) whAddBtn.classList.add('hidden');
+        if (whAddBtn)    whAddBtn.classList.add('hidden');
     }
 
-    // Bulk Order / API Credentials feature disabled — hide content, show notice
     if (!currentUser.bulkOrderEnabled) {
-        var credNotice = document.getElementById('credentialsDisabledNotice');
+        var credNotice  = document.getElementById('credentialsDisabledNotice');
         var credContent = document.getElementById('credentialsContent');
-        if (credNotice) credNotice.classList.remove('hidden');
+        if (credNotice)  credNotice.classList.remove('hidden');
         if (credContent) credContent.classList.add('hidden');
     }
 
     if (currentUser.bulkOrderEnabled) loadCredentials();
-    if (currentUser.webhookEnabled) loadWebhooks();
+    if (currentUser.webhookEnabled)   loadWebhooks();
 }
 
 // ════════════════════════════════════════════
@@ -424,25 +646,20 @@ function loadCredentials() {
             if (data.success && data.data) {
                 document.getElementById('credClientId').value = data.data.client_id || '';
 
-                // Sandbox: show actual secret key (stored in plaintext)
                 if (data.data.client_secret && currentUser.environment === 'sandbox') {
                     var secretInput = document.getElementById('credClientSecret');
-                    secretInput.type = 'text';
+                    secretInput.type  = 'text';
                     secretInput.value = data.data.client_secret;
 
-                    // Enable copy for sandbox secret
                     var btnCopySecret = document.getElementById('btnCopySecret');
                     if (btnCopySecret) btnCopySecret.classList.remove('hidden');
 
-                    // Hide "Show" button — not needed for sandbox
                     var btnShow = document.getElementById('btnShowSecret');
                     if (btnShow) btnShow.classList.add('hidden');
 
-                    document.getElementById('credSecretMessage').textContent =
-                        'Sandbox environment: Secret key is visible for testing purposes.';
+                    setText('credSecretMessage', 'Sandbox environment: Secret key is visible for testing purposes.');
                 } else {
-                    document.getElementById('credSecretMessage').textContent =
-                        'Secret key is hidden for security. Only shown when newly generated.';
+                    setText('credSecretMessage', 'Secret key is hidden for security. Only shown when newly generated.');
                 }
             }
         })
@@ -452,7 +669,6 @@ function loadCredentials() {
 function handleResetSecret() {
     if (!currentUser) return;
 
-    // Sandbox customers cannot reset secret key
     if (currentUser.environment === 'sandbox') {
         showAlert('Sandbox customers cannot reset secret keys. Please contact admin.', 'error');
         return;
@@ -461,17 +677,13 @@ function handleResetSecret() {
     if (!confirm('The old secret key will be invalidated immediately. Are you sure?')) return;
 
     var btn = document.getElementById('btnResetSecret');
-    btn.disabled = true;
+    btn.disabled    = true;
     btn.textContent = 'Processing...';
 
-    // First get credential info to find the credential ID
     fetch(API + '/admin/customers/' + currentUser.id + '/credentials')
         .then(function (r) { return r.json(); })
         .then(function (credData) {
-            if (!credData.success || !credData.data) {
-                throw new Error('No credentials found');
-            }
-            // We need the credential ID — fetch the full customer to get it
+            if (!credData.success || !credData.data) throw new Error('No credentials found');
             return fetch(API + '/admin/customers/' + currentUser.id);
         })
         .then(function (r) { return r.json(); })
@@ -483,11 +695,10 @@ function handleResetSecret() {
                 if (creds[i].status === 'active') { activeCred = creds[i]; break; }
             }
             if (!activeCred) throw new Error('No active credential found');
-
             return fetch(API + '/admin/customers/' + currentUser.id + '/credentials/refresh', {
-                method: 'POST',
+                method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ credentialId: activeCred.id })
+                body:    JSON.stringify({ credentialId: activeCred.id })
             });
         })
         .then(function (r) { return r.json(); })
@@ -495,7 +706,7 @@ function handleResetSecret() {
             if (data.success && data.data) {
                 document.getElementById('newSecretValue').value = data.data.client_secret;
                 document.getElementById('newSecretBox').classList.remove('hidden');
-                document.getElementById('credClientId').value = data.data.client_id;
+                document.getElementById('credClientId').value  = data.data.client_id;
                 showAlert('Secret key has been reset! Save it now.', 'success');
             } else {
                 throw new Error(data.message || 'Failed to reset');
@@ -503,7 +714,7 @@ function handleResetSecret() {
         })
         .catch(function (err) { showAlert('Error: ' + err.message, 'error'); })
         .finally(function () {
-            btn.disabled = false;
+            btn.disabled    = false;
             btn.textContent = 'Reset Secret Key';
         });
 }
@@ -515,37 +726,28 @@ function handleChangePassword() {
     if (!currentUser) return;
 
     var current = val('changePwCurrent');
-    var newPw = val('changePwNew');
+    var newPw   = val('changePwNew');
     var confirm = val('changePwConfirm');
 
-    if (!current) {
-        showAlert('Please enter your current password', 'error');
-        return;
-    }
-    if (!newPw || newPw.length < 6) {
-        showAlert('New password must be at least 6 characters', 'error');
-        return;
-    }
-    if (newPw !== confirm) {
-        showAlert('New password and confirmation do not match', 'error');
-        return;
-    }
+    if (!current)               { showAlert('Please enter your current password', 'error'); return; }
+    if (!newPw || newPw.length < 6) { showAlert('New password must be at least 6 characters', 'error'); return; }
+    if (newPw !== confirm)      { showAlert('New password and confirmation do not match', 'error'); return; }
 
     var btn = document.getElementById('btnChangePassword');
-    btn.disabled = true;
+    btn.disabled    = true;
     btn.textContent = 'Changing...';
 
     fetch(API + '/admin/customers/' + currentUser.id + '/change-password', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ current_password: current, new_password: newPw })
+        body:    JSON.stringify({ current_password: current, new_password: newPw })
     })
     .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
     .then(function (res) {
         if (res.ok) {
             showAlert('Password changed successfully!', 'success');
             document.getElementById('changePwCurrent').value = '';
-            document.getElementById('changePwNew').value = '';
+            document.getElementById('changePwNew').value     = '';
             document.getElementById('changePwConfirm').value = '';
         } else {
             showAlert(res.data.message || 'Failed to change password', 'error');
@@ -553,7 +755,7 @@ function handleChangePassword() {
     })
     .catch(function () { showAlert('Server connection error', 'error'); })
     .finally(function () {
-        btn.disabled = false;
+        btn.disabled    = false;
         btn.textContent = 'Change Password';
     });
 }
@@ -561,17 +763,18 @@ function handleChangePassword() {
 // ════════════════════════════════════════════
 // CLIENT: WEBHOOKS
 // ════════════════════════════════════════════
+var _portalWebhooks = [];
+
 function loadWebhooks() {
     if (!currentUser || currentUser.role !== 'customer') return;
     var container = document.getElementById('webhooksContainer');
+    if (!container) return;
     container.innerHTML = '<div class="loading show">Loading...</div>';
 
     fetch(API + '/admin/customers/' + currentUser.id + '/webhooks')
         .then(function (r) { return r.json(); })
         .then(function (data) {
-            if (data.success) {
-                renderWebhooks(data.data || []);
-            }
+            if (data.success) renderWebhooks(data.data || []);
         })
         .catch(function () {
             container.innerHTML = '<div style="padding:20px;text-align:center;color:#ef4444;">Failed to load webhooks</div>';
@@ -580,9 +783,10 @@ function loadWebhooks() {
 
 function renderWebhooks(webhooks) {
     var container = document.getElementById('webhooksContainer');
+    _portalWebhooks = webhooks;
 
     if (webhooks.length === 0) {
-        container.innerHTML = '<div style="padding:40px;text-align:center;color:#64748b;">No webhooks registered yet</div>';
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">No webhooks registered yet</div>';
         return;
     }
 
@@ -590,62 +794,49 @@ function renderWebhooks(webhooks) {
         '<th>URL</th><th>Events</th><th>Status</th><th>Fails</th><th>Actions</th>' +
         '</tr></thead><tbody>';
 
-    // Store webhooks data for event picker
-    _portalWebhooks = webhooks;
-
     for (var i = 0; i < webhooks.length; i++) {
-        var wh = webhooks[i];
+        var wh    = webhooks[i];
         var evArr = Array.isArray(wh.events) ? wh.events : (typeof wh.events === 'string' ? wh.events.split(',') : []);
-        var eventsStr = evArr.join(', ');
         var badge = wh.status === 'active'
             ? '<span class="badge badge-success">Active</span>'
             : '<span class="badge badge-danger">Inactive</span>';
 
         html += '<tr>' +
             '<td class="mono" style="font-size:13px;max-width:300px;overflow:hidden;text-overflow:ellipsis;">' + esc(wh.url) + '</td>' +
-            '<td style="font-size:12px;">' + esc(eventsStr) + '</td>' +
+            '<td style="font-size:12px;">' + esc(evArr.join(', ')) + '</td>' +
             '<td>' + badge + '</td>' +
             '<td style="text-align:center;">' + (wh.fail_count || 0) + '</td>' +
             '<td style="white-space:nowrap;">' +
                 '<button class="btn btn-sm test-wh-btn" style="background:#6366f1;color:#fff;margin-right:6px;border-color:#6366f1;" data-wh-id="' + wh.id + '">Test</button>' +
                 '<button class="btn btn-danger btn-sm del-wh-btn" data-wh-id="' + wh.id + '">Delete</button>' +
             '</td>' +
-            '</tr>';
+        '</tr>';
     }
 
     html += '</tbody></table></div>';
     container.innerHTML = html;
 
-    // Attach test handlers — open event picker
     var testBtns = container.querySelectorAll('.test-wh-btn');
     for (var t = 0; t < testBtns.length; t++) {
         (function (btn) {
-            btn.addEventListener('click', function () {
-                showTestEventPicker(btn);
-            });
+            btn.addEventListener('click', function () { showTestEventPicker(btn); });
         })(testBtns[t]);
     }
 
-    // Attach delete handlers
-    var btns = container.querySelectorAll('.del-wh-btn');
-    for (var j = 0; j < btns.length; j++) {
-        btns[j].addEventListener('click', function () {
+    var delBtns = container.querySelectorAll('.del-wh-btn');
+    for (var j = 0; j < delBtns.length; j++) {
+        delBtns[j].addEventListener('click', function () {
             var whId = parseInt(this.getAttribute('data-wh-id'), 10);
             if (whId) deleteWebhook(whId);
         });
     }
 }
 
-var _portalWebhooks = [];
-
 function showTestEventPicker(btn) {
     var webhookId = btn.getAttribute('data-wh-id');
-    var webhook = null;
+    var webhook   = null;
     for (var i = 0; i < _portalWebhooks.length; i++) {
-        if (String(_portalWebhooks[i].id) === String(webhookId)) {
-            webhook = _portalWebhooks[i];
-            break;
-        }
+        if (String(_portalWebhooks[i].id) === String(webhookId)) { webhook = _portalWebhooks[i]; break; }
     }
     if (!webhook) return;
 
@@ -658,9 +849,9 @@ function showTestEventPicker(btn) {
 
     var contentEl = document.getElementById('testEventPickerContent');
     contentEl.innerHTML =
-        '<div style="margin-bottom:12px;color:#64748b;font-size:14px;">' +
+        '<div style="margin-bottom:12px;color:var(--text-secondary);font-size:14px;">' +
             'Chọn event để gửi test webhook tới:<br>' +
-            '<code style="font-size:12px;color:#2563eb;">' + esc(webhook.url) + '</code>' +
+            '<code style="font-size:12px;color:var(--primary);">' + esc(webhook.url) + '</code>' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + eventBtns + '</div>';
 
@@ -668,7 +859,6 @@ function showTestEventPicker(btn) {
     modal.dataset.whId = webhookId;
     modal.classList.add('show');
 
-    // Attach pick handlers
     var pickBtns = contentEl.querySelectorAll('.pick-ev-btn');
     for (var p = 0; p < pickBtns.length; p++) {
         (function (pb) {
@@ -684,25 +874,18 @@ function handleAddWebhook(e) {
     e.preventDefault();
     if (!currentUser) return;
 
-    var url = val('webhookUrl');
+    var url    = val('webhookUrl');
     var secret = val('webhookSecret');
-
-    // Gather checked events
     var checkboxes = document.querySelectorAll('input[name="webhookEvents"]:checked');
     var events = [];
-    for (var i = 0; i < checkboxes.length; i++) {
-        events.push(checkboxes[i].value);
-    }
+    for (var i = 0; i < checkboxes.length; i++) events.push(checkboxes[i].value);
 
-    if (events.length === 0) {
-        showAlert('Please select at least one event', 'error');
-        return;
-    }
+    if (events.length === 0) { showAlert('Please select at least one event', 'error'); return; }
 
     fetch(API + '/admin/customers/' + currentUser.id + '/webhooks', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url, secret: secret, events: events })
+        body:    JSON.stringify({ url: url, secret: secret, events: events })
     })
     .then(function (r) { return r.json(); })
     .then(function (data) {
@@ -721,14 +904,13 @@ function handleAddWebhook(e) {
 function testWebhook(webhookId, event) {
     if (!currentUser) return;
 
-    // Disable button while sending
     var testBtn = document.querySelector('.test-wh-btn[data-wh-id="' + webhookId + '"]');
     if (testBtn) { testBtn.disabled = true; testBtn.textContent = 'Sending...'; }
 
     fetch(API + '/admin/customers/' + currentUser.id + '/webhooks/' + webhookId + '/test', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: event })
+        body:    JSON.stringify({ event: event })
     })
     .then(function (r) { return r.json(); })
     .then(function (data) {
@@ -749,19 +931,17 @@ function deleteWebhook(whId) {
     if (!confirm('Delete this webhook?')) return;
     if (!currentUser) return;
 
-    fetch(API + '/admin/customers/' + currentUser.id + '/webhooks/' + whId, {
-        method: 'DELETE'
-    })
-    .then(function (r) { return r.json(); })
-    .then(function (data) {
-        if (data.success) {
-            showAlert('Webhook deleted', 'success');
-            loadWebhooks();
-        } else {
-            showAlert(data.message || 'Failed to delete', 'error');
-        }
-    })
-    .catch(function () { showAlert('Server error', 'error'); });
+    fetch(API + '/admin/customers/' + currentUser.id + '/webhooks/' + whId, { method: 'DELETE' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                showAlert('Webhook deleted', 'success');
+                loadWebhooks();
+            } else {
+                showAlert(data.message || 'Failed to delete', 'error');
+            }
+        })
+        .catch(function () { showAlert('Server error', 'error'); });
 }
 
 // ════════════════════════════════════════════
@@ -771,7 +951,7 @@ function showAlert(msg, type) {
     var container = document.getElementById('alertContainer');
     if (!container) return;
     var div = document.createElement('div');
-    div.className = 'alert alert-' + (type || 'success') + ' show';
+    div.className   = 'alert alert-' + (type || 'success') + ' show';
     div.textContent = msg;
     container.appendChild(div);
     setTimeout(function () {
@@ -789,6 +969,17 @@ function esc(text) {
 function fmtDate(str) {
     var d = new Date(str);
     return d.toLocaleDateString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+}
+
+function fmtDatetime(s) {
+    if (!s) return '—';
+    var d = new Date(s);
+    return d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtMoney(n) {
+    if (n === null || n === undefined || n === '') return '—';
+    return Number(n).toFixed(2);
 }
 
 function statusBadge(s) {
@@ -828,20 +1019,24 @@ function val(id) {
 function copyField(id) {
     var input = document.getElementById(id);
     if (!input || !input.value) return;
+    copyText(input.value, 'Copied to clipboard!');
+}
+
+function copyText(text, msg) {
     if (navigator.clipboard) {
-        navigator.clipboard.writeText(input.value).then(function () {
-            showAlert('Copied to clipboard!', 'success');
-        });
+        navigator.clipboard.writeText(text).then(function () { showAlert(msg || 'Copied!', 'success'); });
     } else {
-        input.select();
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
         document.execCommand('copy');
-        showAlert('Copied to clipboard!', 'success');
+        document.body.removeChild(ta);
+        showAlert(msg || 'Copied!', 'success');
     }
 }
 
 function updateClock() {
     var el = document.getElementById('lastUpdate');
-    if (el) {
-        el.textContent = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    }
+    if (el) el.textContent = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 }

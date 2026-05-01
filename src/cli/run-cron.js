@@ -8,11 +8,13 @@ const logger = require('../utils/logger');
 // Import các cron jobs (đây là instances, không phải classes)
 const fetchTrackingCron = require('../jobs/fetch-tracking.cron');
 const updateStatusJob = require('../jobs/update-status.cron');
+const syncOmsOrdersCron = require('../jobs/sync-oms-orders.cron');
 
 // Map các job có sẵn
 const jobs = {
     'update-status': updateStatusJob,
     'tracking': fetchTrackingCron,
+    'oms-sync': syncOmsOrdersCron,
 };
 
 async function runCron() {

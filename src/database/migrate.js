@@ -1021,6 +1021,260 @@ const migrations = [
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             COMMENT='Bảng proxy URL ngắn cho mockup/design/label';
         `
+    },
+    {
+        version: 41,
+        name: 'add_oms_config_to_api_customers',
+        up: `
+            ALTER TABLE api_customers
+                ADD COLUMN oms_realm VARCHAR(100) NULL
+                    COMMENT 'OMS auth realm/tenant identifier'
+                    AFTER lark_group_ids,
+                ADD COLUMN oms_client_id VARCHAR(255) NULL
+                    COMMENT 'OMS OAuth client_id (this system -> customer OMS, NOT same as api_credentials.client_id)'
+                    AFTER oms_realm,
+                ADD COLUMN oms_client_secret VARCHAR(500) NULL
+                    COMMENT 'OMS OAuth client_secret — stored as-is; encrypt at app layer if required by security policy'
+                    AFTER oms_client_id,
+                ADD COLUMN oms_url_auth VARCHAR(500) NULL
+                    COMMENT 'OMS OAuth token endpoint URL'
+                    AFTER oms_client_secret,
+                ADD COLUMN oms_url_api VARCHAR(500) NULL
+                    COMMENT 'OMS API base URL'
+                    AFTER oms_url_auth,
+                ADD COLUMN shipping_markup_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00
+                    COMMENT 'Shipping cost markup percent applied to OMS orders (0.00–100.00)'
+                    AFTER oms_url_api,
+                ADD INDEX idx_oms_client_id (oms_client_id);
+        `
+    },
+    {
+        version: 42,
+        name: 'create_oms_access_tokens_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS oms_access_tokens (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                customer_id INT NOT NULL,
+                access_token VARCHAR(2048) NOT NULL COMMENT 'OMS-issued bearer token',
+                token_type VARCHAR(50) NOT NULL DEFAULT 'Bearer',
+                scope VARCHAR(500) NULL,
+                expires_at TIMESTAMP NOT NULL COMMENT 'Token expiry (absolute timestamp)',
+                credential_fingerprint VARCHAR(64) NOT NULL COMMENT 'sha256(realm|client_id|client_secret) — token auto-invalidated when creds rotate',
+                refreshed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+                FOREIGN KEY (customer_id) REFERENCES api_customers(id) ON DELETE CASCADE,
+                UNIQUE KEY uk_customer_id (customer_id),
+                INDEX idx_expires_at (expires_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='Cache OAuth2 client_credentials tokens for OMS calls — one token per customer';
+        `
+    },
+    {
+        version: 43,
+        name: 'create_oms_orders_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS oms_orders (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+
+                -- ─── Identity / multi-tenancy ────────────────────────
+                order_number VARCHAR(100) NOT NULL UNIQUE COMMENT 'Internal ID format: OMS{ts}{rand4}',
+                customer_id INT NOT NULL,
+                customer_order_number VARCHAR(100) NULL,
+                platform_order_number VARCHAR(100) NULL,
+
+                -- ─── OMS source ──────────────────────────────────────
+                oms_order_id VARCHAR(200) NOT NULL COMMENT 'Source order id from customer OMS',
+                oms_order_number VARCHAR(200) NULL,
+                oms_status VARCHAR(50) NULL,
+                oms_created_at TIMESTAMP NULL,
+                oms_updated_at TIMESTAMP NULL,
+                last_oms_synced_at TIMESTAMP NULL COMMENT 'Last successful pull from OMS for this row',
+
+                -- ─── Receiver (column names mirror orders.receiver_*) ──
+                receiver_name VARCHAR(200) NULL,
+                receiver_phone VARCHAR(50) NULL,
+                receiver_email VARCHAR(100) NULL,
+                receiver_country VARCHAR(2) NULL,
+                receiver_state VARCHAR(100) NULL,
+                receiver_city VARCHAR(100) NULL,
+                receiver_postal_code VARCHAR(20) NULL,
+                receiver_address_line1 VARCHAR(500) NULL,
+                receiver_address_line2 VARCHAR(500) NULL,
+
+                -- ─── Package / declaration ───────────────────────────
+                package_weight DECIMAL(10,3) NULL,
+                package_length DECIMAL(10,3) NULL,
+                package_width DECIMAL(10,3) NULL,
+                package_height DECIMAL(10,3) NULL,
+                weight_unit VARCHAR(10) DEFAULT 'KG',
+                size_unit VARCHAR(10) DEFAULT 'CM',
+                declared_value DECIMAL(12,2) NULL COMMENT 'Per-order OMS price (declaration value)',
+                declared_currency VARCHAR(3) DEFAULT 'USD',
+
+                items JSON NULL COMMENT 'Line items array (mirrors orders.declaration_items concept)',
+
+                -- ─── ITC label fields (Phase 5 will populate) ────────
+                carrier VARCHAR(50) NULL,
+                product_code VARCHAR(50) NULL,
+                tracking_number VARCHAR(100) NULL COMMENT 'ITC barcode',
+                waybill_number VARCHAR(100) NULL,
+                label_url TEXT NULL,
+                label_access_key VARCHAR(32) NULL UNIQUE COMMENT 'Permanent key for url_proxies lookup',
+                itc_sid VARCHAR(200) NULL COMMENT 'ITC sid — used to fetch label',
+                itc_response JSON NULL COMMENT 'Last ITC API response (for audit)',
+
+                -- ─── Pricing (Phase 7) ───────────────────────────────
+                shipping_cost DECIMAL(12,4) NULL COMMENT 'Raw cost from ITC (usd)',
+                shipping_markup_percent DECIMAL(5,2) NULL COMMENT 'Snapshot of markup applied at purchase time',
+                shipping_cost_charged DECIMAL(12,4) NULL COMMENT 'cost * (1 + markup/100)',
+                cost_currency VARCHAR(3) DEFAULT 'USD',
+
+                -- ─── Internal lifecycle (separate from orders.status) ──
+                internal_status ENUM(
+                    'pending',          -- newly synced from OMS, awaiting admin
+                    'selected',         -- admin selected for label purchase
+                    'label_purchased',  -- ITC returned barcode
+                    'oms_updated',      -- tracking pushed back to OMS
+                    'shipped',
+                    'delivered',
+                    'cancelled',
+                    'failed',
+                    'error'
+                ) NOT NULL DEFAULT 'pending',
+                internal_status_note TEXT NULL,
+
+                -- ─── Editable-overlay tracking ───────────────────────
+                admin_edited_at TIMESTAMP NULL COMMENT 'Set on admin edit; resyncs preserve editable columns after this',
+                admin_edited_by VARCHAR(100) NULL,
+
+                -- ─── Raw payloads ────────────────────────────────────
+                raw_data JSON NULL COMMENT 'Full normalized OMS payload — overwritten on every sync (audit + fallback mapping)',
+                editable_data JSON NULL COMMENT 'Optional structured admin overrides (Phase 8 may use)',
+
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+                FOREIGN KEY (customer_id) REFERENCES api_customers(id) ON DELETE CASCADE,
+                UNIQUE KEY uk_customer_oms_order (customer_id, oms_order_id),
+                INDEX idx_customer_status (customer_id, internal_status),
+                INDEX idx_internal_status (internal_status, created_at),
+                INDEX idx_tracking_number (tracking_number),
+                INDEX idx_last_synced (last_oms_synced_at),
+                INDEX idx_oms_status (oms_status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='OMS orders — fully isolated from orders table; existing crons cannot see these rows';
+        `
+    },
+    {
+        version: 44,
+        name: 'add_label_purchasing_to_oms_orders_status',
+        up: `
+            ALTER TABLE oms_orders
+                MODIFY COLUMN internal_status ENUM(
+                    'pending', 'selected',
+                    'label_purchasing',
+                    'label_purchased', 'oms_updated',
+                    'shipped', 'delivered', 'cancelled', 'failed', 'error'
+                ) NOT NULL DEFAULT 'pending'
+                COMMENT 'OMS-only lifecycle. label_purchasing = ITC call in flight (row claimed, not finalized)';
+        `
+    },
+    {
+        version: 45,
+        name: 'rename_pricing_columns_and_add_fulfillment_and_profit',
+        up: `
+            ALTER TABLE oms_orders
+                CHANGE COLUMN shipping_cost shipping_fee_purchase DECIMAL(12,4) NULL
+                    COMMENT 'Phase 7: raw ITC cost (readonly source of truth)',
+                CHANGE COLUMN shipping_cost_charged shipping_fee_selling DECIMAL(12,4) NULL
+                    COMMENT 'Phase 7: shipping fee charged to customer (editable)',
+                ADD COLUMN fulfillment_fee_purchase DECIMAL(12,4) NULL
+                    COMMENT 'Phase 7: our fulfillment cost (optional, editable)'
+                    AFTER shipping_fee_selling,
+                ADD COLUMN fulfillment_fee_selling DECIMAL(12,4) NULL
+                    COMMENT 'Phase 7: fulfillment fee charged to customer (optional, editable)'
+                    AFTER fulfillment_fee_purchase,
+                ADD COLUMN gross_profit DECIMAL(12,4) NULL
+                    COMMENT 'Phase 7: auto = (shipping_selling + fulfillment_selling||0) - (shipping_purchase + fulfillment_purchase||0)'
+                    AFTER fulfillment_fee_selling,
+                ADD COLUMN pricing_edited_at TIMESTAMP NULL
+                    COMMENT 'Last admin pricing edit (separate from admin_edited_at which gates OMS resync)'
+                    AFTER gross_profit,
+                ADD COLUMN pricing_edited_by VARCHAR(100) NULL
+                    AFTER pricing_edited_at;
+        `
+    },
+    {
+        version: 46,
+        name: 'create_oms_tracking_logs_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS oms_tracking_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                oms_order_id INT NOT NULL,
+                tracking_number VARCHAR(100) NOT NULL,
+                carrier VARCHAR(50) NULL,
+
+                status VARCHAR(50) NULL COMMENT 'Event status from ITC',
+                event_code VARCHAR(100) NULL,
+                location VARCHAR(255) NULL,
+                description TEXT NULL,
+
+                tracking_data JSON NULL COMMENT 'Raw event payload',
+
+                event_time TIMESTAMP NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                FOREIGN KEY (oms_order_id) REFERENCES oms_orders(id) ON DELETE CASCADE,
+                UNIQUE KEY uk_event_dedup (oms_order_id, event_time, event_code, status),
+                INDEX idx_oms_order_id (oms_order_id),
+                INDEX idx_tracking_number (tracking_number),
+                INDEX idx_event_time (event_time),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='Phase 9: per-event ITC tracking history. Parallels tracking_logs but FK to oms_orders.';
+        `
+    },
+    {
+        version: 47,
+        name: 'create_oms_tracking_checkpoints_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS oms_tracking_checkpoints (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                oms_order_id INT NOT NULL,
+                tracking_number VARCHAR(100) NOT NULL,
+
+                in_transit_at TIMESTAMP NULL,
+                out_for_delivery_at TIMESTAMP NULL,
+                delivered_at TIMESTAMP NULL,
+                exception_at TIMESTAMP NULL,
+                exception_note TEXT NULL,
+
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+                FOREIGN KEY (oms_order_id) REFERENCES oms_orders(id) ON DELETE CASCADE,
+                UNIQUE KEY uk_oms_order_id (oms_order_id),
+                INDEX idx_tracking_number (tracking_number)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='Phase 9: one row per OMS order — milestone timestamps. Parallels tracking_checkpoints.';
+        `
+    },
+    {
+        version: 48,
+        name: 'add_tracking_throttle_columns_to_oms_orders',
+        up: `
+            ALTER TABLE oms_orders
+                ADD COLUMN last_tracking_check_at TIMESTAMP NULL
+                    COMMENT 'Last attempt to poll ITC tracking (set every cron tick)'
+                    AFTER updated_at,
+                ADD COLUMN last_tracked_at TIMESTAMP NULL
+                    COMMENT 'Last successful tracking refresh that yielded events'
+                    AFTER last_tracking_check_at,
+                ADD INDEX idx_oms_tracking_poll (last_tracking_check_at, internal_status, tracking_number(50))
+                    COMMENT 'Used by oms-fetch-tracking cron for the polling sweep';
+        `
     }
 
 ];

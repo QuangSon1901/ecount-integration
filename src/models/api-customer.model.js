@@ -8,7 +8,7 @@ class ApiCustomerModel {
      */
     static async create(customerData) {
         const connection = await db.getConnection();
-        
+
         try {
             const [result] = await connection.query(
                 `INSERT INTO api_customers (
@@ -16,8 +16,10 @@ class ApiCustomerModel {
                     environment, status,
                     rate_limit_per_hour, rate_limit_per_day, max_consecutive_errors,
                     webhook_enabled, bulk_order_enabled, max_bulk_orders,
-                    metadata
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    metadata,
+                    oms_realm, oms_client_id, oms_client_secret,
+                    oms_url_auth, oms_url_api, shipping_markup_percent
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     customerData.customerCode,
                     customerData.customerName,
@@ -31,10 +33,18 @@ class ApiCustomerModel {
                     customerData.webhookEnabled !== false,
                     customerData.bulkOrderEnabled !== false,
                     customerData.maxBulkOrders || 100,
-                    JSON.stringify(customerData.metadata || {})
+                    JSON.stringify(customerData.metadata || {}),
+                    customerData.omsRealm || null,
+                    customerData.omsClientId || null,
+                    customerData.omsClientSecret || null,
+                    customerData.omsUrlAuth || null,
+                    customerData.omsUrlApi || null,
+                    customerData.shippingMarkupPercent !== undefined && customerData.shippingMarkupPercent !== null
+                        ? customerData.shippingMarkupPercent
+                        : 0
                 ]
             );
-            
+
             return result.insertId;
         } finally {
             connection.release();
@@ -134,6 +144,30 @@ class ApiCustomerModel {
             if (updateData.larkGroupIds !== undefined) {
                 fields.push('lark_group_ids = ?');
                 values.push(updateData.larkGroupIds || null);
+            }
+            if (updateData.omsRealm !== undefined) {
+                fields.push('oms_realm = ?');
+                values.push(updateData.omsRealm || null);
+            }
+            if (updateData.omsClientId !== undefined) {
+                fields.push('oms_client_id = ?');
+                values.push(updateData.omsClientId || null);
+            }
+            if (updateData.omsClientSecret !== undefined) {
+                fields.push('oms_client_secret = ?');
+                values.push(updateData.omsClientSecret || null);
+            }
+            if (updateData.omsUrlAuth !== undefined) {
+                fields.push('oms_url_auth = ?');
+                values.push(updateData.omsUrlAuth || null);
+            }
+            if (updateData.omsUrlApi !== undefined) {
+                fields.push('oms_url_api = ?');
+                values.push(updateData.omsUrlApi || null);
+            }
+            if (updateData.shippingMarkupPercent !== undefined) {
+                fields.push('shipping_markup_percent = ?');
+                values.push(updateData.shippingMarkupPercent);
             }
 
             if (fields.length === 0) return false;

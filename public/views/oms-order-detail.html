@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OMS Order Detail — THG-FULFILL</title>
+    <link rel="icon" type="image/png" href="/uploads/logo.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #eff6ff;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+
+            --bg-app: #f1f5f9;
+            --bg-panel: #ffffff;
+            --bg-muted: #f8fafc;
+            --bg-table-head: #f8fafc;
+
+            --border: #e2e8f0;
+            --border-strong: #cbd5e1;
+
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --text-link: #2563eb;
+
+            --radius: 8px;
+            --radius-lg: 12px;
+        }
+
+        html, body { height: 100%; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-app);
+            color: var(--text-primary);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        /* ─── Top Bar ─── */
+        .topbar {
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky; top: 0; z-index: 50;
+            height: 52px;
+        }
+        .topbar-left {
+            display: flex; align-items: center; gap: 16px;
+        }
+        .topbar-brand {
+            font-weight: 800; font-size: 15px;
+            letter-spacing: 1.2px;
+            color: var(--text-primary);
+        }
+        .topbar-brand small {
+            font-size: 9px; display: block; line-height: 1;
+            color: var(--text-secondary); font-weight: 600; letter-spacing: 2px;
+        }
+        .topbar-crumbs {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 13px;
+        }
+        .topbar-crumbs a { color: var(--text-secondary); text-decoration: none; }
+        .topbar-crumbs a:hover { color: var(--primary); }
+        .topbar-crumbs .sep { color: var(--text-muted); }
+        .topbar-crumbs .current { color: var(--text-primary); font-weight: 600; }
+
+        .topbar-right {
+            display: flex; align-items: center; gap: 16px;
+            font-size: 12px; color: var(--text-secondary);
+        }
+        .topbar-right .divider { width: 1px; height: 20px; background: var(--border); }
+        .topbar-right .user {
+            display: flex; align-items: center; gap: 8px;
+            color: var(--text-primary); font-weight: 600;
+        }
+        .topbar-right .avatar {
+            width: 28px; height: 28px; border-radius: 50%;
+            background: var(--warning); color: white;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 700;
+        }
+
+        /* ─── Page Layout ─── */
+        .page {
+            padding: 16px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Page header (title + action bar) */
+        .page-head {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .page-head-left {
+            display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+        }
+        .page-head h1 {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text-link);
+        }
+        .page-head-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+        /* Main grid */
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 320px;
+            gap: 16px;
+            align-items: start;
+        }
+
+        /* ─── Cards / Panels ─── */
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        .panel-body { padding: 18px 20px; }
+        .panel-body.compact { padding: 14px 20px; }
+
+        .panel-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-muted);
+            gap: 12px;
+        }
+        .panel-head h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-link);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+        .panel-head-actions { display: flex; gap: 6px; align-items: center; }
+
+        /* ─── Side panel ─── */
+        .side-section {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        .side-head {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-muted);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .side-head h3 {
+            font-size: 13px; font-weight: 600; color: var(--text-link);
+            text-transform: uppercase; letter-spacing: .5px;
+        }
+        .side-body { padding: 8px 16px 12px; }
+
+        .side-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 7px 0;
+            font-size: 13px;
+            gap: 10px;
+        }
+        .side-row .label {
+            color: var(--text-secondary); flex-shrink: 0;
+        }
+        .side-row .value {
+            color: var(--text-primary); font-weight: 500;
+            text-align: right; word-break: break-word;
+        }
+        .side-row .value.muted { color: var(--text-muted); }
+        .side-row .value.mono {
+            font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px;
+        }
+
+        /* ─── Order code header (sidebar top) ─── */
+        .order-code-card {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, var(--primary-light) 0%, #ffffff 100%);
+        }
+        .order-code-card .order-label {
+            font-size: 11px; color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 4px; font-weight: 600;
+        }
+        .order-code-card .order-row {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 8px;
+        }
+        .order-code-card .code {
+            font-size: 18px; font-weight: 700; color: var(--text-link);
+            font-family: 'SF Mono', Menlo, Consolas, monospace;
+            letter-spacing: -.3px;
+        }
+        .order-code-card .copy-icon {
+            color: var(--text-muted); cursor: pointer; padding: 4px;
+            background: none; border: none; font-size: 14px;
+        }
+        .order-code-card .copy-icon:hover { color: var(--primary); }
+        .order-code-card .status-row {
+            margin-top: 10px; display: flex; justify-content: space-between;
+            align-items: center; gap: 8px;
+        }
+        .order-code-card .status-row .status-label {
+            font-size: 11px; color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: 1px; font-weight: 600;
+        }
+
+        /* ─── Tables ─── */
+        .table-wrap { overflow-x: auto; }
+        table.data {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        table.data th, table.data td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+        table.data thead th {
+            background: var(--bg-table-head);
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        table.data tbody tr:last-child td { border-bottom: none; }
+        table.data .text-right { text-align: right; }
+        table.data .text-center { text-align: center; }
+        table.data .product-name {
+            color: var(--text-link); font-weight: 600;
+            margin-bottom: 2px;
+        }
+        table.data .product-meta {
+            font-size: 12px; color: var(--text-secondary); line-height: 1.5;
+        }
+        table.data .product-dims {
+            font-size: 11px; color: var(--text-muted);
+            font-family: 'SF Mono', Menlo, Consolas, monospace;
+            margin-top: 2px;
+        }
+        table.data .total-row td {
+            background: var(--bg-muted); font-weight: 600;
+        }
+
+        /* Items edit table */
+        table.items-edit {
+            width: 100%; border-collapse: collapse; font-size: 13px;
+        }
+        table.items-edit th, table.items-edit td {
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+        table.items-edit thead th {
+            background: var(--bg-table-head);
+            font-weight: 600; font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: .5px;
+            text-align: left;
+            white-space: nowrap;
+        }
+        table.items-edit input {
+            width: 100%; padding: 5px 7px;
+            border: 1px solid var(--border);
+            border-radius: 4px; font-size: 12px;
+            background: var(--bg-panel);
+            font-family: inherit;
+        }
+        table.items-edit input:focus {
+            outline: none; border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(37,99,235,.15);
+        }
+        table.items-edit input.num { font-family: 'SF Mono', Menlo, Consolas, monospace; }
+        table.items-edit .col-narrow { width: 70px; }
+        table.items-edit .col-mid { width: 100px; }
+        table.items-edit .col-action { width: 32px; text-align: center; }
+        table.items-edit .btn-remove {
+            background: none; border: none; color: var(--danger);
+            cursor: pointer; padding: 4px 6px; font-size: 14px;
+            border-radius: 4px;
+        }
+        table.items-edit .btn-remove:hover { background: var(--danger-light); }
+
+        /* ─── Buttons ─── */
+        .btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 7px 14px;
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius);
+            font-size: 12px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: .5px;
+            cursor: pointer;
+            background: var(--bg-panel);
+            color: var(--text-primary);
+            transition: all .15s;
+            white-space: nowrap;
+            font-family: inherit;
+            text-decoration: none;
+        }
+        .btn:hover { background: var(--bg-muted); }
+        .btn:disabled { opacity: .5; cursor: not-allowed; pointer-events: none; }
+
+        .btn-sm { padding: 5px 10px; font-size: 11px; }
+
+        .btn-primary  { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-primary:hover  { background: var(--primary-dark); }
+        .btn-success  { background: var(--success); color: white; border-color: var(--success); }
+        .btn-success:hover  { background: #059669; }
+        .btn-danger   { background: var(--danger); color: white; border-color: var(--danger); }
+        .btn-danger:hover   { background: #dc2626; }
+        .btn-ghost    { background: transparent; }
+
+        .btn-icon {
+            padding: 0 10px;
+            width: unset; height: 30px;
+            justify-content: center;
+            background: var(--primary); color: white; border-color: var(--primary);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .btn-icon:hover { background: var(--primary-dark); }
+        .btn-icon.ghost {
+            background: var(--bg-panel); color: var(--text-secondary);
+            border-color: var(--border-strong);
+        }
+        .btn-icon.ghost:hover { background: var(--bg-muted); color: var(--primary); }
+
+        /* ─── Badges ─── */
+        .badge {
+            display: inline-block; padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 11px; font-weight: 600;
+            text-transform: capitalize;
+        }
+        .badge-new              { background: var(--success); color: white; }
+        .badge-pending          { background: #fef3c7; color: #92400e; }
+        .badge-selected         { background: #dbeafe; color: #1e40af; }
+        .badge-label_purchasing { background: #fef9c3; color: #854d0e; }
+        .badge-label_purchased  { background: #dcfce7; color: #166534; }
+        .badge-shipped,
+        .badge-delivered        { background: #e0f2fe; color: #0c4a6e; }
+        .badge-cancelled        { background: #f1f5f9; color: #475569; }
+        .badge-failed,
+        .badge-error            { background: var(--danger-light); color: #991b1b; }
+        .badge-info             { background: #dbeafe; color: #1e40af; }
+
+        /* ─── Read-mode info grid ─── */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px 28px;
+        }
+        .info-item {
+            display: flex; flex-direction: column; gap: 2px;
+            min-width: 0;
+        }
+        .info-item .info-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            font-weight: 600;
+        }
+        .info-item .info-value {
+            font-size: 13px;
+            color: var(--text-primary);
+            font-weight: 500;
+            word-break: break-word;
+        }
+        .info-item .info-value.mono {
+            font-family: 'SF Mono', Menlo, Consolas, monospace;
+            font-size: 12px;
+        }
+        .info-item .info-value.muted { color: var(--text-muted); font-style: italic; }
+        .info-item.full-width { grid-column: 1 / -1; }
+
+        /* ─── Form inputs ─── */
+        .form-input, .form-select, .form-textarea {
+            padding: 7px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 13px;
+            background: var(--bg-panel);
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color .15s, box-shadow .15s;
+            width: 100%;
+            font-family: inherit;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+        }
+        .form-input:disabled, .form-textarea:disabled {
+            background: var(--bg-muted); color: var(--text-secondary);
+        }
+        .form-textarea {
+            font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px;
+            min-height: 120px; resize: vertical;
+        }
+
+        /* Edit form grid */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px 20px;
+        }
+        .form-grid .form-field { display: flex; flex-direction: column; gap: 4px; }
+        .form-grid .form-field.full-width { grid-column: 1 / -1; }
+        .form-grid .form-field label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+        .form-grid .form-field label .req { color: var(--danger); }
+        .form-grid .form-field .helper {
+            font-size: 11px; color: var(--text-muted); margin-top: 2px;
+        }
+
+        /* Package edit grid (4 cols) */
+        .form-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px 16px;
+        }
+        .form-grid-4 .form-field { display: flex; flex-direction: column; gap: 4px; }
+        .form-grid-4 .form-field label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        /* Pricing grid (3 cols) */
+        .form-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px 20px;
+        }
+        .form-grid-3 .form-field { display: flex; flex-direction: column; gap: 4px; }
+        .form-grid-3 .form-field label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        /* Totals */
+        .totals-card {
+            background: var(--bg-muted);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 18px;
+        }
+        .total-line {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 6px 0;
+            font-size: 13px;
+        }
+        .total-line .label { color: var(--text-secondary); }
+        .total-line .value {
+            font-weight: 600; min-width: 60px; text-align: right;
+            font-family: 'SF Mono', Menlo, Consolas, monospace;
+        }
+        .total-line.grand {
+            border-top: 1px solid var(--border-strong);
+            padding-top: 10px; margin-top: 6px;
+            font-size: 14px;
+        }
+        .total-line.grand .value {
+            color: var(--text-link); font-size: 15px;
+        }
+
+        /* Layout helpers */
+        .row-between {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; flex-wrap: wrap;
+        }
+        .stack { display: flex; flex-direction: column; gap: 12px; }
+        .row { display: flex; gap: 8px; align-items: center; }
+        .grow { flex: 1; }
+        .text-link { color: var(--text-link); font-weight: 600; }
+        .text-muted { color: var(--text-muted); }
+        .text-mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
+        .hidden { display: none !important; }
+        .gap-12 { gap: 12px; }
+
+        /* Status select inline */
+        .status-bar {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+            padding: 12px 20px;
+        }
+        .status-bar .label {
+            font-size: 12px; font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: .5px;
+        }
+
+        /* ─── ITC Label box (highlighted) ─── */
+        .label-box {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px 24px;
+        }
+        .label-box.empty {
+            display: flex; align-items: center; justify-content: center;
+            padding: 24px;
+            color: var(--text-muted); font-style: italic;
+            background: var(--bg-muted);
+            border-radius: var(--radius);
+        }
+
+        /* Toast */
+        .alert-toast {
+            position: fixed; top: 70px; right: 24px; z-index: 999;
+            background: var(--bg-panel); border: 1px solid var(--border);
+            border-left: 4px solid var(--primary);
+            border-radius: var(--radius); padding: 12px 18px; max-width: 380px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.10);
+            font-size: 13px;
+            display: flex; align-items: center; gap: 10px;
+            transform: translateX(120%); transition: transform .3s ease;
+        }
+        .alert-toast.show { transform: translateX(0); }
+        .alert-toast.success { border-left-color: var(--success); }
+        .alert-toast.error   { border-left-color: var(--danger); }
+
+        /* Section divider inside panel */
+        .section-divider {
+            height: 1px; background: var(--border);
+            margin: 18px 0;
+        }
+        .section-subhead {
+            font-size: 11px; font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        /* Responsive */
+        @media (max-width: 1100px) {
+            .layout { grid-template-columns: 1fr; }
+            .label-box { grid-template-columns: repeat(2, 1fr); }
+            .form-grid-3 { grid-template-columns: repeat(2, 1fr); }
+            .form-grid-4 { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 640px) {
+            .topbar { padding: 8px 12px; }
+            .topbar-crumbs { display: none; }
+            .page { padding: 8px; }
+            .panel-body { padding: 14px; }
+            .info-grid, .form-grid { grid-template-columns: 1fr; }
+            .label-box { grid-template-columns: 1fr; }
+            .form-grid-3, .form-grid-4 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="alertToast" class="alert-toast">
+    <span id="alertText"></span>
+</div>
+
+<!-- ─── Top Bar ─── -->
+<div class="topbar">
+    <div class="topbar-left">
+        <div class="topbar-brand">
+            THG
+            <small>FULFILL</small>
+        </div>
+        <div class="topbar-crumbs">
+            <a href="/extensions/dashboard">Dashboard</a>
+            <span class="sep">/</span>
+            <a href="/extensions/oms-orders">OMS Orders</a>
+            <span class="sep">/</span>
+            <span class="current" id="topbarOrderNum">Order Detail</span>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <span>(UTC+07:00) Asia/Ho_Chi_Minh</span>
+        <span class="divider"></span>
+        <span>EN</span>
+        <span class="divider"></span>
+        <div class="user">
+            <span class="avatar">A</span>
+            <span>Admin</span>
+        </div>
+    </div>
+</div>
+
+<div class="page">
+
+    <!-- ─── Page Header / Actions ─── -->
+    <div class="page-head">
+        <div class="page-head-left">
+            <h1 id="pageTitle">View OMS Order</h1>
+            <span id="headStatusBadge"></span>
+        </div>
+        <div class="page-head-actions">
+            <button class="btn btn-success" id="btnBuyLabel" disabled>🏷️ Buy ITC Label</button>
+            <a href="/extensions/oms-orders" class="btn">Close</a>
+        </div>
+    </div>
+
+    <div class="layout">
+
+        <!-- ═══════════════ MAIN COLUMN ═══════════════ -->
+        <div>
+
+            <!-- ═══ 1. RECEIVER (info needed for ITC) ═══ -->
+            <div class="panel">
+                <div class="panel-head">
+                    <h3>📦 Receiver Information</h3>
+                    <div class="panel-head-actions">
+                        <button class="btn btn-sm btn-icon ghost" id="btnEditReceiver" title="Edit receiver">✎ Edit</button>
+                    </div>
+                </div>
+
+                <!-- Read view -->
+                <div class="panel-body" id="receiverView">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Name</span>
+                            <span class="info-value" id="vReceiverName">—</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Company</span>
+                            <span class="info-value" id="vReceiverCompany">—</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Phone</span>
+                            <span class="info-value mono" id="vReceiverPhone">—</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Tax Number</span>
+                            <span class="info-value mono" id="vReceiverTaxNumber">—</span>
+                        </div>
+                        <div class="info-item full-width">
+                            <span class="info-label">Address Line 1</span>
+                            <span class="info-value" id="vAddress1">—</span>
+                        </div>
+                        <div class="info-item full-width">
+                            <span class="info-label">Address Line 2</span>
+                            <span class="info-value" id="vAddress2">—</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">City</span>
+                            <span class="info-value" id="vCity">—</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">State / Province</span>
+                            <span class="info-value" id="vState">—</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Postal Code</span>
+                            <span class="info-value mono" id="vPostalCode">—</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Country</span>
+                            <span class="info-value mono" id="vCountry">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Edit view -->
+                <div class="panel-body hidden" id="receiverEdit">
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label>Name <span class="req">*</span></label>
+                            <input class="form-input" id="receiverName" placeholder="John Doe">
+                        </div>
+                        <div class="form-field">
+                            <label>Company</label>
+                            <input class="form-input" id="receiverCompany" placeholder="Acme Corp">
+                        </div>
+                        <div class="form-field">
+                            <label>Phone <span class="req">*</span></label>
+                            <input class="form-input" id="receiverPhone" placeholder="+1-800-123-4567">
+                        </div>
+                        <div class="form-field">
+                            <label>Tax Number</label>
+                            <input class="form-input" id="receiverTaxNumber">
+                        </div>
+                        <div class="form-field full-width">
+                            <label>Address Line 1 <span class="req">*</span></label>
+                            <input class="form-input" id="receiverAddressLine1" placeholder="123 Main St">
+                        </div>
+                        <div class="form-field full-width">
+                            <label>Address Line 2</label>
+                            <input class="form-input" id="receiverAddressLine2" placeholder="Apt 4B">
+                        </div>
+                        <div class="form-field">
+                            <label>City <span class="req">*</span></label>
+                            <input class="form-input" id="receiverCity" placeholder="Los Angeles">
+                        </div>
+                        <div class="form-field">
+                            <label>State / Province <span class="req">*</span></label>
+                            <input class="form-input" id="receiverState" placeholder="CA">
+                        </div>
+                        <div class="form-field">
+                            <label>Postal Code <span class="req">*</span></label>
+                            <input class="form-input" id="receiverPostalCode" placeholder="90001">
+                        </div>
+                        <div class="form-field">
+                            <label>Country (2-char) <span class="req">*</span></label>
+                            <input class="form-input" id="receiverCountry" maxlength="2" placeholder="US">
+                        </div>
+                    </div>
+                    <div class="row" style="margin-top:18px; justify-content:flex-end;">
+                        <button class="btn" id="btnCancelReceiver">Cancel</button>
+                        <button class="btn btn-primary" id="btnSaveReceiver">Save Receiver</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ 2. PACKAGE & SHIPPING ═══ -->
+            <div class="panel">
+                <div class="panel-head">
+                    <h3>📐 Package & Shipping</h3>
+                    <div class="panel-head-actions">
+                        <button class="btn btn-sm btn-icon ghost" id="btnEditPackage" title="Edit package">✎ Edit</button>
+                    </div>
+                </div>
+
+                <!-- Read view -->
+                <div class="panel-body" id="packageView">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Weight (kg)</span>
+                            <span class="info-value mono" id="vWeight">—</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Dimensions L × W × H (cm)</span>
+                            <span class="info-value mono" id="vDimensions">—</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Shipping Partner</span>
+                            <span class="info-value" id="vShippingPartner">—</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Address Index</span>
+                            <span class="info-value mono" id="vAddressIndex">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Edit view -->
+                <div class="panel-body hidden" id="packageEdit">
+                    <div class="form-grid-4">
+                        <div class="form-field">
+                            <label>Weight (kg) <span class="req">*</span></label>
+                            <input class="form-input" id="packageWeight" type="number" step="0.001" placeholder="0.6">
+                        </div>
+                        <div class="form-field">
+                            <label>Length (cm) <span class="req">*</span></label>
+                            <input class="form-input" id="packageLength" type="number" step="0.001" placeholder="20">
+                        </div>
+                        <div class="form-field">
+                            <label>Width (cm) <span class="req">*</span></label>
+                            <input class="form-input" id="packageWidth" type="number" step="0.001" placeholder="15">
+                        </div>
+                        <div class="form-field">
+                            <label>Height (cm) <span class="req">*</span></label>
+                            <input class="form-input" id="packageHeight" type="number" step="0.001" placeholder="10">
+                        </div>
+                        <div class="form-field">
+                            <label>Shipping Partner <span class="req">*</span></label>
+                            <select class="form-select" id="routeShippingPartner">
+                                <option value="">— select —</option>
+                                <option value="USPS">USPS</option>
+                                <option value="UPS">UPS</option>
+                                <option value="FEDEX">FedEx</option>
+                                <option value="DHL">DHL</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label>Address Index</label>
+                            <input class="form-input" id="addressIndex" type="number" min="0" step="1" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="row" style="margin-top:18px; justify-content:flex-end;">
+                        <button class="btn" id="btnCancelPackage">Cancel</button>
+                        <button class="btn btn-primary" id="btnSavePackage">Save Package</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ 3. ITEMS ═══ -->
+            <div class="panel">
+                <div class="panel-head">
+                    <h3>🛒 Order Items</h3>
+                    <div class="panel-head-actions">
+                        <button class="btn btn-sm btn-icon ghost" id="btnEditItems" title="Edit items">✎ Edit</button>
+                    </div>
+                </div>
+
+                <!-- Read view -->
+                <div class="table-wrap" id="itemsView">
+                    <table class="data" id="itemsTable">
+                        <thead>
+                            <tr>
+                                <th class="text-center" style="width:40px;">#</th>
+                                <th>Product</th>
+                                <th class="text-right">Qty</th>
+                                <th class="text-right">Unit Price</th>
+                                <th class="text-right">Discount</th>
+                                <th class="text-right">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsBody">
+                            <tr><td colspan="6" class="text-muted text-center" style="padding:24px;">No items</td></tr>
+                        </tbody>
+                        <tfoot id="itemsFoot"></tfoot>
+                    </table>
+                </div>
+
+                <!-- Edit view -->
+                <div class="panel-body hidden" id="itemsEdit">
+                    <div class="table-wrap">
+                        <table class="items-edit" id="itemsEditTable">
+                            <thead>
+                                <tr>
+                                    <th class="col-mid">SKU</th>
+                                    <th>Description</th>
+                                    <th class="col-narrow">Qty</th>
+                                    <th class="col-narrow">Price</th>
+                                    <th class="col-narrow">Weight</th>
+                                    <th class="col-narrow">L</th>
+                                    <th class="col-narrow">W</th>
+                                    <th class="col-narrow">H</th>
+                                    <th class="col-mid">Sale URL</th>
+                                    <th class="col-action"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemsEditBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="row" style="margin-top:14px; justify-content:space-between;">
+                        <button class="btn btn-sm" id="btnAddItem">+ Add Item</button>
+                        <div class="row">
+                            <button class="btn" id="btnCancelItems">Cancel</button>
+                            <button class="btn btn-primary" id="btnSaveItems">Save Items</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ 4. PRICING ═══ -->
+            <div class="panel">
+                <div class="panel-head">
+                    <h3>💰 Pricing</h3>
+                    <div class="panel-head-actions">
+                        <button class="btn btn-sm btn-icon ghost" id="btnEditPricing" title="Edit pricing">✎ Edit</button>
+                    </div>
+                </div>
+
+                <!-- Read view -->
+                <div class="panel-body" id="pricingView">
+                    <div style="display:grid; grid-template-columns: 1fr 320px; gap:24px; align-items:flex-start;">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-label">Shipping Fee — Purchase</span>
+                                <span class="info-value mono" id="vShippingPurchase">—</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Shipping Markup %</span>
+                                <span class="info-value mono" id="vShippingMarkup">—</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Shipping Fee — Selling</span>
+                                <span class="info-value mono" id="vShippingSelling">—</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Gross Profit</span>
+                                <span class="info-value mono" id="vGrossProfit">—</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Fulfillment — Purchase</span>
+                                <span class="info-value mono" id="vFulfillmentPurchase">—</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Fulfillment — Selling</span>
+                                <span class="info-value mono" id="vFulfillmentSelling">—</span>
+                            </div>
+                        </div>
+
+                        <!-- Totals card -->
+                        <div class="totals-card">
+                            <div class="total-line">
+                                <span class="label">Total Value (A)</span>
+                                <span class="value" id="vTotalValue">0</span>
+                            </div>
+                            <div class="total-line">
+                                <span class="label">Total Discount (B)</span>
+                                <span class="value" id="vTotalDiscount">0</span>
+                            </div>
+                            <div class="total-line">
+                                <span class="label">Paid Amount (C)</span>
+                                <span class="value" id="vPaidAmount">0</span>
+                            </div>
+                            <div class="total-line grand">
+                                <span class="label">Remaining</span>
+                                <span class="value" id="vRemaining">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Edit view -->
+                <div class="panel-body hidden" id="pricingEdit">
+                    <div class="form-grid-3">
+                        <div class="form-field">
+                            <label>Shipping Fee — Selling</label>
+                            <input class="form-input" id="shippingFeeSelling" type="number" step="0.0001">
+                            <span class="helper">Purchase price + markup determines this</span>
+                        </div>
+                        <div class="form-field">
+                            <label>Fulfillment — Purchase</label>
+                            <input class="form-input" id="fulfillmentFeePurchase" type="number" step="0.0001">
+                        </div>
+                        <div class="form-field">
+                            <label>Fulfillment — Selling</label>
+                            <input class="form-input" id="fulfillmentFeeSelling" type="number" step="0.0001">
+                        </div>
+                    </div>
+                    <div class="row" style="margin-top:18px; justify-content:flex-end;">
+                        <button class="btn" id="btnCancelPricing">Cancel</button>
+                        <button class="btn btn-primary" id="btnSavePricing">Save Pricing</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ 5. ITC LABEL & TRACKING ═══ -->
+            <div class="panel">
+                <div class="panel-head">
+                    <h3>🧾 ITC Label & Tracking</h3>
+                    <div id="labelLinkWrap"></div>
+                </div>
+                <div class="panel-body compact" id="labelBody">
+                    <div class="label-box empty" id="labelEmpty">
+                        No label yet. Click "Buy ITC Label" to purchase.
+                    </div>
+                    <div class="label-box hidden" id="labelDetails">
+                        <div class="info-item">
+                            <span class="info-label">Carrier</span>
+                            <span class="info-value" id="vCarrier">—</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Tracking Number</span>
+                            <span class="info-value mono" id="vTrackingNumber">—</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">ITC SID</span>
+                            <span class="info-value mono" id="vItcSid">—</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ═══════════════ SIDE COLUMN ═══════════════ -->
+        <aside>
+
+            <!-- Order code + status -->
+            <div class="side-section">
+                <div class="order-code-card">
+                    <div class="order-label">Order Number</div>
+                    <div class="order-row">
+                        <div class="code" id="sideOrderNumber">—</div>
+                        <button class="copy-icon" id="btnCopyOrderNum" title="Copy">📋</button>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Internal Status</span>
+                        <span id="sideStatusBadge"></span>
+                    </div>
+                </div>
+
+                <!-- Status changer (compact) -->
+                <div class="status-bar">
+                    <select class="form-select" id="newStatus" style="flex:1; min-width:0;">
+                        <option value="">Change status...</option>
+                        <option value="pending">pending</option>
+                        <option value="selected">selected</option>
+                        <option value="label_purchased">label_purchased</option>
+                        <option value="shipped">shipped</option>
+                        <option value="delivered">delivered</option>
+                        <option value="cancelled">cancelled</option>
+                        <option value="failed">failed</option>
+                    </select>
+                    <button class="btn btn-sm btn-primary" id="btnSetStatus">Apply</button>
+                </div>
+            </div>
+
+            <!-- General Info (slim) -->
+            <div class="side-section">
+                <div class="side-head"><h3>General</h3></div>
+                <div class="side-body">
+                    <div class="side-row">
+                        <span class="label">OR Code</span>
+                        <span class="value mono" id="sOrCode">—</span>
+                    </div>
+                    <div class="side-row">
+                        <span class="label">Warehouse</span>
+                        <span class="value" id="sWarehouse">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dates -->
+            <div class="side-section">
+                <div class="side-head"><h3>Dates</h3></div>
+                <div class="side-body">
+                    <div class="side-row">
+                        <span class="label">Created</span>
+                        <span class="value" id="sCreatedAt">—</span>
+                    </div>
+                    <div class="side-row">
+                        <span class="label">Updated</span>
+                        <span class="value" id="sUpdatedAt">—</span>
+                    </div>
+                    <div class="side-row">
+                        <span class="label">Synced</span>
+                        <span class="value" id="sSyncedAt">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ITC Request Preview -->
+            <div class="side-section">
+                <div class="side-head">
+                    <h3>ITC Preview</h3>
+                    <button class="btn btn-sm btn-icon ghost" id="btnTogglePreview" title="Toggle">👁</button>
+                </div>
+                <div class="side-body hidden" id="itcPreviewBody">
+                    <textarea class="form-textarea" id="itcPreview" disabled style="min-height:200px; font-size:11px;"></textarea>
+                </div>
+            </div>
+
+        </aside>
+
+    </div>
+</div>
+
+<script src="/js/oms-order-detail.js?v=2125"></script>
+</body>
+</html>

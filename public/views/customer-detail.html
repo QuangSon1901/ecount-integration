@@ -326,6 +326,30 @@ body {
                 <span class="info-label">Lark Groups</span>
                 <span class="info-value" id="infoLarkGroups" style="font-size:13px;">&#x2014;</span>
             </div>
+            <div class="info-row">
+                <span class="info-label">OMS Realm</span>
+                <span class="info-value mono" id="infoOmsRealm" style="font-size:13px;">&#x2014;</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">OMS Client ID</span>
+                <span class="info-value mono" id="infoOmsClientId" style="font-size:13px;">&#x2014;</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">OMS Client Secret</span>
+                <span class="info-value" id="infoOmsClientSecret">&#x2014;</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">OMS URL Auth</span>
+                <span class="info-value mono" id="infoOmsUrlAuth" style="font-size:12px;word-break:break-all;text-align:right;">&#x2014;</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">OMS URL API</span>
+                <span class="info-value mono" id="infoOmsUrlApi" style="font-size:12px;word-break:break-all;text-align:right;">&#x2014;</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Shipping Markup</span>
+                <span class="info-value" id="infoShippingMarkup">&#x2014;</span>
+            </div>
         </div>
     </div>
 
@@ -528,6 +552,43 @@ body {
             </div>
         </div>
 
+        <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px;">
+            <p style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:12px;">OMS Integration</p>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">OMS Realm</label>
+                    <input type="text" class="form-input" id="editOmsRealm" placeholder="vd: customer-realm">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">OMS Client ID</label>
+                    <input type="text" class="form-input" id="editOmsClientId" placeholder="OAuth client_id">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">OMS Client Secret</label>
+                <input type="password" class="form-input" id="editOmsClientSecret" placeholder="Để trống nếu không thay đổi" autocomplete="new-password">
+                <p style="margin-top:4px;font-size:12px;color:var(--text-secondary);">Secret được bảo mật, không hiển thị lại sau khi lưu. Để trống để giữ nguyên giá trị hiện tại.</p>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">OMS URL Auth</label>
+                <input type="url" class="form-input" id="editOmsUrlAuth" placeholder="https://oms.example.com/oauth/token">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">OMS URL API</label>
+                <input type="url" class="form-input" id="editOmsUrlApi" placeholder="https://oms.example.com/api">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Shipping Markup (%)</label>
+                <input type="number" class="form-input" id="editShippingMarkupPercent" min="0" max="100" step="0.01" placeholder="0.00">
+                <p style="margin-top:4px;font-size:12px;color:var(--text-secondary);">% markup cộng vào phí vận chuyển khi đẩy đơn từ OMS (0 - 100, tối đa 2 chữ số thập phân).</p>
+            </div>
+        </div>
+
         <div class="modal-actions">
             <button class="btn" id="btnCancelEdit">Cancel</button>
             <button class="btn btn-primary" id="btnSaveEdit">Save Changes</button>
@@ -557,4 +618,4 @@ body {
     </div>
 </div>
 
-<script src="/js/customer-detail.js?v=2010"></script>
+<script src="/js/customer-detail.js?v=2015"></script>

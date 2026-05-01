@@ -14,6 +14,7 @@ const apiCustomerRoutes = require('./api-customer.routes');
 const apiOrderRoutes = require('./api-order.routes');
 const apiWebhookRoutes = require('./api-webhook.routes');
 const podProductRoutes = require('./pod-product.routes');
+const omsOrderRoutes = require('./oms-order.routes');
 
 /**
  * Apply audit middleware to all API routes
@@ -122,6 +123,12 @@ router.get('/pod/shipping-methods', apiAuthMiddleware, (req, res) => {
  * Admin routes (POD products catalog)
  */
 router.use('/admin/pod-products', requireAdmin, podProductRoutes);
+
+/**
+ * Admin routes (OMS orders — Phase 5)
+ * Auth handled per-route in oms-order.routes.js (requireRole('admin')).
+ */
+router.use('/admin/oms-orders', omsOrderRoutes);
 
 router.use('/webhooks', apiWebhookRoutes);
 

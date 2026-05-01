@@ -135,6 +135,38 @@ function renderCustomerInfo() {
             larkGroupEl.innerHTML = '<span style="color:var(--text-secondary);font-size:13px;">Chưa cấu hình</span>';
         }
     }
+
+    // OMS Integration
+    renderOmsField('infoOmsRealm', CUSTOMER.oms_realm);
+    renderOmsField('infoOmsClientId', CUSTOMER.oms_client_id);
+    renderOmsField('infoOmsUrlAuth', CUSTOMER.oms_url_auth);
+    renderOmsField('infoOmsUrlApi', CUSTOMER.oms_url_api);
+
+    var secretEl = document.getElementById('infoOmsClientSecret');
+    if (secretEl) {
+        var hasSecret = !!CUSTOMER.oms_client_secret_set;
+        secretEl.innerHTML = '<span class="badge badge-' + (hasSecret ? 'success' : 'warning') + '">' + (hasSecret ? 'Đã cấu hình' : 'Chưa cấu hình') + '</span>';
+    }
+
+    var markupEl = document.getElementById('infoShippingMarkup');
+    if (markupEl) {
+        var markup = CUSTOMER.shipping_markup_percent;
+        if (markup === null || markup === undefined) {
+            markupEl.innerHTML = '<span style="color:var(--text-secondary);font-size:13px;">—</span>';
+        } else {
+            markupEl.textContent = Number(markup).toFixed(2) + ' %';
+        }
+    }
+}
+
+function renderOmsField(elementId, value) {
+    var el = document.getElementById(elementId);
+    if (!el) return;
+    if (value) {
+        el.textContent = value;
+    } else {
+        el.innerHTML = '<span style="color:var(--text-secondary);font-size:13px;">Chưa cấu hình</span>';
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -711,6 +743,18 @@ function openEditModal() {
     document.getElementById('editTelegramGroups').value = CUSTOMER.telegram_group_ids || '';
     document.getElementById('editLarkGroups').value = CUSTOMER.lark_group_ids || '';
 
+    document.getElementById('editOmsRealm').value = CUSTOMER.oms_realm || '';
+    document.getElementById('editOmsClientId').value = CUSTOMER.oms_client_id || '';
+    document.getElementById('editOmsClientSecret').value = '';
+    document.getElementById('editOmsClientSecret').placeholder = CUSTOMER.oms_client_secret_set
+        ? 'Để trống nếu không thay đổi (đã có giá trị)'
+        : 'OAuth client_secret';
+    document.getElementById('editOmsUrlAuth').value = CUSTOMER.oms_url_auth || '';
+    document.getElementById('editOmsUrlApi').value = CUSTOMER.oms_url_api || '';
+    var markup = CUSTOMER.shipping_markup_percent;
+    document.getElementById('editShippingMarkupPercent').value =
+        (markup === null || markup === undefined) ? '' : Number(markup).toFixed(2);
+
     document.getElementById('editModal').classList.add('show');
 }
 
@@ -730,8 +774,39 @@ async function handleSaveEdit() {
         rateLimitPerDay:     parseInt(document.getElementById('editRateDay').value) || 10000,
         telegramResponsibles: document.getElementById('editTelegramResp').value.trim() || null,
         telegramGroupIds:    document.getElementById('editTelegramGroups').value.trim() || null,
-        larkGroupIds:        document.getElementById('editLarkGroups').value.trim() || null
+        larkGroupIds:        document.getElementById('editLarkGroups').value.trim() || null,
+        omsRealm:            document.getElementById('editOmsRealm').value.trim() || null,
+        omsClientId:         document.getElementById('editOmsClientId').value.trim() || null,
+        omsUrlAuth:          document.getElementById('editOmsUrlAuth').value.trim() || null,
+        omsUrlApi:           document.getElementById('editOmsUrlApi').value.trim() || null
     };
+
+    // Secret: chỉ gửi khi user nhập giá trị mới (để trống = giữ nguyên)
+    var newSecret = document.getElementById('editOmsClientSecret').value;
+    if (newSecret !== '') {
+        payload.omsClientSecret = newSecret;
+    }
+
+    // Markup: chỉ gửi khi user nhập (để trống = không đổi)
+    var markupRaw = document.getElementById('editShippingMarkupPercent').value.trim();
+    if (markupRaw !== '') {
+        var markupVal = Number(markupRaw);
+        if (!isFinite(markupVal) || markupVal < 0 || markupVal > 100) {
+            showAlert('error', 'Shipping markup must be a number between 0 and 100.');
+            return;
+        }
+        payload.shippingMarkupPercent = markupVal;
+    }
+
+    var urlRe = /^https?:\/\/\S+$/i;
+    if (payload.omsUrlAuth && !urlRe.test(payload.omsUrlAuth)) {
+        showAlert('error', 'OMS URL Auth must be a valid http/https URL.');
+        return;
+    }
+    if (payload.omsUrlApi && !urlRe.test(payload.omsUrlApi)) {
+        showAlert('error', 'OMS URL API must be a valid http/https URL.');
+        return;
+    }
 
     if (!payload.customerName) {
         showAlert('error', 'Customer name is required.');

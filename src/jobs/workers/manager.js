@@ -12,6 +12,7 @@ const PodCreateOrderWorker = require('./pod-create-order.worker');
 const PodUpdateTrackingEcountWorker = require('./pod-update-tracking-ecount.worker');
 const PodUpdateStatusEcountWorker = require('./pod-update-status-ecount.worker');
 const SbttLabelUploadWorker = require('./sbtt-label-upload.worker');
+const OmsUpdateLogisticWorker = require('./oms-update-logistic.worker');
 const logger = require('../../utils/logger');
 
 class WorkerManager {
@@ -23,18 +24,20 @@ class WorkerManager {
         logger.info('Starting all workers...');
 
         this.workers = [
-            new CreateOrderWorker(),           // 5 concurrent
-            new UpdateTrackingBatchWorker(),  // 2 concurrent
-            new UpdateStatusBatchWorker(),     // 2 concurrent
-            new TrackOtherOrderWorker(),
-            new UpdateWarningBatchWorker(),
-            new LookupDocNoWorker(),
-            new WebhookDeliveryWorker(),          // 5 concurrent — gửi webhook async
+            // new CreateOrderWorker(),           // 5 concurrent
+            // new UpdateTrackingBatchWorker(),  // 2 concurrent
+            // new UpdateStatusBatchWorker(),     // 2 concurrent
+            // new TrackOtherOrderWorker(),
+            // new UpdateWarningBatchWorker(),
+            // new LookupDocNoWorker(),
+            // new WebhookDeliveryWorker(),          // 5 concurrent — gửi webhook async
             
-            new PodCreateOrderWorker(),              // 3 concurrent
-            new SbttLabelUploadWorker(),              // 2 concurrent — upload label lên S2BDIY
-            new PodUpdateTrackingEcountWorker(),      // 2 concurrent (Playwright batch)
-            new PodUpdateStatusEcountWorker(),        // 2 concurrent (Playwright batch)
+            // new PodCreateOrderWorker(),              // 3 concurrent
+            // new SbttLabelUploadWorker(),              // 2 concurrent — upload label lên S2BDIY
+            // new PodUpdateTrackingEcountWorker(),      // 2 concurrent (Playwright batch)
+            // new PodUpdateStatusEcountWorker(),        // 2 concurrent (Playwright batch)
+
+            // new OmsUpdateLogisticWorker(),            // 3 concurrent — push tracking back to customer OMS (Phase 6)
         ];
 
         this.workers.forEach(worker => {

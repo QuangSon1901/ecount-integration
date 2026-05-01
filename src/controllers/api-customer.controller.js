@@ -26,7 +26,13 @@ class ApiCustomerController {
                 rate_limit_per_hour = 6000,
                 rate_limit_per_day = 10000,
                 webhook_enabled = true,
-                bulk_order_enabled = true
+                bulk_order_enabled = true,
+                oms_realm,
+                oms_client_id,
+                oms_client_secret,
+                oms_url_auth,
+                oms_url_api,
+                shipping_markup_percent
             } = req.body;
 
             // Validate required fields
@@ -42,6 +48,25 @@ class ApiCustomerController {
                 });
             }
 
+            // Validate OMS URLs (must be http/https when provided)
+            const isHttpUrl = (v) => typeof v === 'string' && /^https?:\/\/\S+$/i.test(v.trim());
+            if (oms_url_auth && !isHttpUrl(oms_url_auth)) {
+                return errorResponse(res, 'oms_url_auth must be a valid http/https URL', 400);
+            }
+            if (oms_url_api && !isHttpUrl(oms_url_api)) {
+                return errorResponse(res, 'oms_url_api must be a valid http/https URL', 400);
+            }
+
+            // Validate shipping_markup_percent (0..100, max 2 decimals)
+            let parsedMarkup;
+            if (shipping_markup_percent !== undefined && shipping_markup_percent !== null && shipping_markup_percent !== '') {
+                parsedMarkup = Number(shipping_markup_percent);
+                if (!Number.isFinite(parsedMarkup) || parsedMarkup < 0 || parsedMarkup > 100) {
+                    return errorResponse(res, 'shipping_markup_percent must be a number between 0 and 100', 400);
+                }
+                parsedMarkup = Math.round(parsedMarkup * 100) / 100;
+            }
+
             // Generate random portal password (12 chars, alphanumeric)
             const portalPassword = crypto.randomBytes(9).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 12);
 
@@ -55,7 +80,13 @@ class ApiCustomerController {
                 rateLimitPerHour: rate_limit_per_hour,
                 rateLimitPerDay: rate_limit_per_day,
                 webhookEnabled: webhook_enabled,
-                bulkOrderEnabled: bulk_order_enabled
+                bulkOrderEnabled: bulk_order_enabled,
+                omsRealm: oms_realm ? String(oms_realm).trim() : null,
+                omsClientId: oms_client_id ? String(oms_client_id).trim() : null,
+                omsClientSecret: oms_client_secret ? String(oms_client_secret) : null,
+                omsUrlAuth: oms_url_auth ? String(oms_url_auth).trim() : null,
+                omsUrlApi: oms_url_api ? String(oms_url_api).trim() : null,
+                shippingMarkupPercent: parsedMarkup
             });
 
             // Set portal password (hashed)
@@ -94,9 +125,15 @@ class ApiCustomerController {
                 offset
             });
 
+            // Redact OMS client_secret in list responses
+            const safeCustomers = customers.map(({ oms_client_secret, ...rest }) => ({
+                ...rest,
+                oms_client_secret_set: !!oms_client_secret
+            }));
+
             return successResponse(res, {
-                customers,
-                total: customers.length,
+                customers: safeCustomers,
+                total: safeCustomers.length,
                 limit: parseInt(limit),
                 offset: parseInt(offset)
             }, 'Customers retrieved successfully');
@@ -127,8 +164,12 @@ class ApiCustomerController {
             // Get stats
             const stats = await ApiCustomerModel.getStats(customerId);
 
+            // Redact OMS client_secret — write-only after configuration
+            const { oms_client_secret, ...customerSafe } = customer;
+
             return successResponse(res, {
-                ...customer,
+                ...customerSafe,
+                oms_client_secret_set: !!oms_client_secret,
                 credentials: activeCredentials.map(c => ({
                     id: c.id,
                     client_id: c.client_id,
@@ -157,7 +198,10 @@ class ApiCustomerController {
                 rateLimitPerHour, rateLimitPerDay,
                 webhookEnabled, bulkOrderEnabled, metadata,
                 telegramResponsibles, telegramGroupIds,
-                larkGroupIds
+                larkGroupIds,
+                omsRealm, omsClientId, omsClientSecret,
+                omsUrlAuth, omsUrlApi,
+                shippingMarkupPercent
             } = req.body;
 
             const customer = await ApiCustomerModel.findById(customerId);
@@ -176,6 +220,26 @@ class ApiCustomerController {
                 return errorResponse(res, 'Customer name cannot be empty', 400);
             }
 
+            // Validate OMS URLs (must be http/https when provided)
+            const isHttpUrl = (v) => typeof v === 'string' && /^https?:\/\/\S+$/i.test(v.trim());
+            if (omsUrlAuth !== undefined && omsUrlAuth !== null && omsUrlAuth !== '' && !isHttpUrl(omsUrlAuth)) {
+                return errorResponse(res, 'omsUrlAuth must be a valid http/https URL', 400);
+            }
+            if (omsUrlApi !== undefined && omsUrlApi !== null && omsUrlApi !== '' && !isHttpUrl(omsUrlApi)) {
+                return errorResponse(res, 'omsUrlApi must be a valid http/https URL', 400);
+            }
+
+            // Validate shipping_markup_percent: number between 0 and 100 inclusive, max 2 decimal places
+            let parsedMarkup;
+            if (shippingMarkupPercent !== undefined) {
+                parsedMarkup = Number(shippingMarkupPercent);
+                if (!Number.isFinite(parsedMarkup) || parsedMarkup < 0 || parsedMarkup > 100) {
+                    return errorResponse(res, 'shippingMarkupPercent must be a number between 0 and 100', 400);
+                }
+                // Round to 2 decimals to match DECIMAL(5,2)
+                parsedMarkup = Math.round(parsedMarkup * 100) / 100;
+            }
+
             // Build sanitized update data (only allowed fields)
             const updateData = {};
             if (customerName !== undefined) updateData.customerName = customerName.trim();
@@ -190,6 +254,12 @@ class ApiCustomerController {
             if (telegramResponsibles !== undefined) updateData.telegramResponsibles = telegramResponsibles ? telegramResponsibles.trim() : null;
             if (telegramGroupIds !== undefined) updateData.telegramGroupIds = telegramGroupIds ? telegramGroupIds.trim() : null;
             if (larkGroupIds !== undefined) updateData.larkGroupIds = larkGroupIds ? larkGroupIds.trim() : null;
+            if (omsRealm !== undefined) updateData.omsRealm = omsRealm ? String(omsRealm).trim() : null;
+            if (omsClientId !== undefined) updateData.omsClientId = omsClientId ? String(omsClientId).trim() : null;
+            if (omsClientSecret !== undefined) updateData.omsClientSecret = omsClientSecret ? String(omsClientSecret) : null;
+            if (omsUrlAuth !== undefined) updateData.omsUrlAuth = omsUrlAuth ? String(omsUrlAuth).trim() : null;
+            if (omsUrlApi !== undefined) updateData.omsUrlApi = omsUrlApi ? String(omsUrlApi).trim() : null;
+            if (parsedMarkup !== undefined) updateData.shippingMarkupPercent = parsedMarkup;
 
             if (Object.keys(updateData).length === 0) {
                 return errorResponse(res, 'No valid fields to update', 400);
@@ -305,6 +375,46 @@ class ApiCustomerController {
     }
 
     // ─── Portal Password ──────────────────────────────────────────
+
+    /**
+     * PUT /api/v1/admin/customers/:customerId/markup
+     * Focused endpoint for the dashboard "edit shipping markup" control.
+     * Equivalent to PATCH .../:customerId with only shippingMarkupPercent — admin only.
+     * Body: { shippingMarkupPercent: number 0..100 }
+     */
+    async setMarkup(req, res, next) {
+        try {
+            const { customerId } = req.params;
+            const { shippingMarkupPercent } = req.body || {};
+
+            if (shippingMarkupPercent === undefined) {
+                return errorResponse(res, 'shippingMarkupPercent is required', 400);
+            }
+            const parsed = Number(shippingMarkupPercent);
+            if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+                return errorResponse(res, 'shippingMarkupPercent must be a number between 0 and 100', 400);
+            }
+
+            const customer = await ApiCustomerModel.findById(customerId);
+            if (!customer) return errorResponse(res, 'Customer not found', 404);
+
+            const rounded = Math.round(parsed * 100) / 100;
+            await ApiCustomerModel.update(customerId, { shippingMarkupPercent: rounded });
+
+            logger.info('Updated customer markup', {
+                customerId,
+                shippingMarkupPercent: rounded,
+                editor: req.session?.username || null,
+            });
+
+            return successResponse(res, {
+                customer_id: parseInt(customerId),
+                shipping_markup_percent: rounded,
+            }, 'Markup updated');
+        } catch (err) {
+            next(err);
+        }
+    }
 
     /**
      * POST /api/v1/admin/customers/:customerId/portal-password

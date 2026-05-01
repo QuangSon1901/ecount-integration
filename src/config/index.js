@@ -134,5 +134,25 @@ module.exports = {
         appId: process.env.LARK_APP_ID,
         appSecret: process.env.LARK_APP_SECRET,
         verificationToken: process.env.LARK_VERIFICATION_TOKEN,
-    }
+    },
+
+    // ITC label aggregator (Phase 5)
+    itc: {
+        baseUrl: process.env.ITC_BASE_URL,
+        apiKey: process.env.ITC_API_KEY,
+        defaultService: process.env.ITC_DEFAULT_SERVICE || 'USPS_GROUND_ADVANTAGE',
+        timeoutMs: parseInt(process.env.ITC_TIMEOUT_MS) || 30000,
+        // Static origin/shipper (warehouse). Per-customer override can be added later.
+        shipper: {
+            name: process.env.ITC_SHIPPER_NAME || 'THG Logistics',
+            phone: process.env.ITC_SHIPPER_PHONE,
+            email: process.env.ITC_SHIPPER_EMAIL,
+            country: process.env.ITC_SHIPPER_COUNTRY || 'US',
+            state: process.env.ITC_SHIPPER_STATE,
+            city: process.env.ITC_SHIPPER_CITY,
+            postalCode: process.env.ITC_SHIPPER_POSTAL_CODE,
+            addressLine1: process.env.ITC_SHIPPER_ADDRESS_LINE1,
+            addressLine2: process.env.ITC_SHIPPER_ADDRESS_LINE2,
+        },
+    },
 };

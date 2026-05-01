@@ -9,15 +9,21 @@ const updateStatusCron = require('./src/jobs/update-status.cron');
 const cleanupSessionsCron = require('./src/jobs/cleanup-sessions.cron');
 const syncOrdersCron = require('./src/jobs/sync-orders-ecount.cron');
 const podFetchTrackingCron = require('./src/jobs/pod-fetch-tracking.cron');
+const syncOmsOrdersCron = require('./src/jobs/sync-oms-orders.cron');
+const omsFetchTrackingCron = require('./src/jobs/oms-fetch-tracking.cron');
+const omsRecoveryCron = require('./src/jobs/oms-recovery.cron');
 
 db.testConnection()
     .then(() => {
         workerManager.start();
-        fetchTrackingCron.start();
-        updateStatusCron.start();
-        cleanupSessionsCron.start();
-        syncOrdersCron.start();
-        podFetchTrackingCron.start();
+        // fetchTrackingCron.start();
+        // updateStatusCron.start();
+        // cleanupSessionsCron.start();
+        // syncOrdersCron.start();
+        // podFetchTrackingCron.start();
+        syncOmsOrdersCron.start();
+        // omsFetchTrackingCron.start();
+        // omsRecoveryCron.start();
         logger.info('Worker started successfully');
     })
     .catch(err => {
