@@ -45,7 +45,6 @@ class ItcClient {
             err.code = 'NOT_CONFIGURED';
             throw err;
         }
-
         const url = `${this._baseUrl()}/orders`;
         let response;
         try {
@@ -59,8 +58,8 @@ class ItcClient {
                     status: err.response.status,
                     body: err.response.data,
                     reference: body.reference,
-                });
-                const e = new Error(`ITC createOrder rejected (HTTP ${err.response.status})`);
+                });                
+                const e = new Error(`ITC createOrder rejected (HTTP ${err.response.status}): ${err?.response?.data?.message || err?.response?.data?.msg || 'No message'}`);
                 e.code = 'ITC_REJECTED';
                 e.status = err.response.status;
                 e.responseBody = err.response.data;
@@ -192,32 +191,37 @@ class ItcClient {
      */
     buildOrderBody(row, options = {}) {
         const items = this._parseItems(row.items);
+        
         return {
-            reference: row.order_number,
-            service: options.productCode || row.product_code || this.cfg.defaultService,
-            shipper: { ...this.cfg.shipper },
-            recipient: {
-                name: row.receiver_name,
-                phone: row.receiver_phone,
-                email: row.receiver_email,
-                country: row.receiver_country,
-                state: row.receiver_state,
-                city: row.receiver_city,
-                postalCode: row.receiver_postal_code,
-                addressLine1: row.receiver_address_line1,
-                addressLine2: row.receiver_address_line2,
-            },
-            parcel: {
-                weight: row.package_weight,
-                length: row.package_length,
-                width: row.package_width,
-                height: row.package_height,
-                weightUnit: row.weight_unit || 'KG',
-                sizeUnit: row.size_unit || 'CM',
-            },
-            items,
-            declaredValue: row.declared_value,
-            currency: row.declared_currency || 'USD',
+            orderNumber: row.order_number,
+            name: row.receiver_name,
+            company: row.company || "",
+            phone: row.receiver_phone || "",
+            address1: row.receiver_address_line1 || "",
+            address2: row.receiver_address_line2 || "",
+            city: row.receiver_city || "",
+            country: row.receiver_country || "",
+            state: row.receiver_state || "",
+            postalCode: row.receiver_postal_code || "",
+            weight: Number(row.package_weight || 0),
+            order_height: Number(row.package_height || 0),
+            order_length: Number(row.package_length || 0),
+            order_width: Number(row.package_width || 0),
+            route_shipping_partner: row.route_shipping_partner || "USPS",
+            taxNumber: row.tax_number || "",
+            addressIndex: 0,
+            items: items.map((it, idx) => ({
+                skuNumber: it.sku || '',
+                productName: it.productName || '',
+                itemDescription: it.itemDescription || '',
+                quantity: Number(it.quantity || 0),
+                itemWeight: Number(it.weight || 0),
+                itemWidth: Number(it.width || 0),
+                itemHeight: Number(it.height || 0),
+                itemLength: Number(it.length || 0),
+                length: Number(it.length || 0),
+                saleUrl: it.saleUrl || ''
+            })),
         };
     }
 

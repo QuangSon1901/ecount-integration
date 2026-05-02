@@ -71,7 +71,7 @@ class OmsOrderController {
             const id = parseInt(req.params.id);
             if (!Number.isFinite(id)) return errorResponse(res, 'Invalid id', 400);
             const { productCode } = req.body || {};
-
+            
             const updated = await labelPurchase.purchaseFor(id, { productCode });
             return successResponse(res, this._formatOrder(updated), 'Label purchased successfully');
         } catch (err) {

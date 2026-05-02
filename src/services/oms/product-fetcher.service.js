@@ -263,6 +263,7 @@ class OmsProductFetcherService {
 
                         // ── Apply dims to each item that carries this SKU ──
                         for (const item of skuToItems.get(sku)) {
+                            item.itemDescription = item.productName || '';
                             item.weight     = dimensions.weight;
                             item.length     = dimensions.length;
                             item.width      = dimensions.width;

@@ -20,9 +20,9 @@ class OmsOrderStorageService {
      * Format: OMS{ts}{rand4} — visually distinct from existing ORD{ts}{rand4}.
      */
     generateOrderNumber() {
-        const ts = Date.now();
-        const rand = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-        return `OMS${ts}${rand}`;
+        const ts = Date.now().toString(36); // rút gọn timestamp
+        const rand = Math.random().toString(36).substring(2, 6); // 4 ký tự
+        return `OMS${ts}${rand}`.substring(0, 14).toUpperCase();
     }
 
     /**
