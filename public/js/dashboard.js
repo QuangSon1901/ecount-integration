@@ -501,7 +501,10 @@ function renderOmsRows(rows) {
         return '<tr>' +
             '<td><input type="checkbox" class="rowSel" data-id="' + r.id + '"' + (canSelect ? '' : ' disabled') + '></td>' +
             '<td><a class="order-link" href="/extensions/oms-orders/' + r.id + '">' + esc(r.order_number) + '</a></td>' +
-            '<td><span class="cust-badge">#' + esc(r.customer_id) + '</span></td>' +
+            '<td>' +
+                '<div style="font-size:11px; font-weight:600; margin-top:2px;">' + '<span class="cust-badge">#' + esc(r.customer_id) + '</span>' + esc(r.customer_code || '—') + '</div>' +
+                '<div style="font-size:11px; color:var(--text-secondary);">' + esc(r.customer_name || '') + '</div>' +
+            '</td>' +
             '<td class="mono-sm">' + esc(r.oms_order_id || '—') + '</td>' +
             '<td>' + omsBadge(r.internal_status) + '</td>' +
             '<td class="mono-sm">' + (esc(r.tracking_number) || '<span style="color:var(--text-secondary)">—</span>') + '</td>' +

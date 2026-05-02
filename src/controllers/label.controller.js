@@ -3,6 +3,7 @@ const path = require('path');
 const OrderModel = require('../models/order.model');
 const { successResponse, errorResponse } = require('../utils/response');
 const logger = require('../utils/logger');
+const OmsOrderModel = require('../models/oms-order.model');
 
 // Map extension → content-type
 const CONTENT_TYPE_MAP = {
@@ -25,9 +26,12 @@ class LabelController {
         try {
             const { accessKey } = req.params;
 
-            logger.info('Truy cập label bằng access key:', { accessKey });
+            const [nmOrder, omsOrder] = await Promise.all([
+                OrderModel.findByLabelAccessKey(accessKey),
+                OmsOrderModel.findByLabelAccessKey(accessKey)
+            ]);
 
-            const order = await OrderModel.findByLabelAccessKey(accessKey);
+            const order = nmOrder || omsOrder;
 
             if (!order) {
                 return errorResponse(res, 'Invalid access key', 404);
@@ -36,6 +40,7 @@ class LabelController {
             if (!order.label_url) {
                 return errorResponse(res, 'Label URL not available', 404);
             }
+
 
             logger.info('Proxying label file:', {
                 orderId: order.id,
@@ -107,10 +112,19 @@ class LabelController {
         try {
             const { accessKey } = req.params;
             
-            const order = await OrderModel.findByLabelAccessKey(accessKey);
-            
+            const [nmOrder, omsOrder] = await Promise.all([
+                OrderModel.findByLabelAccessKey(accessKey),
+                OmsOrderModel.findByLabelAccessKey(accessKey)
+            ]);
+
+            const order = nmOrder || omsOrder;
+
             if (!order) {
                 return errorResponse(res, 'Invalid access key', 404);
+            }
+
+            if (!order.label_url) {
+                return errorResponse(res, 'Label URL not available', 404);
             }
             
             return successResponse(res, {

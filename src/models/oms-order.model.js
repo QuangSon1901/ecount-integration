@@ -34,7 +34,13 @@ class OmsOrderModel {
     static async findById(id) {
         const conn = await db.getConnection();
         try {
-            const [rows] = await conn.query('SELECT * FROM oms_orders WHERE id = ?', [id]);
+            const [rows] = await conn.query(
+                `SELECT o.*, c.customer_code, c.customer_name
+                FROM oms_orders o
+                LEFT JOIN api_customers c ON c.id = o.customer_id
+                WHERE o.id = ?`,
+                [id]
+            );
             return rows[0] || null;
         } finally {
             conn.release();
@@ -484,18 +490,39 @@ class OmsOrderModel {
     static async list(filters = {}) {
         const conn = await db.getConnection();
         try {
-            let sql = 'SELECT * FROM oms_orders WHERE 1=1';
+            let sql = `SELECT o.*, c.customer_code, c.customer_name
+                    FROM oms_orders o
+                    LEFT JOIN api_customers c ON c.id = o.customer_id
+                    WHERE 1=1`;
             const params = [];
-            if (filters.customerId) { sql += ' AND customer_id = ?'; params.push(filters.customerId); }
-            if (filters.internalStatus) { sql += ' AND internal_status = ?'; params.push(filters.internalStatus); }
-            if (filters.omsStatus) { sql += ' AND oms_status = ?'; params.push(filters.omsStatus); }
-            sql += ' ORDER BY created_at DESC';
-            if (filters.limit) { sql += ' LIMIT ?'; params.push(parseInt(filters.limit)); }
+            if (filters.customerId)     { sql += ' AND o.customer_id = ?';      params.push(filters.customerId); }
+            if (filters.internalStatus) { sql += ' AND o.internal_status = ?';  params.push(filters.internalStatus); }
+            if (filters.omsStatus)      { sql += ' AND o.oms_status = ?';       params.push(filters.omsStatus); }
+            sql += ' ORDER BY o.created_at DESC';
+            if (filters.limit)  { sql += ' LIMIT ?';  params.push(parseInt(filters.limit)); }
             if (filters.offset) { sql += ' OFFSET ?'; params.push(parseInt(filters.offset)); }
             const [rows] = await conn.query(sql, params);
             return rows;
         } finally {
             conn.release();
+        }
+    }
+
+    /**
+     * Tìm order theo label access key
+     */
+    static async findByLabelAccessKey(accessKey) {
+        const connection = await db.getConnection();
+        
+        try {
+            const [rows] = await connection.query(
+                'SELECT * FROM oms_orders WHERE label_access_key = ?',
+                [accessKey]
+            );
+            
+            return rows[0] || null;
+        } finally {
+            connection.release();
         }
     }
 }

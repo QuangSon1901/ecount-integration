@@ -306,11 +306,70 @@ class OmsOrderController {
     _formatOrder(row) {
         if (!row) return null;
         return {
-            ...row,
-            items: this._parseJson(row.items),
-            raw_data: this._parseJson(row.raw_data),
-            editable_data: this._parseJson(row.editable_data),
-            itc_response: this._parseJson(row.itc_response),
+            // ─── Identity ───────────────────────────────────────────
+            id:                   row.id,
+            order_number:         row.order_number,
+            oms_order_number:     row.oms_order_number,   // sOrCode
+            oms_order_id:         row.oms_order_id,
+
+            // ─── Status ─────────────────────────────────────────────
+            internal_status:      row.internal_status,
+            oms_status:           row.oms_status,
+
+            // ─── Receiver ───────────────────────────────────────────
+            receiver_name:        row.receiver_name,
+            receiver_company:     row.receiver_company,
+            receiver_phone:       row.receiver_phone,
+            receiver_tax_number:  row.receiver_tax_number,
+            receiver_address_line1: row.receiver_address_line1,
+            receiver_address_line2: row.receiver_address_line2,
+            receiver_city:        row.receiver_city,
+            receiver_state:       row.receiver_state,
+            receiver_postal_code: row.receiver_postal_code,
+            receiver_country:     row.receiver_country,
+
+            // ─── Package ────────────────────────────────────────────
+            package_weight:       row.package_weight,
+            package_length:       row.package_length,
+            package_width:        row.package_width,
+            package_height:       row.package_height,
+            route_shipping_partner: row.route_shipping_partner,
+            address_index:        row.address_index,
+            warehouse_code:       row.warehouse_code,
+
+            // ─── Items ──────────────────────────────────────────────
+            items:                this._parseJson(row.items),
+
+            // ─── Pricing ────────────────────────────────────────────
+            declared_currency:       row.declared_currency,
+            shipping_fee_purchase:   row.shipping_fee_purchase,
+            shipping_markup_percent: row.shipping_markup_percent,
+            shipping_fee_selling:    row.shipping_fee_selling,
+            gross_profit:            row.gross_profit,
+            fulfillment_fee_purchase: row.fulfillment_fee_purchase,
+            fulfillment_fee_selling:  row.fulfillment_fee_selling,
+            total_value:             row.total_value,
+            total_discount:          row.total_discount,
+            paid_amount:             row.paid_amount,
+            remaining_amount:        row.remaining_amount,
+
+            // ─── ITC Label ──────────────────────────────────────────
+            carrier:         row.carrier,
+            tracking_number: row.tracking_number,
+            itc_sid:         row.itc_sid,
+            label_url:       row.label_access_key ? `${process.env.BASE_URL}/api/labels/${row.label_access_key}` : null,
+
+            // ─── Timestamps ─────────────────────────────────────────
+            created_at:      row.created_at,
+            updated_at:      row.updated_at,
+            oms_created_at:  row.oms_created_at,
+            oms_updated_at:  row.oms_updated_at,
+            synced_at:       row.synced_at,
+
+            // ─── Customer ref (dashboard list dùng) ─────────────────
+            customer_id:     row.customer_id,
+            customer_code:   row.customer_code || null,
+            customer_name:   row.customer_name || null,
         };
     }
 

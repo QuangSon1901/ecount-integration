@@ -21,6 +21,7 @@ const ApiCustomerModel = require('../../models/api-customer.model');
 const UrlProxyModel = require('../../models/url-proxy.model');
 const jobService = require('../queue/job.service');
 const logger = require('../../utils/logger');
+const KeyGenerator = require('../../utils/key-generator');
 
 const VALID_PRE_STATES = ['pending', 'selected'];
 
@@ -100,38 +101,8 @@ class LabelPurchaseService {
         }
 
         // 4. Resolve label URL: inline preferred, fall back to /labels/{sid}
-        let labelOriginalUrl = itcResponse.labelUrl;
-        if (!labelOriginalUrl) {
-            try {
-                labelOriginalUrl = await itcClient.fetchLabelUrl(itcResponse.sid);
-            } catch (err) {
-                logger.warn('[ITC] fetchLabelUrl failed after successful create', {
-                    sid: itcResponse.sid,
-                    barcode: itcResponse.barcode,
-                    error: err.message,
-                });
-            }
-        }
-
-        // 5. Proxy the label URL via url_proxies (Phase 5 constraint).
-        //    If we couldn't get a URL at all, store nulls — admin can fetch later.
-        let accessKey = null, shortUrl = null;
-        if (labelOriginalUrl) {
-            try {
-                const proxy = await UrlProxyModel.createShortUrl(labelOriginalUrl, 'label', null);
-                accessKey = proxy.accessKey;
-                shortUrl = proxy.shortUrl;
-            } catch (err) {
-                logger.error('[ITC] url_proxies.createShortUrl failed', {
-                    omsOrderId,
-                    sid: itcResponse.sid,
-                    barcode: itcResponse.barcode,
-                    error: err.message,
-                });
-                // Don't fail the whole purchase — store the raw URL as a fallback
-                shortUrl = labelOriginalUrl;
-            }
-        }
+        let labelOriginalUrl = itcClient.getLabelUrl(itcResponse.sid);
+        let labelAccessKey = KeyGenerator.generateLabelAccessKey();
 
         // 6. Snapshot markup at purchase time and compute charged cost
         const markupPct = Number(customer?.shipping_markup_percent ?? 0);
@@ -145,8 +116,8 @@ class LabelPurchaseService {
                 productCode: body.service,
                 trackingNumber: itcResponse.barcode,
                 waybillNumber: itcResponse.barcode,
-                labelUrl: shortUrl,
-                labelAccessKey: accessKey,
+                labelUrl: labelOriginalUrl,
+                labelAccessKey: labelAccessKey,
                 itcSid: itcResponse.sid,
                 itcResponse: itcResponse.raw,
                 shippingFeePurchase: rawCost,

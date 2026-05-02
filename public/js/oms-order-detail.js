@@ -205,8 +205,10 @@ function render(row) {
         ? `<a class="btn btn-sm btn-primary" href="${escapeHtml(row.label_url)}" target="_blank" rel="noopener">📄 Open Label PDF</a>`
         : '');
 
+    updateLabelPdf(row.label_url || null);
+
     // ─── Sidebar — General ─────────────────────────────────────────────────
-    setText('sOrCode', row.order_number);
+    setText('sOrCode', row.oms_order_number);
     setText('sWarehouse', row.warehouse_code);
 
     // ─── Sidebar — Dates ───────────────────────────────────────────────────
@@ -582,6 +584,18 @@ function copyOrderNum() {
 function togglePreview() {
     const body = document.getElementById('itcPreviewBody');
     body.classList.toggle('hidden');
+}
+
+function updateLabelPdf(url) {
+    const section = document.getElementById('labelPdfSection');
+    const frame   = document.getElementById('labelPdfFrame');
+    if (url) {
+        frame.src = url;
+        section.classList.remove('hidden');
+    } else {
+        frame.src = '';
+        section.classList.add('hidden');
+    }
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────

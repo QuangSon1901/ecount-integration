@@ -88,13 +88,17 @@ class ItcClient {
             err.code = 'NOT_CONFIGURED';
             throw err;
         }
-        const url = `${this._baseUrl()}/labels/${encodeURIComponent(sid)}`;
+        const url = `${this._baseUrl()}/orders/labels/${encodeURIComponent(sid)}`;
         const response = await axios.get(url, {
             headers: this._baseHeaders(),
             timeout: this.cfg.timeoutMs,
         });
         const data = response.data || {};
         return data.url || data.labelUrl || data.label_url || data.pdf_url || null;
+    }
+
+    getLabelUrl(sid) {
+        return `${this._baseUrl()}/orders/labels/${encodeURIComponent(sid)}`;
     }
 
     /**
