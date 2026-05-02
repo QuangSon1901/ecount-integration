@@ -82,16 +82,21 @@ class OmsLogisticUpdateService {
                 `OMS not configured for customer ${customer.customer_code}`);
         }
 
-        const tplCode = options.tplCode || row.product_code || row.carrier || 'ITC';
+        const tplCode = 'USPS';
         const body = {
             trackingCode: row.tracking_number,
-            shippingLabel: row.label_url,
+            shippingLabels: [
+                {
+                    caption: '',
+                    uri: `${process.env.BASE_URL}/api/labels/${row.label_access_key}`,
+                }
+            ],
             tplCode,
         };
 
         const baseUrl = customer.oms_url_api.replace(/\/+$/, '');
-        const url = `${baseUrl}/ors/${encodeURIComponent(row.oms_order_id)}/logistic-info`;
-
+        const url = `${baseUrl}/api/v1/ors/${encodeURIComponent(row.oms_order_id)}/logistic-info`;
+        
         let response;
         try {
             response = await this._postWith401Retry(url, body, customer.id);
