@@ -1,6 +1,8 @@
 // src/jobs/oms-fetch-tracking.cron.js
 //
-// Phase 9: poll ITC tracking for OMS orders every 5 minutes.
+// Phase 9 (revised): poll ITC order detail for OMS orders every 5 minutes
+// and advance internal_status from the returned status_text field.
+//
 // Lives entirely in the OMS namespace — does not touch the existing
 // fetch-tracking / update-status crons or the orders table.
 
@@ -20,6 +22,7 @@ class OmsFetchTrackingCron {
     }
 
     start() {
+        this.run();
         cron.schedule(this.schedule, async () => {
             if (this.isRunning) {
                 logger.warn('[OMS-TRACKING] previous run still in progress, skipping');
@@ -37,7 +40,6 @@ class OmsFetchTrackingCron {
             ordersChecked: 0,
             ordersErrored: 0,
             ordersSkipped: 0,
-            eventsInserted: 0,
             transitions: 0,
         };
 
@@ -61,7 +63,7 @@ class OmsFetchTrackingCron {
             });
 
             if (orders.length === 0) {
-                logger.info('[OMS-TRACKING] no orders due for tracking poll');
+                logger.info('[OMS-TRACKING] no orders due for polling');
             }
 
             for (const order of orders) {
@@ -69,25 +71,28 @@ class OmsFetchTrackingCron {
                     const result = await omsTracking.checkAndUpdate(order);
                     if (result.skipped) {
                         stats.ordersSkipped++;
+                        logger.debug('[OMS-TRACKING] skipped', {
+                            omsOrderId: order.id,
+                            reason: result.skipped,
+                        });
                     } else {
                         stats.ordersChecked++;
-                        stats.eventsInserted += (result.eventsInserted || 0);
                         if (result.transitionedTo) stats.transitions++;
                         logger.info('[OMS-TRACKING] polled', {
-                            omsOrderId: order.id,
-                            eventsInserted: result.eventsInserted,
-                            milestones: result.milestones,
+                            omsOrderId:    order.id,
+                            itcSid:        result.itcSid,
+                            itcStatusText: result.itcStatusText,
+                            targetStatus:  result.targetStatus,
                             transitionedTo: result.transitionedTo,
-                            itcStatus: result.itcStatus,
                         });
                     }
                 } catch (err) {
                     stats.ordersErrored++;
                     logger.error('[OMS-TRACKING] order poll failed', {
                         omsOrderId: order.id,
-                        trackingNumber: order.tracking_number,
-                        error: err.message,
-                        code: err.code,
+                        itcSid:     order.itc_sid,
+                        error:      err.message,
+                        code:       err.code,
                     });
                 }
             }
@@ -96,8 +101,8 @@ class OmsFetchTrackingCron {
             await CronLogModel.update(cronLogId, {
                 status: 'completed',
                 ordersProcessed: orders.length,
-                ordersSuccess: stats.ordersChecked,
-                ordersFailed: stats.ordersErrored,
+                ordersSuccess:   stats.ordersChecked,
+                ordersFailed:    stats.ordersErrored,
                 executionTimeMs: executionTime,
             });
 

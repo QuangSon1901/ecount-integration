@@ -3,6 +3,7 @@
 // Low-level HTTP client for the ITC label aggregator. Two responsibilities:
 //   - createOrder(body)          → POST /orders, returns { barcode, usd, sid, labelUrl?, raw }
 //   - fetchLabelUrl(sid)         → GET /labels/{sid}, returns the original PDF URL
+//   - fetchOrderDetail(sid)      → GET /orders/{sid}, returns { sid, status, statusText, raw }
 //   - buildOrderBody(omsOrder, options) — pure shaping, no I/O
 //
 // The ITC response shape is not stamped in stone in this codebase yet — the
@@ -102,8 +103,55 @@ class ItcClient {
     }
 
     /**
-     * GET /tracking/{barcode} — Phase 9: pull live tracking events from ITC.
+     * GET /orders/{sid} — fetch order detail to read current status_text.
+     *
+     * status_text enum from ITC:
+     *   -1=Warning, 0=Generated, 1=Scanned, 2=Processing, 3=Processed,
+     *    4=Delivered, 5=Failed, 10=OrderFailed
+     *
+     * @param {string} sid — ITC shipment UUID (stored as itc_sid on oms_orders)
+     * @returns {Promise<{sid: string, status: number, statusText: string, raw: object}>}
+     */
+    async fetchOrderDetail(sid) {
+        if (!this.isConfigured()) {
+            const err = new Error('ITC not configured');
+            err.code = 'NOT_CONFIGURED';
+            throw err;
+        }
+
+        const url = `${this._baseUrl()}/orders/${encodeURIComponent(sid)}`;
+        let response;
+        try {
+            response = await axios.get(url, {
+                headers: this._baseHeaders(),
+                timeout: this.cfg.timeoutMs,
+            });
+        } catch (err) {
+            if (err.response) {
+                const e = new Error(`ITC fetchOrderDetail rejected (HTTP ${err.response.status}) for sid=${sid}`);
+                e.code = err.response.status === 404 ? 'NOT_FOUND' : 'ITC_REJECTED';
+                e.status = err.response.status;
+                e.responseBody = err.response.data;
+                throw e;
+            }
+            const e = new Error(`ITC fetchOrderDetail network error: ${err.message}`);
+            e.code = 'NETWORK_ERROR';
+            throw e;
+        }
+
+        const d = response.data || {};
+        return {
+            sid:        d.sid || null,
+            status:     d.status ?? null,
+            statusText: d.status_text || null,
+            raw:        d,
+        };
+    }
+
+    /**
+     * GET /tracking/{barcode} — pull live tracking events from ITC.
      * Returns { status, events: [...], raw } in a normalized shape.
+     * @deprecated Prefer fetchOrderDetail for status-based polling.
      */
     async fetchTracking(barcode) {
         if (!this.isConfigured()) {
@@ -112,13 +160,14 @@ class ItcClient {
             throw err;
         }
 
-        const url = `${this._baseUrl()}/tracking/${encodeURIComponent(barcode)}`;
+        const url = `${this._baseUrl()}/tracking?filter=${encodeURIComponent(barcode)}`;
         let response;
         try {
             response = await axios.get(url, {
                 headers: this._baseHeaders(),
                 timeout: this.cfg.timeoutMs,
             });
+            
         } catch (err) {
             if (err.response) {
                 const e = new Error(`ITC tracking rejected (HTTP ${err.response.status}) for ${barcode}`);
@@ -137,11 +186,6 @@ class ItcClient {
     /**
      * Normalize variant tracking-response shapes into:
      *   { status, events: [{eventTime, status, eventCode, location, description, raw}], raw }
-     *
-     * Recognized shapes:
-     *   A) { status, events: [{event_time | eventTime, ...}, ...] }
-     *   B) { trackingStatus, trackingEvents: [...] }
-     *   C) Bare event array → status derived from latest event
      */
     _normalizeTrackingResponse(data) {
         const d = data || {};

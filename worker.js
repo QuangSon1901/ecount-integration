@@ -21,8 +21,8 @@ db.testConnection()
         // cleanupSessionsCron.start();
         // syncOrdersCron.start();
         // podFetchTrackingCron.start();
-        syncOmsOrdersCron.start();
-        // omsFetchTrackingCron.start();
+        // syncOmsOrdersCron.start();
+        omsFetchTrackingCron.start();
         // omsRecoveryCron.start();
         logger.info('Worker started successfully');
     })

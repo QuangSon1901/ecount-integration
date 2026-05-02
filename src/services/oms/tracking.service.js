@@ -1,18 +1,16 @@
 // src/services/oms/tracking.service.js
 //
-// Phase 9: pull tracking events from ITC for one OMS order, persist them,
-// roll up checkpoints, and advance internal_status only forward.
+// Phase 9 (revised): poll ITC order detail for one OMS order and advance
+// internal_status based on ITC's status_text field.
 //
-// Idempotency: the dedup UNIQUE on oms_tracking_logs makes re-runs safe;
-// checkpoint columns use COALESCE so first-occurrence wins.
+// Strategy change: instead of parsing raw tracking events (which don't carry
+// a reliable status), we call GET /orders/{itc_sid} and map the top-level
+// status_text directly to our internal_status.
 //
-// State transitions only flow forward; we never downgrade
-// (e.g. a delivered order doesn't drop back to shipped on a stale event).
+// State transitions only flow forward; we never downgrade.
 
 const itcClient = require('../itc/itc.client');
 const OmsOrderModel = require('../../models/oms-order.model');
-const OmsTrackingLogModel = require('../../models/oms-tracking-log.model');
-const OmsTrackingCheckpointModel = require('../../models/oms-tracking-checkpoint.model');
 const logger = require('../../utils/logger');
 
 // Lifecycle order — used to prevent backwards transitions
@@ -24,124 +22,86 @@ const STATUS_RANK = {
     oms_updated: 4,
     shipped: 5,
     delivered: 6,
-    // terminal/orthogonal: cancelled, failed, error → rank treated as "no upgrade allowed"
+    failed: 7,
+    // terminal/orthogonal: cancelled, error → rank treated as "no upgrade allowed"
 };
 
-// ITC event-status (lowercased) → our milestone + (optional) target internal_status
-const STATUS_MAPPING = {
-    in_transit:        { milestone: 'in_transit',        target: 'shipped'   },
-    intransit:         { milestone: 'in_transit',        target: 'shipped'   },
-    transit:           { milestone: 'in_transit',        target: 'shipped'   },
-    out_for_delivery:  { milestone: 'out_for_delivery',  target: 'shipped'   },
-    delivered:         { milestone: 'delivered',         target: 'delivered' },
-    delivery_completed:{ milestone: 'delivered',         target: 'delivered' },
-    exception:         { milestone: 'exception',         target: null        },
-    failure:           { milestone: 'exception',         target: null        },
-    returned:          { milestone: 'exception',         target: null        },
+// ITC status_text (lowercased) → our internal_status target
+// Generated / Warning → no transition (label exists but not in carrier hands yet)
+// Scanned / Processing / Processed → shipped
+// Delivered → delivered
+// Failed / OrderFailed → failed
+const ITC_STATUS_MAP = {
+    scanned:     'shipped',
+    processing:  'shipped',
+    processed:   'shipped',
+    delivered:   'delivered',
+    failed:      'failed',
+    orderfailed: 'failed',
 };
 
 class OmsTrackingService {
     /**
-     * Poll ITC for one order, persist events + checkpoints, advance status.
+     * Fetch ITC order detail for one OMS order and advance internal_status.
      * Returns a stats object describing what happened.
      *
-     * @param {object} omsOrder — full row
+     * Prerequisites: omsOrder must have itc_sid populated (set at label-purchase time).
+     *
+     * @param {object} omsOrder — full oms_orders row
      */
     async checkAndUpdate(omsOrder) {
-        if (!omsOrder.tracking_number) {
-            return { skipped: 'NO_TRACKING_NUMBER' };
+        if (!omsOrder.itc_sid) {
+            return { skipped: 'NO_ITC_SID' };
         }
 
-        let response;
+        let detail;
         try {
-            response = await itcClient.fetchTracking(omsOrder.tracking_number);
+            detail = await itcClient.fetchOrderDetail(omsOrder.itc_sid);
         } catch (err) {
-            // 404 from ITC = label exists but no events yet — common for fresh labels
             if (err.code === 'NOT_FOUND') {
                 await OmsOrderModel.updateTrackingTimestamps(omsOrder.id, false);
-                return { skipped: 'ITC_NO_EVENTS' };
+                return { skipped: 'ITC_ORDER_NOT_FOUND' };
             }
             throw err;
         }
 
-        const events = response.events || [];
-        let inserted = 0;
+        const itcStatusText = detail.statusText || '';
+        const targetStatus  = ITC_STATUS_MAP[itcStatusText.toLowerCase().replace(/\s+/g, '')] || null;
 
-        for (const ev of events) {
-            const wasNew = await OmsTrackingLogModel.insertIfNew({
-                omsOrderId: omsOrder.id,
-                trackingNumber: omsOrder.tracking_number,
-                carrier: omsOrder.carrier || 'ITC',
-                status: ev.status,
-                eventCode: ev.eventCode,
-                location: ev.location,
-                description: ev.description,
-                tracking_data: ev.raw,
-                eventTime: ev.eventTime,
-            });
-            if (wasNew) inserted++;
+        let transitionedTo = null;
+        if (targetStatus) {
+            const advanced = this._isForwardTransition(omsOrder.internal_status, targetStatus);
+            if (advanced) {
+                const ok = await OmsOrderModel.transitionInternalStatus(
+                    omsOrder.id,
+                    ['label_purchased', 'oms_updated', 'shipped', 'error'],
+                    targetStatus,
+                    `ITC status_text=${itcStatusText} → ${targetStatus}`,
+                );
+                if (ok) transitionedTo = targetStatus;
+            }
         }
 
-        // Roll milestones up — only the first occurrence of each milestone is kept
-        const milestonesHit = new Set();
-        for (const ev of events) {
-            const mapping = STATUS_MAPPING[String(ev.status || '').toLowerCase()];
-            if (!mapping) continue;
-            await OmsTrackingCheckpointModel.recordMilestone({
-                omsOrderId: omsOrder.id,
-                trackingNumber: omsOrder.tracking_number,
-                milestone: mapping.milestone,
-                eventTime: ev.eventTime,
-                exceptionNote: mapping.milestone === 'exception' ? ev.description : null,
-            });
-            milestonesHit.add(mapping.milestone);
-        }
-
-        // Compute target internal_status from the *latest* event with a forward-mapping
-        const latestTarget = this._computeTargetStatus(events, omsOrder.internal_status);
-        let stateTransitioned = false;
-        if (latestTarget && latestTarget !== omsOrder.internal_status) {
-            stateTransitioned = await OmsOrderModel.transitionInternalStatus(
-                omsOrder.id,
-                ['label_purchased', 'oms_updated', 'shipped', 'error'],
-                latestTarget,
-                `tracking event → ${latestTarget}`
-            );
-        }
-
-        await OmsOrderModel.updateTrackingTimestamps(omsOrder.id, inserted > 0);
+        await OmsOrderModel.updateTrackingTimestamps(omsOrder.id, false);
 
         return {
-            eventsFetched: events.length,
-            eventsInserted: inserted,
-            milestones: Array.from(milestonesHit),
-            transitionedTo: stateTransitioned ? latestTarget : null,
-            itcStatus: response.status,
+            itcSid:        detail.sid,
+            itcStatus:     detail.status,
+            itcStatusText: itcStatusText,
+            targetStatus,
+            transitionedTo,
         };
     }
 
     /**
-     * Pick the latest event whose status maps to a forward transition.
-     * Returns null if no upgrade applies.
+     * Returns true only when moving to a higher-ranked status.
+     * Terminal / orthogonal statuses (cancelled, error) are never upgraded.
      */
-    _computeTargetStatus(events, currentStatus) {
+    _isForwardTransition(currentStatus, targetStatus) {
         const currentRank = STATUS_RANK[currentStatus];
-        if (currentRank === undefined) return null; // terminal/orthogonal (cancelled/failed)
-
-        // Iterate latest-first; assume events sorted desc OR pick max by event_time
-        const sorted = [...events].sort((a, b) => {
-            const ta = a.eventTime ? new Date(a.eventTime).getTime() : 0;
-            const tb = b.eventTime ? new Date(b.eventTime).getTime() : 0;
-            return tb - ta;
-        });
-
-        for (const ev of sorted) {
-            const mapping = STATUS_MAPPING[String(ev.status || '').toLowerCase()];
-            if (!mapping || !mapping.target) continue;
-            const targetRank = STATUS_RANK[mapping.target];
-            if (targetRank > currentRank) return mapping.target;
-        }
-        return null;
+        const targetRank  = STATUS_RANK[targetStatus];
+        if (currentRank === undefined || targetRank === undefined) return false;
+        return targetRank > currentRank;
     }
 }
 
