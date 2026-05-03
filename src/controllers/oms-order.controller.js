@@ -270,15 +270,74 @@ class OmsOrderController {
             }
             const numericIds = ids.map(n => parseInt(n)).filter(Number.isFinite);
 
-            const results = await labelPurchase.purchaseBatch(numericIds, { productCode });
-            const succeeded = results.filter(r => r.success).length;
+            // Claim atomically NGAY tại enqueue: chuyển pending|selected|error|failed
+            // → label_purchasing trước khi tạo job. Nếu transition fail nghĩa là row
+            // đã được claim ở đợt trước (hoặc đang chạy) → skip để chặn duplicate.
+            // Worker sẽ chạy purchaseFor với skipClaim=true vì đã claim ở đây rồi.
+            const CLAIMABLE_STATES = ['pending', 'selected', 'error', 'failed'];
+            const queued = [];
+            const skipped = [];
+            const errors = [];
+
+            for (let i = 0; i < numericIds.length; i++) {
+                const id = numericIds[i];
+
+                let claimed = false;
+                try {
+                    claimed = await OmsOrderModel.transitionInternalStatus(
+                        id,
+                        CLAIMABLE_STATES,
+                        'label_purchasing',
+                        'Đã đẩy vào queue mua label (bulk)'
+                    );
+                } catch (err) {
+                    logger.error('[OMS-ORDER] claim transition failed', {
+                        omsOrderId: id, error: err.message,
+                    });
+                    errors.push({ id, error: err.message, stage: 'claim' });
+                    continue;
+                }
+
+                if (!claimed) {
+                    // Row không còn ở trạng thái claim được — đang in-flight hoặc đã mua xong
+                    skipped.push({ id, reason: 'already_in_progress_or_finalized' });
+                    continue;
+                }
+
+                try {
+                    const delaySeconds = Math.min(i, 30); // stagger 1s, cap 30s
+                    const jobId = await jobService.addOmsBuyLabelJob(id, { productCode }, delaySeconds);
+                    queued.push({ id, jobId, delaySeconds });
+                } catch (err) {
+                    // Đã claim mà không tạo được job → revert sang 'error' để không
+                    // stuck ở label_purchasing (cleanup cron có 30 phút mới quét).
+                    logger.error('[OMS-ORDER] enqueue buy-label job failed after claim', {
+                        omsOrderId: id, error: err.message,
+                    });
+                    try {
+                        await OmsOrderModel.setInternalStatus(
+                            id,
+                            'error',
+                            `Enqueue job failed: ${err.message}`
+                        );
+                    } catch (e) {
+                        logger.error('[OMS-ORDER] revert state failed', {
+                            omsOrderId: id, error: e.message,
+                        });
+                    }
+                    errors.push({ id, error: err.message, stage: 'enqueue' });
+                }
+            }
 
             return successResponse(res, {
-                results,
+                queued,
+                skipped,
+                errors,
                 total: numericIds.length,
-                succeeded,
-                failed: numericIds.length - succeeded,
-            }, `Bulk purchase: ${succeeded}/${numericIds.length} succeeded`);
+                queuedCount: queued.length,
+                skippedCount: skipped.length,
+                failedToQueue: errors.length,
+            }, `Đã đẩy ${queued.length}/${numericIds.length} đơn vào queue (skip ${skipped.length}, lỗi ${errors.length})`, 202);
         } catch (err) {
             next(err);
         }
@@ -314,6 +373,13 @@ class OmsOrderController {
 
             // ─── Status ─────────────────────────────────────────────
             internal_status:      row.internal_status,
+            internal_status_note: row.internal_status_note || null,
+            // Surface khi lifecycle đang ở error/failed để dashboard hiển thị.
+            // Reuse internal_status_note (đã được service/worker set khi lỗi)
+            // thay vì thêm cột mới — tránh migrate dữ liệu cũ.
+            error_message:        (row.internal_status === 'error' || row.internal_status === 'failed')
+                                    ? (row.internal_status_note || null)
+                                    : null,
             oms_status:           row.oms_status,
 
             // ─── Receiver ───────────────────────────────────────────

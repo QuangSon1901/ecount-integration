@@ -237,6 +237,27 @@ class JobService {
     }
 
     /**
+     * Buy ITC label for an OMS order asynchronously (bulk path).
+     * Worker: src/jobs/workers/oms-buy-label.worker.js
+     *
+     * @param {number} omsOrderId — oms_orders.id
+     * @param {object} [options]
+     * @param {string} [options.productCode] — override ITC service code
+     * @param {number} [delaySeconds=0]
+     */
+    async addOmsBuyLabelJob(omsOrderId, options = {}, delaySeconds = 0) {
+        return await JobModel.create(
+            'oms_buy_label',
+            {
+                omsOrderId,
+                productCode: options.productCode || null,
+            },
+            delaySeconds,
+            3 // max attempts — backoff: 5s, 10s, 20s
+        );
+    }
+
+    /**
      * Lấy stats
      */
     async getStats() {

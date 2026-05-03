@@ -13,6 +13,7 @@ const PodUpdateTrackingEcountWorker = require('./pod-update-tracking-ecount.work
 const PodUpdateStatusEcountWorker = require('./pod-update-status-ecount.worker');
 const SbttLabelUploadWorker = require('./sbtt-label-upload.worker');
 const OmsUpdateLogisticWorker = require('./oms-update-logistic.worker');
+const OmsBuyLabelWorker = require('./oms-buy-label.worker');
 const logger = require('../../utils/logger');
 
 class WorkerManager {
@@ -38,6 +39,7 @@ class WorkerManager {
             // new PodUpdateStatusEcountWorker(),        // 2 concurrent (Playwright batch)
 
             // new OmsUpdateLogisticWorker(),            // 3 concurrent — push tracking back to customer OMS (Phase 6)
+            new OmsBuyLabelWorker(),                  // 3 concurrent — async bulk ITC label purchase
         ];
 
         this.workers.forEach(worker => {

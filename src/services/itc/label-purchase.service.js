@@ -41,6 +41,9 @@ class LabelPurchaseService {
      * @param {number} omsOrderId
      * @param {object} [options]
      * @param {string} [options.productCode] — overrides config.itc.defaultService
+     * @param {boolean} [options.skipClaim] — caller (bulk controller) đã transition
+     *        sang 'label_purchasing' lúc enqueue để chặn duplicate; service không
+     *        cần claim lại, chỉ verify state hiện tại đúng là 'label_purchasing'.
      * @returns {Promise<object>} updated oms_orders row
      */
     async purchaseFor(omsOrderId, options = {}) {
@@ -48,31 +51,44 @@ class LabelPurchaseService {
             throw new LabelPurchaseError('NOT_CONFIGURED', 'ITC client is not configured');
         }
 
+        const skipClaim = !!options.skipClaim;
+
         // 1. Read current state
         const row = await OmsOrderModel.findById(omsOrderId);
         if (!row) {
             throw new LabelPurchaseError('NOT_FOUND', `OMS order ${omsOrderId} not found`);
         }
-        if (!VALID_PRE_STATES.includes(row.internal_status)) {
-            throw new LabelPurchaseError(
-                'INVALID_STATE',
-                `Cannot buy label for order in state '${row.internal_status}' (expected one of ${VALID_PRE_STATES.join(', ')})`
-            );
-        }
-        this._validateRowForItc(row);
 
-        // 2. Atomic claim — refuse if someone else just changed the state
-        const claimed = await OmsOrderModel.transitionInternalStatus(
-            omsOrderId,
-            VALID_PRE_STATES,
-            'label_purchasing',
-            null
-        );
-        if (!claimed) {
-            throw new LabelPurchaseError(
-                'INVALID_STATE',
-                `Order ${omsOrderId} state changed before claim — refusing to buy label`
+        if (skipClaim) {
+            if (row.internal_status !== 'label_purchasing') {
+                throw new LabelPurchaseError(
+                    'INVALID_STATE',
+                    `Cannot resume buy: order ${omsOrderId} is in '${row.internal_status}' (expected label_purchasing)`
+                );
+            }
+            this._validateRowForItc(row);
+        } else {
+            if (!VALID_PRE_STATES.includes(row.internal_status)) {
+                throw new LabelPurchaseError(
+                    'INVALID_STATE',
+                    `Cannot buy label for order in state '${row.internal_status}' (expected one of ${VALID_PRE_STATES.join(', ')})`
+                );
+            }
+            this._validateRowForItc(row);
+
+            // 2. Atomic claim — refuse if someone else just changed the state
+            const claimed = await OmsOrderModel.transitionInternalStatus(
+                omsOrderId,
+                VALID_PRE_STATES,
+                'label_purchasing',
+                null
             );
+            if (!claimed) {
+                throw new LabelPurchaseError(
+                    'INVALID_STATE',
+                    `Order ${omsOrderId} state changed before claim — refusing to buy label`
+                );
+            }
         }
 
         // 3. Build ITC body and call the API (no DB lock held)

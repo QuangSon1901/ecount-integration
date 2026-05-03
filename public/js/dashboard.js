@@ -489,13 +489,18 @@ function renderOmsRows(rows) {
     }
 
     tbody.innerHTML = rows.map(function (r) {
-        var canSelect = r.internal_status === 'pending' || r.internal_status === 'selected';
+        var canSelect = r.internal_status === 'pending' || r.internal_status === 'selected' || r.internal_status === 'error' || r.internal_status === 'failed';
         var profitVal;
         if (r.gross_profit !== null && r.gross_profit !== undefined) {
             var cls = Number(r.gross_profit) >= 0 ? 'money-profit' : 'money-loss';
             profitVal = '<span class="' + cls + '">' + fmtMoney(r.gross_profit) + '</span>';
         } else {
             profitVal = '<span style="color:var(--text-secondary)">—</span>';
+        }
+
+        var statusCell = omsBadge(r.internal_status);
+        if (r.error_message) {
+            statusCell += '<div style="margin-top:4px; font-size:11px; color:var(--danger,#dc2626); white-space:normal; word-break:break-word; max-width:260px;" title="' + esc(r.error_message) + '">⚠ ' + esc(r.error_message) + '</div>';
         }
 
         return '<tr>' +
@@ -506,7 +511,7 @@ function renderOmsRows(rows) {
                 '<div style="font-size:11px; color:var(--text-secondary);">' + esc(r.customer_name || '') + '</div>' +
             '</td>' +
             '<td class="mono-sm">' + esc(r.oms_order_id || '—') + '</td>' +
-            '<td>' + omsBadge(r.internal_status) + '</td>' +
+            '<td>' + statusCell + '</td>' +
             '<td class="mono-sm">' + (esc(r.tracking_number) || '<span style="color:var(--text-secondary)">—</span>') + '</td>' +
             '<td>' +
                 '<div class="receiver-name">' + esc(r.receiver_name || '—') + '</div>' +
@@ -563,10 +568,10 @@ function getSelectedIds() {
 function bulkBuyLabels() {
     var ids = getSelectedIds();
     if (!ids.length) return;
-    if (!confirm('Buy labels for ' + ids.length + ' order(s)? This calls ITC and is not reversible.')) return;
+    if (!confirm('Đẩy ' + ids.length + ' đơn vào queue mua label? Worker sẽ xử lý nền và bắn Telegram nếu lỗi.')) return;
 
     var btn = document.getElementById('bulkBuyBtn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Processing...'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Queueing...'; }
 
     fetch(API + '/admin/oms-orders/buy-labels-bulk', {
         method:      'POST',
@@ -576,19 +581,26 @@ function bulkBuyLabels() {
     })
     .then(function (r) { return r.json(); })
     .then(function (r) {
-        var succ    = (r.data && r.data.succeeded) || 0;
-        var fail    = (r.data && r.data.failed)    || 0;
-        var results = (r.data && r.data.results)   || [];
-        var failDetails = results
-            .filter(function (x) { return !x.success; })
-            .map(function (x)    { return '#' + x.id + ': ' + x.error; })
-            .join('\n');
+        var data         = r.data || {};
+        var queuedCount  = data.queuedCount  || 0;
+        var skippedCount = data.skippedCount || 0;
+        var failed       = data.failedToQueue || 0;
+        var errors       = data.errors  || [];
+        var skipped      = data.skipped || [];
+        var failDetails  = errors.map(function (x) { return '#' + x.id + ': ' + x.error; }).join('\n');
+        var skipDetails  = skipped.map(function (x) { return '#' + x.id + ': ' + x.reason; }).join('\n');
 
-        showAlert('Done — ' + succ + ' succeeded, ' + fail + ' failed', fail > 0 ? 'error' : 'success');
-        if (failDetails) alert('Failed orders:\n' + failDetails);
+        var msg = 'Đã queue ' + queuedCount + '/' + ids.length + ' đơn';
+        if (skippedCount > 0) msg += ' • ' + skippedCount + ' đơn đã in-flight (skip)';
+        if (failed > 0)       msg += ' • ' + failed + ' lỗi enqueue';
+        msg += '. Worker đang xử lý nền — refresh để xem trạng thái.';
+
+        showAlert(msg, failed > 0 ? 'error' : 'success');
+        if (failDetails) alert('Lỗi enqueue:\n' + failDetails);
+        else if (skipDetails && skippedCount === ids.length) alert('Tất cả đơn đã được queue trước đó:\n' + skipDetails);
         loadOmsOrders();
     })
-    .catch(function (e) { showAlert('Bulk buy failed: ' + e.message, 'error'); })
+    .catch(function (e) { showAlert('Bulk queue failed: ' + e.message, 'error'); })
     .finally(function () {
         if (btn) { btn.disabled = false; btn.textContent = '🏷 Buy labels for selected'; }
         updateSelCount();
