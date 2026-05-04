@@ -33,17 +33,22 @@ class OmsOrderController {
                 limit = 50, offset = 0,
             } = req.query;
 
-            const rows = await OmsOrderModel.list({
+            const filters = {
                 customerId: customer_id,
                 internalStatus: internal_status,
                 omsStatus: oms_status,
-                limit: parseInt(limit),
-                offset: parseInt(offset),
-            });
+            };
+
+            // Lấy song song danh sách trang hiện tại + tổng số match (cho pagination).
+            const [rows, total] = await Promise.all([
+                OmsOrderModel.list({ ...filters, limit: parseInt(limit), offset: parseInt(offset) }),
+                OmsOrderModel.count(filters),
+            ]);
 
             return successResponse(res, {
                 orders: rows.map(r => this._formatOrder(r)),
-                total: rows.length,
+                total,
+                count: rows.length,
                 limit: parseInt(limit),
                 offset: parseInt(offset),
             }, 'OMS orders retrieved');

@@ -509,6 +509,25 @@ class OmsOrderModel {
     }
 
     /**
+     * Đếm tổng số oms_orders match filter (giống list nhưng không LIMIT/OFFSET).
+     * Dùng cho pagination phía dashboard.
+     */
+    static async count(filters = {}) {
+        const conn = await db.getConnection();
+        try {
+            let sql = 'SELECT COUNT(*) AS cnt FROM oms_orders o WHERE 1=1';
+            const params = [];
+            if (filters.customerId)     { sql += ' AND o.customer_id = ?';      params.push(filters.customerId); }
+            if (filters.internalStatus) { sql += ' AND o.internal_status = ?';  params.push(filters.internalStatus); }
+            if (filters.omsStatus)      { sql += ' AND o.oms_status = ?';       params.push(filters.omsStatus); }
+            const [rows] = await conn.query(sql, params);
+            return rows[0] ? Number(rows[0].cnt) : 0;
+        } finally {
+            conn.release();
+        }
+    }
+
+    /**
      * Tìm order theo label access key
      */
     static async findByLabelAccessKey(accessKey) {

@@ -377,8 +377,21 @@
             flex-wrap: wrap; gap: 12px;
         }
         .pagination-info     { font-size: 13px; color: var(--text-secondary); }
-        .pagination-controls { display: flex; align-items: center; gap: 12px; }
+        .pagination-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
         .page-info           { font-size: 13px; font-weight: 500; }
+        .pagination-controls .page-btn {
+            min-width: 36px; padding: 6px 10px; border: 1px solid var(--border);
+            border-radius: 6px; font-size: 13px; font-weight: 500;
+            background: var(--bg-primary); color: var(--text-primary); cursor: pointer;
+        }
+        .pagination-controls .page-btn:hover:not(:disabled) { background: var(--bg-secondary); }
+        .pagination-controls .page-btn.active {
+            background: var(--primary); color: #fff; border-color: var(--primary); cursor: default;
+        }
+        .pagination-controls .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .pagination-controls .page-ellipsis {
+            padding: 6px 4px; color: var(--text-secondary); font-size: 13px; user-select: none;
+        }
 
         /* ─── Responsive ─── */
         @media (max-width: 1024px) {
@@ -859,7 +872,8 @@
                     <div id="bulkBar" class="bulk-bar">
                         <span class="bulk-bar-count"><span id="selCount">0</span> orders selected</span>
                         <span class="bulk-bar-sep"></span>
-                        <button class="btn btn-success btn-sm" id="bulkBuyBtn">&#x1F3F7; Buy labels for selected</button>
+                        <button class="btn btn-success btn-sm" id="bulkCreateLabelBtn" title="Tạo label cho các đơn đã chọn (chỉ áp dụng đơn đủ điều kiện)">&#x1F3F7; Tạo label</button>
+                        <button class="btn btn-primary btn-sm" id="bulkDownloadLabelBtn" title="Tải label dạng PDF gộp (chỉ đơn có tracking + label)">&#x2B07; Tải xuống label</button>
                     </div>
 
                     <!-- Table -->
@@ -893,11 +907,7 @@
                     <!-- Pagination -->
                     <div class="pagination">
                         <span class="pagination-info" id="paginationInfo">—</span>
-                        <div class="pagination-controls">
-                            <button class="btn btn-sm" id="prevPage" disabled>&#x2190; Prev</button>
-                            <span class="page-info" id="pageInfo">Page 1</span>
-                            <button class="btn btn-sm" id="nextPage" disabled>Next &#x2192;</button>
-                        </div>
+                        <div class="pagination-controls" id="omsPagination"></div>
                     </div>
                 </div>
             </section>
@@ -1166,6 +1176,6 @@
         </div>
     </div>
 
-    <script src="/js/dashboard.js?2018"></script>
+    <script src="/js/dashboard.js?2024"></script>
 </body>
 </html>

@@ -80,11 +80,9 @@ function applyRBAC() {
         els[i].classList.add('role-visible');
     }
 
-    if (role === 'admin') {
-        navigateToSection('admin-overview');
-    } else {
-        navigateToSection('client-overview');
-    }
+    var defaultSection = role === 'admin' ? 'admin-overview' : 'client-overview';
+    var initialSection = readSectionFromUrl() || defaultSection;
+    navigateToSection(initialSection, { replaceHistory: true });
 }
 
 // ════════════════════════════════════════════
@@ -95,17 +93,95 @@ function initNavigation() {
     for (var i = 0; i < links.length; i++) {
         links[i].addEventListener('click', handleNavClick);
     }
+
+    // Back/forward — đồng bộ section + params với URL hash hiện tại.
+    window.addEventListener('popstate', function () {
+        var section = readSectionFromUrl();
+        if (!section) return;
+
+        var currentActive = document.querySelector('.content-section.active');
+        var currentId = currentActive ? currentActive.id : null;
+
+        if (currentId === section) {
+            // Cùng section, chỉ params đổi (vd: page) → reload data trong section.
+            if (section === 'admin-oms-orders') {
+                omsPage = readOmsPageFromUrl();
+                loadOmsOrders();
+            }
+        } else {
+            // Section đổi → navigate đầy đủ.
+            navigateToSection(section, { skipHistory: true });
+        }
+    });
 }
 
-function handleNavClick() {
+function readOmsPageFromUrl() {
+    var p = parseHash().params.get('page');
+    var n = parseInt(p, 10);
+    if (!Number.isFinite(n) || n < 1) return 0;
+    return n - 1; // URL 1-indexed → omsPage 0-indexed
+}
+
+function parseHash() {
+    var raw = (window.location.hash || '').replace(/^#/, '').trim();
+    if (!raw) return { section: null, params: new URLSearchParams() };
+    var qIdx = raw.indexOf('?');
+    var section = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
+    var params  = new URLSearchParams(qIdx >= 0 ? raw.slice(qIdx + 1) : '');
+    return { section: section, params: params };
+}
+
+function readSectionFromUrl() {
+    var section = parseHash().section;
+    if (!section) return null;
+    // Chỉ chấp nhận section thật sự tồn tại trong DOM để tránh nhảy vào id lạ.
+    var target = document.getElementById(section);
+    if (!target || !target.classList.contains('content-section')) return null;
+    return section;
+}
+
+// Build hash từ section + params object. Bỏ key có giá trị rỗng/0 để URL gọn.
+function buildHash(section, paramsObj) {
+    var qs = new URLSearchParams();
+    if (paramsObj) {
+        Object.keys(paramsObj).forEach(function (k) {
+            var v = paramsObj[k];
+            if (v !== undefined && v !== null && v !== '' && !(typeof v === 'number' && v === 0)) {
+                qs.set(k, String(v));
+            }
+        });
+    }
+    var qsStr = qs.toString();
+    return '#' + section + (qsStr ? '?' + qsStr : '');
+}
+
+// Cập nhật chỉ params hiện tại (giữ nguyên section). Dùng pushState để nút back hoạt động.
+function setUrlParams(paramsObj, options) {
+    options = options || {};
+    var current = parseHash();
+    if (!current.section) return;
+    var newHash = buildHash(current.section, paramsObj);
+    if (window.location.hash === newHash) return;
+    try {
+        if (options.replace) window.history.replaceState({ section: current.section }, '', newHash);
+        else                 window.history.pushState({ section: current.section }, '', newHash);
+    } catch (_) {
+        window.location.hash = newHash;
+    }
+}
+
+function handleNavClick(e) {
     var section = this.getAttribute('data-section');
     if (section) {
+        if (e && e.preventDefault) e.preventDefault();
         navigateToSection(section);
         setActiveNav(this);
     }
 }
 
-function navigateToSection(sectionId) {
+function navigateToSection(sectionId, options) {
+    options = options || {};
+
     var sections = document.querySelectorAll('.content-section');
     for (var i = 0; i < sections.length; i++) {
         sections[i].classList.remove('active');
@@ -117,13 +193,35 @@ function navigateToSection(sectionId) {
         updatePageTitle(sectionId);
 
         if (sectionId === 'admin-customers')    loadCustomers();
-        if (sectionId === 'admin-oms-orders')   { omsPage = 0; loadOmsOrders(); }
+        if (sectionId === 'admin-oms-orders')   {
+            // Khi vào section: lấy page từ URL nếu có, không thì reset 0.
+            // Click trên sidebar → URL chưa có ?page nên reset 0; reload trên #...?page=N → giữ page.
+            omsPage = readOmsPageFromUrl();
+            loadOmsOrders();
+        }
         if (sectionId === 'client-credentials') loadCredentials();
         if (sectionId === 'client-webhooks')    loadWebhooks();
     }
 
     var navLink = document.querySelector('.nav-link[data-section="' + sectionId + '"]');
     if (navLink) setActiveNav(navLink);
+
+    // Đồng bộ URL hash để reload/back giữ nguyên section.
+    if (!options.skipHistory) {
+        var newHash = '#' + sectionId;
+        if (window.location.hash !== newHash) {
+            try {
+                if (options.replaceHistory) {
+                    window.history.replaceState({ section: sectionId }, '', newHash);
+                } else {
+                    window.history.pushState({ section: sectionId }, '', newHash);
+                }
+            } catch (_) {
+                // Trình duyệt cấm pushState (rare) — fallback vô hại
+                window.location.hash = newHash;
+            }
+        }
+    }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -225,18 +323,18 @@ function initEventListeners() {
         });
     }
 
-    // OMS Orders: filters + pagination + bulk buy + refresh
-    addChange('filterCustomer', function () { omsPage = 0; loadOmsOrders(); });
-    addChange('filterStatus',   function () { omsPage = 0; loadOmsOrders(); });
-    addClick('prevPage',    function () { omsPage = Math.max(0, omsPage - 1); loadOmsOrders(); });
-    addClick('nextPage',    function () { omsPage++; loadOmsOrders(); });
-    addClick('bulkBuyBtn',  bulkBuyLabels);
+    // OMS Orders: filters + bulk actions + refresh
+    // (pagination dùng nút render động trong renderOmsPagination)
+    addChange('filterCustomer', function () { omsPage = 0; setUrlParams({}, { replace: true }); loadOmsOrders(); });
+    addChange('filterStatus',   function () { omsPage = 0; setUrlParams({}, { replace: true }); loadOmsOrders(); });
+    addClick('bulkCreateLabelBtn',   bulkCreateLabels);
+    addClick('bulkDownloadLabelBtn', bulkDownloadLabels);
     addClick('refreshBtn',  function () { loadOmsOrders(); });
 
     var selectAll = document.getElementById('selectAll');
     if (selectAll) {
         selectAll.addEventListener('change', function (e) {
-            document.querySelectorAll('.rowSel:not([disabled])').forEach(function (cb) {
+            document.querySelectorAll('.rowSel').forEach(function (cb) {
                 cb.checked = e.target.checked;
             });
             updateSelCount();
@@ -257,20 +355,30 @@ function addChange(id, fn) {
 // ════════════════════════════════════════════
 // ADMIN: CUSTOMER MANAGEMENT
 // ════════════════════════════════════════════
+// Token tăng dần để chỉ render kết quả của lần fetch mới nhất — chặn race khi
+// boot + navigateToSection cùng gọi loadCustomers song song (sẽ duplicate rows
+// vì renderCustomerRows dùng appendChild).
+var _customersFetchToken = 0;
+
 function loadCustomers() {
     var loading = document.getElementById('loadingCustomers');
     var tbody   = document.getElementById('customersTableBody');
     if (!tbody) return;
 
     if (loading) loading.classList.add('show');
-    tbody.innerHTML = '';
+
+    var token = ++_customersFetchToken;
 
     fetch(API + '/admin/customers')
         .then(function (r) { return r.json(); })
         .then(function (result) {
+            // Bỏ qua response nếu có lời gọi mới hơn đã chạy.
+            if (token !== _customersFetchToken) return;
             if (result.success) {
                 var customers = result.data.customers;
                 updateStats(customers);
+                // Clear ngay trước khi render để tránh tích lũy nếu trước đó đã render.
+                tbody.innerHTML = '';
                 if (customers.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-secondary);">No customers yet</td></tr>';
                 } else {
@@ -280,8 +388,14 @@ function loadCustomers() {
                 showAlert(result.message || 'Failed to load customers', 'error');
             }
         })
-        .catch(function () { showAlert('Server connection error', 'error'); })
-        .finally(function () { if (loading) loading.classList.remove('show'); });
+        .catch(function () {
+            if (token !== _customersFetchToken) return;
+            showAlert('Server connection error', 'error');
+        })
+        .finally(function () {
+            if (token !== _customersFetchToken) return;
+            if (loading) loading.classList.remove('show');
+        });
 }
 
 function renderCustomerRows(customers, tbody) {
@@ -398,7 +512,7 @@ function displayCreateSuccess(data) {
 // ════════════════════════════════════════════
 // ADMIN: OMS ORDERS
 // ════════════════════════════════════════════
-var OMS_PAGE_SIZE = 25;
+var OMS_PAGE_SIZE = 100;
 var omsPage = 0;
 var omsLastRows = [];
 
@@ -440,23 +554,103 @@ function loadOmsOrders() {
         })
         .then(function (r) {
             if (!r) return;
-            omsLastRows = (r.data && r.data.orders) || [];
+            var data = r.data || {};
+            omsLastRows = data.orders || [];
             renderOmsRows(omsLastRows);
             computeOmsStats(omsLastRows);
 
-            var offset = omsPage * OMS_PAGE_SIZE;
-            if (paginationInfo) paginationInfo.textContent = omsLastRows.length + ' order(s) on this page';
-            setText('pageInfo',  'Page ' + (omsPage + 1));
+            var total      = Number.isFinite(data.total) ? data.total : omsLastRows.length;
+            var totalPages = Math.max(1, Math.ceil(total / OMS_PAGE_SIZE));
 
-            var prevBtn = document.getElementById('prevPage');
-            var nextBtn = document.getElementById('nextPage');
-            if (prevBtn) prevBtn.disabled = omsPage === 0;
-            if (nextBtn) nextBtn.disabled = omsLastRows.length < OMS_PAGE_SIZE;
+            // Nếu URL trỏ tới page vượt range (vd: filter đổi → ít page hơn), kẹp lại.
+            if (omsPage >= totalPages) {
+                omsPage = totalPages - 1;
+                setUrlParams({ page: omsPage > 0 ? omsPage + 1 : null }, { replace: true });
+            }
+
+            var startIdx = total === 0 ? 0 : omsPage * OMS_PAGE_SIZE + 1;
+            var endIdx   = omsPage * OMS_PAGE_SIZE + omsLastRows.length;
+            if (paginationInfo) {
+                paginationInfo.textContent = total === 0
+                    ? '0 orders'
+                    : startIdx + '–' + endIdx + ' / ' + total + ' orders';
+            }
+
+            renderOmsPagination(omsPage, totalPages);
 
             var emptyState = document.getElementById('emptyState');
             if (emptyState) emptyState.style.display = omsLastRows.length ? 'none' : 'block';
         })
         .catch(function (e) { showAlert('Failed to load orders: ' + e.message, 'error'); });
+}
+
+// Render dạng "Prev 1 2 3 ... 10 Next". Hiển thị first/last + cửa sổ ±1 quanh current.
+function renderOmsPagination(current, totalPages) {
+    var container = document.getElementById('omsPagination');
+    if (!container) return;
+    container.innerHTML = '';
+
+    var pages = computePageList(current, totalPages); // mảng số (1-indexed) hoặc '...'
+
+    var prev = makePageBtn('← Prev', current - 1, current === 0);
+    container.appendChild(prev);
+
+    pages.forEach(function (p) {
+        if (p === '...') {
+            var dots = document.createElement('span');
+            dots.className = 'page-ellipsis';
+            dots.textContent = '...';
+            container.appendChild(dots);
+        } else {
+            var btn = makePageBtn(String(p), p - 1, false, p - 1 === current);
+            container.appendChild(btn);
+        }
+    });
+
+    var next = makePageBtn('Next →', current + 1, current >= totalPages - 1);
+    container.appendChild(next);
+}
+
+function makePageBtn(label, targetPage, disabled, active) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'page-btn' + (active ? ' active' : '');
+    btn.textContent = label;
+    if (disabled) btn.disabled = true;
+    if (!disabled && !active) {
+        btn.addEventListener('click', function () { goToOmsPage(targetPage); });
+    }
+    return btn;
+}
+
+// Tính danh sách page hiển thị: luôn có first + last + cửa sổ ±1 quanh current,
+// dùng '...' để nén khoảng giữa.
+function computePageList(current, totalPages) {
+    var cur1   = current + 1; // 1-indexed
+    var window_ = 1;          // số page trước/sau current
+    var pages = new Set();
+
+    pages.add(1);
+    pages.add(totalPages);
+    for (var i = cur1 - window_; i <= cur1 + window_; i++) {
+        if (i >= 1 && i <= totalPages) pages.add(i);
+    }
+
+    var sorted = Array.from(pages).sort(function (a, b) { return a - b; });
+    var out = [];
+    for (var j = 0; j < sorted.length; j++) {
+        if (j > 0 && sorted[j] - sorted[j - 1] > 1) out.push('...');
+        out.push(sorted[j]);
+    }
+    return out;
+}
+
+function goToOmsPage(page) {
+    if (page === omsPage) return;
+    omsPage = page;
+    // Page 0 (trang đầu) → bỏ ?page khỏi URL cho gọn.
+    setUrlParams({ page: page > 0 ? page + 1 : null });
+    loadOmsOrders();
 }
 
 function computeOmsStats(rows) {
@@ -489,7 +683,6 @@ function renderOmsRows(rows) {
     }
 
     tbody.innerHTML = rows.map(function (r) {
-        var canSelect = r.internal_status === 'pending' || r.internal_status === 'selected' || r.internal_status === 'error' || r.internal_status === 'failed';
         var profitVal;
         if (r.gross_profit !== null && r.gross_profit !== undefined) {
             var cls = Number(r.gross_profit) >= 0 ? 'money-profit' : 'money-loss';
@@ -503,8 +696,17 @@ function renderOmsRows(rows) {
             statusCell += '<div style="margin-top:4px; font-size:11px; color:var(--danger,#dc2626); white-space:normal; word-break:break-word; max-width:260px;" title="' + esc(r.error_message) + '">⚠ ' + esc(r.error_message) + '</div>';
         }
 
+        // Checkbox luôn enable; lọc đủ điều kiện hành động ở phía handler.
+        // data-status / data-has-label phục vụ filter trước khi gọi action.
+        var hasLabel = !!(r.tracking_number && r.label_url);
         return '<tr>' +
-            '<td><input type="checkbox" class="rowSel" data-id="' + r.id + '"' + (canSelect ? '' : ' disabled') + '></td>' +
+            '<td><input type="checkbox" class="rowSel"' +
+                ' data-id="' + r.id + '"' +
+                ' data-status="' + esc(r.internal_status || '') + '"' +
+                ' data-has-label="' + (hasLabel ? '1' : '0') + '"' +
+                ' data-label-url="' + esc(r.label_url || '') + '"' +
+                ' data-order-number="' + esc(r.order_number || '') + '"' +
+                ' data-tracking="' + esc(r.tracking_number || '') + '"></td>' +
             '<td><a class="order-link" href="/extensions/oms-orders/' + r.id + '">' + esc(r.order_number) + '</a></td>' +
             '<td>' +
                 '<div style="font-size:11px; font-weight:600; margin-top:2px;">' + '<span class="cust-badge">#' + esc(r.customer_id) + '</span>' + esc(r.customer_code || '—') + '</div>' +
@@ -559,19 +761,48 @@ function updateSelCount() {
     if (bulkBar) bulkBar.classList.toggle('show', ids.length > 0);
 }
 
-function getSelectedIds() {
+function getSelectedRows() {
+    // Trả về metadata gắn vào checkbox; handler tự lọc theo điều kiện riêng.
     return Array.from(document.querySelectorAll('.rowSel:checked')).map(function (cb) {
-        return parseInt(cb.dataset.id);
+        return {
+            id:           parseInt(cb.dataset.id),
+            status:       cb.dataset.status || '',
+            hasLabel:     cb.dataset.hasLabel === '1',
+            labelUrl:     cb.dataset.labelUrl || '',
+            orderNumber:  cb.dataset.orderNumber || '',
+            tracking:     cb.dataset.tracking || ''
+        };
     });
 }
 
-function bulkBuyLabels() {
-    var ids = getSelectedIds();
-    if (!ids.length) return;
-    if (!confirm('Đẩy ' + ids.length + ' đơn vào queue mua label? Worker sẽ xử lý nền và bắn Telegram nếu lỗi.')) return;
+function getSelectedIds() {
+    return getSelectedRows().map(function (r) { return r.id; });
+}
 
-    var btn = document.getElementById('bulkBuyBtn');
+// ─── Bulk: Tạo label ──────────────────────────────────────────────
+// Lọc client-side: chỉ gửi đơn ở trạng thái claim được (pending|selected|error|failed).
+// Server còn 1 lớp atomic transition ở enqueue để chặn duplicate.
+function bulkCreateLabels() {
+    var rows = getSelectedRows();
+    if (!rows.length) return;
+
+    var CLAIMABLE = { pending: 1, selected: 1, error: 1, failed: 1 };
+    var eligible  = rows.filter(function (r) { return CLAIMABLE[r.status]; });
+    var skipped   = rows.length - eligible.length;
+
+    if (!eligible.length) {
+        showAlert('Không có đơn nào đủ điều kiện tạo label (cần pending/selected/error/failed).', 'error');
+        return;
+    }
+
+    var msg = 'Đẩy ' + eligible.length + ' đơn vào queue mua label?';
+    if (skipped > 0) msg += '\n(' + skipped + ' đơn không đủ điều kiện sẽ bị bỏ qua)';
+    if (!confirm(msg)) return;
+
+    var btn = document.getElementById('bulkCreateLabelBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Queueing...'; }
+
+    var ids = eligible.map(function (r) { return r.id; });
 
     fetch(API + '/admin/oms-orders/buy-labels-bulk', {
         method:      'POST',
@@ -586,25 +817,150 @@ function bulkBuyLabels() {
         var skippedCount = data.skippedCount || 0;
         var failed       = data.failedToQueue || 0;
         var errors       = data.errors  || [];
-        var skipped      = data.skipped || [];
+        var skippedSrv   = data.skipped || [];
         var failDetails  = errors.map(function (x) { return '#' + x.id + ': ' + x.error; }).join('\n');
-        var skipDetails  = skipped.map(function (x) { return '#' + x.id + ': ' + x.reason; }).join('\n');
+        var skipDetails  = skippedSrv.map(function (x) { return '#' + x.id + ': ' + x.reason; }).join('\n');
 
-        var msg = 'Đã queue ' + queuedCount + '/' + ids.length + ' đơn';
-        if (skippedCount > 0) msg += ' • ' + skippedCount + ' đơn đã in-flight (skip)';
-        if (failed > 0)       msg += ' • ' + failed + ' lỗi enqueue';
-        msg += '. Worker đang xử lý nền — refresh để xem trạng thái.';
+        var line = 'Đã queue ' + queuedCount + '/' + eligible.length + ' đơn';
+        if (skipped > 0)        line += ' • ' + skipped + ' đơn loại do trạng thái không hợp lệ';
+        if (skippedCount > 0)   line += ' • ' + skippedCount + ' đơn đang in-flight (server skip)';
+        if (failed > 0)         line += ' • ' + failed + ' lỗi enqueue';
+        line += '. Worker đang xử lý nền — refresh để xem trạng thái.';
 
-        showAlert(msg, failed > 0 ? 'error' : 'success');
+        showAlert(line, failed > 0 ? 'error' : 'success');
         if (failDetails) alert('Lỗi enqueue:\n' + failDetails);
-        else if (skipDetails && skippedCount === ids.length) alert('Tất cả đơn đã được queue trước đó:\n' + skipDetails);
+        else if (skipDetails && skippedCount === eligible.length) alert('Tất cả đơn đã được queue trước đó:\n' + skipDetails);
         loadOmsOrders();
     })
     .catch(function (e) { showAlert('Bulk queue failed: ' + e.message, 'error'); })
     .finally(function () {
-        if (btn) { btn.disabled = false; btn.textContent = '🏷 Buy labels for selected'; }
+        if (btn) { btn.disabled = false; btn.textContent = '🏷 Tạo label'; }
         updateSelCount();
     });
+}
+
+// ─── Bulk: Tải xuống label ─────────────────────────────────────────
+// Lọc client-side: chỉ tải đơn có tracking + label_url. Gộp PDF qua pdf-lib.
+function bulkDownloadLabels() {
+    var rows = getSelectedRows();
+    if (!rows.length) return;
+
+    var eligible = rows.filter(function (r) { return r.hasLabel && r.labelUrl; });
+    var skipped  = rows.length - eligible.length;
+
+    if (!eligible.length) {
+        showAlert('Không có đơn nào có tracking + label để tải.', 'error');
+        return;
+    }
+
+    var msg = 'Tải xuống ' + eligible.length + ' label (gộp thành 1 file PDF)?';
+    if (skipped > 0) msg += '\n(' + skipped + ' đơn chưa có label sẽ bị bỏ qua)';
+    if (!confirm(msg)) return;
+
+    var btn = document.getElementById('bulkDownloadLabelBtn');
+    var originalText = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Loading PDF lib...'; }
+
+    loadPdfLib()
+        .then(function () {
+            if (btn) btn.textContent = 'Đang tải labels (0/' + eligible.length + ')...';
+            return mergeLabelsToPdf(eligible, function (done, total) {
+                if (btn) btn.textContent = 'Đang tải labels (' + done + '/' + total + ')...';
+            });
+        })
+        .then(function (result) {
+            triggerPdfDownload(result.bytes, 'oms-labels-' + Date.now() + '.pdf');
+            var line = 'Đã gộp ' + result.merged + '/' + eligible.length + ' label';
+            if (result.failed.length) line += ' • Lỗi ' + result.failed.length + ' đơn';
+            showAlert(line, result.failed.length ? 'error' : 'success');
+            if (result.failed.length) {
+                alert('Các đơn không tải được:\n' +
+                    result.failed.map(function (f) { return '#' + f.id + ' (' + f.orderNumber + '): ' + f.error; }).join('\n'));
+            }
+        })
+        .catch(function (e) { showAlert('Bulk download failed: ' + e.message, 'error'); })
+        .finally(function () {
+            if (btn) { btn.disabled = false; btn.textContent = originalText || '⬇ Tải xuống label'; }
+        });
+}
+
+// Lazy-load pdf-lib từ CDN (không thêm <script> trong HTML)
+var _pdfLibPromise = null;
+function loadPdfLib() {
+    if (window.PDFLib) return Promise.resolve(window.PDFLib);
+    if (_pdfLibPromise) return _pdfLibPromise;
+
+    _pdfLibPromise = new Promise(function (resolve, reject) {
+        var script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+        script.async = true;
+        script.onload = function () {
+            if (window.PDFLib) resolve(window.PDFLib);
+            else reject(new Error('pdf-lib loaded but PDFLib not defined'));
+        };
+        script.onerror = function () { reject(new Error('Cannot load pdf-lib from CDN')); };
+        document.head.appendChild(script);
+    });
+    return _pdfLibPromise;
+}
+
+function mergeLabelsToPdf(rows, onProgress) {
+    var PDFDocument = window.PDFLib.PDFDocument;
+    var failed = [];
+    var done = 0;
+
+    return PDFDocument.create().then(function (mergedPdf) {
+        // Tải tuần tự để nhẹ network và tiến độ rõ ràng (rows thường ≤ vài chục).
+        var chain = Promise.resolve();
+        rows.forEach(function (r) {
+            chain = chain.then(function () {
+                return fetch(r.labelUrl, { credentials: 'include' })
+                    .then(function (resp) {
+                        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                        return resp.arrayBuffer();
+                    })
+                    .then(function (buf) {
+                        return PDFDocument.load(buf, { ignoreEncryption: true });
+                    })
+                    .then(function (srcPdf) {
+                        var pageIndices = srcPdf.getPageIndices();
+                        return mergedPdf.copyPages(srcPdf, pageIndices).then(function (pages) {
+                            pages.forEach(function (p) { mergedPdf.addPage(p); });
+                        });
+                    })
+                    .catch(function (err) {
+                        failed.push({ id: r.id, orderNumber: r.orderNumber, error: err.message });
+                    })
+                    .then(function () {
+                        done++;
+                        if (typeof onProgress === 'function') onProgress(done, rows.length);
+                    });
+            });
+        });
+
+        return chain.then(function () {
+            if (mergedPdf.getPageCount() === 0) {
+                throw new Error('Không có label nào tải được — file PDF rỗng');
+            }
+            return mergedPdf.save().then(function (bytes) {
+                return { bytes: bytes, merged: rows.length - failed.length, failed: failed };
+            });
+        });
+    });
+}
+
+function triggerPdfDownload(bytes, filename) {
+    var blob = new Blob([bytes], { type: 'application/pdf' });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }, 0);
 }
 
 // ════════════════════════════════════════════
