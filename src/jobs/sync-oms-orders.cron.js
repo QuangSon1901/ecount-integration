@@ -22,8 +22,8 @@ const logger = require('../utils/logger');
 // ─── Hardcoded config (move to config/env later) ──────────────────────────────
 const ADMIN_PORTAL_URL = 'https://admin.thgfulfill.com/';
 const TOKEN_ENDPOINT_PATTERN = /\/protocol\/openid-connect\/token$/;
-const ADMIN_USERNAME = 'Operation01';
-const ADMIN_PASSWORD = '123456';
+const ADMIN_USERNAME = process.env.OMS_VIETFUL_ADMIN_PORTAL_USERNAME;
+const ADMIN_PASSWORD = process.env.OMS_VIETFUL_ADMIN_PORTAL_PASSWORD;
 
 const LOGIN_TIMEOUT_MS = 60_000;
 const TOKEN_WAIT_MS = 30_000;

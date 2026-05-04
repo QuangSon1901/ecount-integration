@@ -16,14 +16,14 @@ const omsRecoveryCron = require('./src/jobs/oms-recovery.cron');
 db.testConnection()
     .then(() => {
         workerManager.start();
-        // fetchTrackingCron.start();
-        // updateStatusCron.start();
-        // cleanupSessionsCron.start();
-        // syncOrdersCron.start();
-        // podFetchTrackingCron.start();
+        fetchTrackingCron.start();
+        updateStatusCron.start();
+        cleanupSessionsCron.start();
+        syncOrdersCron.start();
+        podFetchTrackingCron.start();
         syncOmsOrdersCron.start();
-        // omsFetchTrackingCron.start();
-        // omsRecoveryCron.start();
+        omsFetchTrackingCron.start();
+        omsRecoveryCron.start();
         logger.info('Worker started successfully');
     })
     .catch(err => {
