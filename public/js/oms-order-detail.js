@@ -113,6 +113,12 @@ async function load() {
     }
 }
 
+function esc(text) {
+    if (!text) return '';
+    var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return String(text).replace(/[&<>"']/g, function (m) { return map[m]; });
+}
+
 function render(row) {
     // ─── Top bar / page title ──────────────────────────────────────────────
     setText('topbarOrderNum', row.order_number);
