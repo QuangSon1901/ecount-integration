@@ -117,7 +117,7 @@ function render(row) {
     // ─── Top bar / page title ──────────────────────────────────────────────
     setText('topbarOrderNum', row.order_number);
     setText('pageTitle', `View OMS Order — ${row.order_number || ''}`);
-    setHtml('headStatusBadge', badge(row.internal_status || row.oms_status || 'new'));
+    setHtml('headStatusBadge', badge(row.internal_status || row.oms_status || 'new') + (row.error_message ? '<div style="margin-top:4px; font-size:11px; color:var(--danger,#dc2626); white-space:normal; word-break:break-word; max-width:260px;" title="' + esc(row.error_message) + '">⚠ ' + esc(row.error_message) + '</div>' : ''));
 
     // ─── Sidebar header ────────────────────────────────────────────────────
     setText('sideOrderNumber', row.order_number);
