@@ -212,6 +212,18 @@
         }
         .data-table tr:hover { background: var(--bg-secondary); }
 
+        /* OMS table: cuộn dọc trong khung cố định, giữ header dính ở trên */
+        #admin-oms-orders .table-container {
+            max-height: calc(100vh - 320px);
+            min-height: 320px;
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+        #admin-oms-orders .data-table thead th {
+            position: sticky; top: 0; z-index: 2;
+            background: var(--bg-secondary);
+        }
+
         /* ─── Badge ─── */
         .badge {
             display: inline-block; padding: 4px 10px;
