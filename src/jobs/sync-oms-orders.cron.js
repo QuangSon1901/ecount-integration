@@ -31,7 +31,7 @@ const TOKEN_WAIT_MS = 30_000;
 class SyncOmsOrdersCron {
     constructor() {
         this.isRunning = false;
-        this.schedule = '*/10 * * * *'; // every 10 minutes
+        this.schedule = '*/5 * * * *'; // every 10 minutes
         this.lookbackDays = 15;
 
         // Cached token to avoid logging in on every run if still valid.
