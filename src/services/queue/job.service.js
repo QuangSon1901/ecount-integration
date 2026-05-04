@@ -253,7 +253,7 @@ class JobService {
                 productCode: options.productCode || null,
             },
             delaySeconds,
-            3 // max attempts — backoff: 5s, 10s, 20s
+            1 // max attempts — backoff: 5s, 10s, 20s
         );
     }
 
