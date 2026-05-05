@@ -252,6 +252,7 @@ class ItcClient {
             state: row.receiver_state || "",
             postalCode: row.receiver_postal_code || "",
             // weight: Number(row.package_weight || 0),
+            weight: 0,
             // order_height: Number(row.package_height || 0),
             // order_length: Number(row.package_length || 0),
             // order_width: Number(row.package_width || 0),
