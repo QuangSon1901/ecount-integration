@@ -517,19 +517,16 @@ class OmsOrderModel {
         packagingMaterialFeeSelling,
         additionalFee,
     }) {
-        const sp = shippingFeePurchase;
         const ss = shippingFeeSelling;
-        // Cần ít nhất shipping purchase + selling để có ý nghĩa
-        if (sp === null || sp === undefined || ss === null || ss === undefined) return null;
+        if (ss === null || ss === undefined) return null;
 
-        // Các fee còn lại nếu null thì coi là 0 để không block hiển thị (spec §6)
         const fp  = Number(fulfillmentFeePurchase ?? 0);
         const fs  = Number(fulfillmentFeeSelling  ?? 0);
         const pm  = Number(packagingMaterialFeeSelling ?? 0);
         const ad  = Number(additionalFee ?? 0);
 
         const totalSelling  = Number(ss) + fs + pm + ad;
-        const totalPurchase = Number(sp) + fp;
+        const totalPurchase = fp;  // chỉ trừ fulfillment purchase, không trừ shipping purchase
         return _round4(totalSelling - totalPurchase);
     }
 
