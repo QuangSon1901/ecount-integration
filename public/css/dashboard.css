@@ -413,3 +413,120 @@ body {
     .oms-stats-grid { grid-template-columns: repeat(3, 1fr); }
     .bulk-bar { flex-direction: column; align-items: flex-start; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   OMS Orders — Status Tabs + Search Input
+   Bổ sung vào cuối dashboard.css
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Filter bar ──────────────────────────────────────────────────────────── */
+.oms-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.oms-search-group {
+    flex: 1 1 240px;
+    min-width: 200px;
+}
+
+.oms-search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.oms-search-wrap .form-input {
+    width: 100%;
+    padding-right: 28px; /* space for clear btn */
+}
+
+.oms-search-clear {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1;
+    padding: 0;
+    border-radius: 50%;
+    transition: color 0.15s, background 0.15s;
+}
+
+.oms-search-clear:hover {
+    color: var(--text-primary, #111);
+    background: var(--border-color, #e5e7eb);
+}
+
+/* ── Status tabs ─────────────────────────────────────────────────────────── */
+.oms-status-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 0 var(--card-padding, 20px);
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    margin-bottom: 4px;
+}
+
+.oms-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 14px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px; /* overlap border-bottom của container */
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary, #6b7280);
+    cursor: pointer;
+    white-space: nowrap;
+    border-radius: 4px 4px 0 0;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.oms-tab-btn:hover {
+    color: var(--text-primary, #111827);
+    background: var(--hover-bg, rgba(0,0,0,0.04));
+}
+
+.oms-tab-btn.active {
+    color: var(--primary, #2563eb);
+    border-bottom-color: var(--primary, #2563eb);
+    background: none;
+}
+
+/* Badge số lượng trên tab */
+.oms-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--border-color, #e5e7eb);
+    color: var(--text-secondary, #6b7280);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    transition: background 0.15s, color 0.15s;
+}
+
+.oms-tab-btn.active .oms-tab-badge {
+    background: var(--primary-light, #dbeafe);
+    color: var(--primary, #2563eb);
+}

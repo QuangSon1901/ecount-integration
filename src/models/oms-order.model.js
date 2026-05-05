@@ -9,6 +9,11 @@
 //     oms_updated_at, last_oms_synced_at, raw_data) are refreshed.
 //   - If the admin has NOT touched the row, the editable columns are
 //     re-pulled from OMS so the latest customer-fixed address etc. lands.
+//
+// Changes:
+//   - list()         : hỗ trợ filter `search` (LIKE trên order_number, oms_order_id, oms_order_number)
+//   - count()        : hỗ trợ filter `search` tương tự
+//   - countByStatus(): method mới — trả về { pending: N, …, __total__: N }
 
 const db = require('../database/connection');
 
@@ -30,6 +35,42 @@ const ALWAYS_REFRESHED_COLUMNS = [
     'raw_data', 'last_oms_synced_at',
 ];
 
+// ─── Shared WHERE builder ──────────────────────────────────────────────────
+/**
+ * Xây phần WHERE chung cho list / count / countByStatus.
+ * Trả về { clauses: string[], params: any[] }
+ *
+ * Hỗ trợ filters:
+ *   customerId     — exact match o.customer_id
+ *   internalStatus — exact match o.internal_status
+ *   omsStatus      — exact match o.oms_status
+ *   search         — LIKE '%q%' trên order_number, oms_order_id, oms_order_number
+ */
+function _buildWhere(filters = {}) {
+    const clauses = [];
+    const params  = [];
+
+    if (filters.customerId) {
+        clauses.push('o.customer_id = ?');
+        params.push(filters.customerId);
+    }
+    if (filters.internalStatus) {
+        clauses.push('o.internal_status = ?');
+        params.push(filters.internalStatus);
+    }
+    if (filters.omsStatus) {
+        clauses.push('o.oms_status = ?');
+        params.push(filters.omsStatus);
+    }
+    if (filters.search) {
+        const like = '%' + filters.search + '%';
+        clauses.push('(o.order_number LIKE ? OR o.oms_order_id LIKE ? OR o.oms_order_number LIKE ?)');
+        params.push(like, like, like);
+    }
+
+    return { clauses, params };
+}
+
 class OmsOrderModel {
     static get EDITABLE_COLUMNS() { return EDITABLE_COLUMNS.slice(); }
 
@@ -38,9 +79,9 @@ class OmsOrderModel {
         try {
             const [rows] = await conn.query(
                 `SELECT o.*, c.customer_code, c.customer_name
-                FROM oms_orders o
-                LEFT JOIN api_customers c ON c.id = o.customer_id
-                WHERE o.id = ?`,
+                 FROM oms_orders o
+                 LEFT JOIN api_customers c ON c.id = o.customer_id
+                 WHERE o.id = ?`,
                 [id]
             );
             return rows[0] || null;
@@ -91,16 +132,9 @@ class OmsOrderModel {
 
     /**
      * Bulk-check: nhận vào mảng omsOrderId, trả về mảng những id đã tồn tại trong DB.
-     *
-     * Dùng một câu IN(...) duy nhất thay vì N lần findByOmsId — O(1) DB round trip
-     * thay vì O(N). Được gọi ở order-fetcher trước khi enrich để tránh HTTP calls thừa.
-     *
-     * @param {(string|number)[]} omsIds  - mảng oms_order_id cần kiểm tra
-     * @returns {Promise<(string|number)[]>}  - mảng những id ĐÃ tồn tại
      */
     static async findExistingOmsIds(omsIds) {
         if (!omsIds || omsIds.length === 0) return [];
-
         const conn = await db.getConnection();
         try {
             const placeholders = omsIds.map(() => '?').join(', ');
@@ -116,8 +150,6 @@ class OmsOrderModel {
 
     /**
      * Insert a new oms_orders row from a normalized OMS order.
-     * @param {object} payload — column-shaped row (caller pre-maps from normalized form)
-     * @returns {Promise<number>} insertId
      */
     static async create(payload) {
         const conn = await db.getConnection();
@@ -125,8 +157,8 @@ class OmsOrderModel {
             const [result] = await conn.query(
                 `INSERT INTO oms_orders (
                     order_number, customer_id, customer_order_number, platform_order_number,
-                    oms_order_id, oms_order_number, oms_status, 
-                    oms_shipping_service_name, oms_shipping_partner, 
+                    oms_order_id, oms_order_number, oms_status,
+                    oms_shipping_service_name, oms_shipping_partner,
                     oms_created_at, oms_updated_at, last_oms_synced_at,
                     receiver_name, receiver_phone, receiver_email, receiver_country, receiver_state, receiver_city,
                     receiver_postal_code, receiver_address_line1, receiver_address_line2,
@@ -163,8 +195,6 @@ class OmsOrderModel {
      * Apply a fresh OMS pull on top of an existing row.
      * preserveEditable=true  → only refresh source-of-truth columns.
      * preserveEditable=false → refresh editable columns too.
-     *
-     * Internal lifecycle (internal_status, ITC fields, pricing) is NEVER touched here.
      */
     static async refreshFromOms(id, payload, preserveEditable) {
         const conn = await db.getConnection();
@@ -173,13 +203,13 @@ class OmsOrderModel {
             const values = [];
 
             fields.push('oms_order_number = ?'); values.push(payload.oms_order_number || null);
-            fields.push('oms_status = ?');       values.push(payload.oms_status || null);
+            fields.push('oms_status = ?');        values.push(payload.oms_status || null);
             fields.push('oms_shipping_service_name = ?'); values.push(payload.oms_shipping_service_name || null);
             fields.push('oms_shipping_partner = ?');      values.push(payload.oms_shipping_partner ?? null);
             fields.push('oms_created_at = ?');   values.push(payload.oms_created_at || null);
             fields.push('oms_updated_at = ?');   values.push(payload.oms_updated_at || null);
             fields.push('last_oms_synced_at = ?'); values.push(payload.last_oms_synced_at || new Date());
-            fields.push('raw_data = ?');         values.push(payload.raw_data ? JSON.stringify(payload.raw_data) : null);
+            fields.push('raw_data = ?');          values.push(payload.raw_data ? JSON.stringify(payload.raw_data) : null);
 
             if (!preserveEditable) {
                 fields.push('customer_order_number = ?'); values.push(payload.customer_order_number || null);
@@ -266,8 +296,8 @@ class OmsOrderModel {
     static async transitionInternalStatus(id, expected, next, note = null) {
         const conn = await db.getConnection();
         try {
-            const expectedList = Array.isArray(expected) ? expected : [expected];
-            const placeholders = expectedList.map(() => '?').join(',');
+            const expectedList   = Array.isArray(expected) ? expected : [expected];
+            const placeholders   = expectedList.map(() => '?').join(',');
             const [result] = await conn.query(
                 `UPDATE oms_orders
                  SET internal_status = ?, internal_status_note = ?
@@ -281,13 +311,13 @@ class OmsOrderModel {
     }
 
     static async recordItcLabel(id, data) {
-        const purchase = data.shippingFeePurchase ?? null;
-        const selling = data.shippingFeeSelling ?? null;
+        const purchase      = data.shippingFeePurchase ?? null;
+        const selling       = data.shippingFeeSelling  ?? null;
         const initialProfit = OmsOrderModel.computeGrossProfit({
-            shippingFeePurchase: purchase,
-            shippingFeeSelling: selling,
+            shippingFeePurchase:   purchase,
+            shippingFeeSelling:    selling,
             fulfillmentFeePurchase: null,
-            fulfillmentFeeSelling: null,
+            fulfillmentFeeSelling:  null,
         });
 
         const conn = await db.getConnection();
@@ -337,9 +367,9 @@ class OmsOrderModel {
 
     static async updatePricing(id, edits, editedBy = null) {
         const validators = {
-            shippingFeeSelling: 'shipping_fee_selling',
+            shippingFeeSelling:     'shipping_fee_selling',
             fulfillmentFeePurchase: 'fulfillment_fee_purchase',
-            fulfillmentFeeSelling: 'fulfillment_fee_selling',
+            fulfillmentFeeSelling:  'fulfillment_fee_selling',
         };
 
         const sets = {};
@@ -382,23 +412,23 @@ class OmsOrderModel {
             }
 
             const merged = {
-                shipping_fee_purchase: Number(row.shipping_fee_purchase),
-                shipping_fee_selling: sets.shipping_fee_selling !== undefined
+                shipping_fee_purchase:    Number(row.shipping_fee_purchase),
+                shipping_fee_selling:     sets.shipping_fee_selling !== undefined
                     ? sets.shipping_fee_selling
                     : (row.shipping_fee_selling === null ? null : Number(row.shipping_fee_selling)),
                 fulfillment_fee_purchase: sets.fulfillment_fee_purchase !== undefined
                     ? sets.fulfillment_fee_purchase
                     : (row.fulfillment_fee_purchase === null ? null : Number(row.fulfillment_fee_purchase)),
-                fulfillment_fee_selling: sets.fulfillment_fee_selling !== undefined
+                fulfillment_fee_selling:  sets.fulfillment_fee_selling !== undefined
                     ? sets.fulfillment_fee_selling
                     : (row.fulfillment_fee_selling === null ? null : Number(row.fulfillment_fee_selling)),
             };
 
             const newProfit = OmsOrderModel.computeGrossProfit({
-                shippingFeePurchase: merged.shipping_fee_purchase,
-                shippingFeeSelling: merged.shipping_fee_selling,
+                shippingFeePurchase:    merged.shipping_fee_purchase,
+                shippingFeeSelling:     merged.shipping_fee_selling,
                 fulfillmentFeePurchase: merged.fulfillment_fee_purchase,
-                fulfillmentFeeSelling: merged.fulfillment_fee_selling,
+                fulfillmentFeeSelling:  merged.fulfillment_fee_selling,
             });
 
             const fields = [];
@@ -407,9 +437,9 @@ class OmsOrderModel {
                 fields.push(`${col} = ?`);
                 values.push(val);
             }
-            fields.push('gross_profit = ?');       values.push(newProfit);
+            fields.push('gross_profit = ?');      values.push(newProfit);
             fields.push('pricing_edited_at = NOW()');
-            fields.push('pricing_edited_by = ?');  values.push(editedBy);
+            fields.push('pricing_edited_by = ?'); values.push(editedBy);
             values.push(id);
 
             await conn.query(`UPDATE oms_orders SET ${fields.join(', ')} WHERE id = ?`, values);
@@ -417,7 +447,7 @@ class OmsOrderModel {
 
             const [updated] = await conn.query('SELECT * FROM oms_orders WHERE id = ?', [id]);
             return {
-                row: updated[0],
+                row:     updated[0],
                 changed: Object.keys(sets).concat(['gross_profit']),
             };
         } catch (err) {
@@ -435,8 +465,8 @@ class OmsOrderModel {
         const sp = shippingFeePurchase;
         const ss = shippingFeeSelling;
         if (sp === null || sp === undefined || ss === null || ss === undefined) return null;
-        const fp = Number(fulfillmentFeePurchase ?? 0);
-        const fs = Number(fulfillmentFeeSelling ?? 0);
+        const fp     = Number(fulfillmentFeePurchase ?? 0);
+        const fs     = Number(fulfillmentFeeSelling  ?? 0);
         const profit = (Number(ss) + fs) - (Number(sp) + fp);
         return Math.round(profit * 10000) / 10000;
     }
@@ -494,20 +524,34 @@ class OmsOrderModel {
         }
     }
 
+    /**
+     * Danh sách đơn có hỗ trợ filter search + phân trang.
+     *
+     * @param {object} filters
+     *   customerId     {string|number}  — exact match
+     *   internalStatus {string}         — exact match
+     *   omsStatus      {string}         — exact match
+     *   search         {string}         — LIKE trên order_number, oms_order_id, oms_order_number
+     *   limit          {number}
+     *   offset         {number}
+     */
     static async list(filters = {}) {
         const conn = await db.getConnection();
         try {
+            const { clauses, params } = _buildWhere(filters);
+
             let sql = `SELECT o.*, c.customer_code, c.customer_name
-                    FROM oms_orders o
-                    LEFT JOIN api_customers c ON c.id = o.customer_id
-                    WHERE 1=1`;
-            const params = [];
-            if (filters.customerId)     { sql += ' AND o.customer_id = ?';      params.push(filters.customerId); }
-            if (filters.internalStatus) { sql += ' AND o.internal_status = ?';  params.push(filters.internalStatus); }
-            if (filters.omsStatus)      { sql += ' AND o.oms_status = ?';       params.push(filters.omsStatus); }
+                       FROM oms_orders o
+                       LEFT JOIN api_customers c ON c.id = o.customer_id
+                       WHERE 1=1`;
+
+            if (clauses.length) sql += ' AND ' + clauses.join(' AND ');
+
             sql += ' ORDER BY o.created_at DESC';
+
             if (filters.limit)  { sql += ' LIMIT ?';  params.push(parseInt(filters.limit)); }
             if (filters.offset) { sql += ' OFFSET ?'; params.push(parseInt(filters.offset)); }
+
             const [rows] = await conn.query(sql, params);
             return rows;
         } finally {
@@ -516,19 +560,86 @@ class OmsOrderModel {
     }
 
     /**
-     * Đếm tổng số oms_orders match filter (giống list nhưng không LIMIT/OFFSET).
-     * Dùng cho pagination phía dashboard.
+     * Đếm tổng số rows match filter — dùng cho pagination.
+     * Cùng logic WHERE với list().
      */
     static async count(filters = {}) {
         const conn = await db.getConnection();
         try {
+            const { clauses, params } = _buildWhere(filters);
+
             let sql = 'SELECT COUNT(*) AS cnt FROM oms_orders o WHERE 1=1';
-            const params = [];
-            if (filters.customerId)     { sql += ' AND o.customer_id = ?';      params.push(filters.customerId); }
-            if (filters.internalStatus) { sql += ' AND o.internal_status = ?';  params.push(filters.internalStatus); }
-            if (filters.omsStatus)      { sql += ' AND o.oms_status = ?';       params.push(filters.omsStatus); }
+            if (clauses.length) sql += ' AND ' + clauses.join(' AND ');
+
             const [rows] = await conn.query(sql, params);
             return rows[0] ? Number(rows[0].cnt) : 0;
+        } finally {
+            conn.release();
+        }
+    }
+
+    /**
+     * Đếm số đơn theo từng internal_status (dùng cho badge trên tab bar UI).
+     * Nhận cùng base filters như list/count NGOẠI TRỪ internalStatus
+     * (để mỗi tab luôn thấy count của chính nó, không bị filter chéo).
+     *
+     * Trả về object:
+     *   {
+     *     pending:          N,
+     *     selected:         N,
+     *     label_purchasing: N,
+     *     label_purchased:  N,
+     *     oms_updated:      N,
+     *     shipped:          N,
+     *     delivered:        N,
+     *     cancelled:        N,
+     *     failed:           N,
+     *     error:            N,
+     *     __total__:        N   ← tổng tất cả (cho tab "All")
+     *   }
+     *
+     * @param {object} baseFilters  — customerId, search (không có internalStatus)
+     */
+    static async countByStatus(baseFilters = {}) {
+        const conn = await db.getConnection();
+        try {
+            // Chỉ áp dụng customerId + search, không áp dụng internalStatus
+            const safeFilters = {
+                customerId: baseFilters.customerId,
+                search:     baseFilters.search,
+            };
+            const { clauses, params } = _buildWhere(safeFilters);
+
+            let sql = `SELECT internal_status, COUNT(*) AS cnt
+                       FROM oms_orders o
+                       WHERE 1=1`;
+            if (clauses.length) sql += ' AND ' + clauses.join(' AND ');
+            sql += ' GROUP BY internal_status';
+
+            const [rows] = await conn.query(sql, params);
+
+            const result = {
+                pending:          0,
+                selected:         0,
+                label_purchasing: 0,
+                label_purchased:  0,
+                oms_updated:      0,
+                shipped:          0,
+                delivered:        0,
+                cancelled:        0,
+                failed:           0,
+                error:            0,
+                __total__:        0,
+            };
+
+            for (const row of rows) {
+                const s = row.internal_status;
+                const n = Number(row.cnt);
+                if (s in result) result[s] = n;
+                result.__total__ += n;
+            }
+
+            return result;
         } finally {
             conn.release();
         }
@@ -538,17 +649,15 @@ class OmsOrderModel {
      * Tìm order theo label access key
      */
     static async findByLabelAccessKey(accessKey) {
-        const connection = await db.getConnection();
-        
+        const conn = await db.getConnection();
         try {
-            const [rows] = await connection.query(
+            const [rows] = await conn.query(
                 'SELECT * FROM oms_orders WHERE label_access_key = ?',
                 [accessKey]
             );
-            
             return rows[0] || null;
         } finally {
-            connection.release();
+            conn.release();
         }
     }
 }

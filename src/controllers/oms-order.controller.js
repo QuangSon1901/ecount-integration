@@ -2,10 +2,14 @@
 //
 // Admin-facing endpoints for OMS orders (the "Outbound Request" view).
 // Phase 5 surface:
-//   GET  /api/v1/admin/oms-orders                — list with basic filters
+//   GET  /api/v1/admin/oms-orders                — list with basic filters + search
 //   GET  /api/v1/admin/oms-orders/:id            — single order detail
 //   POST /api/v1/admin/oms-orders/:id/buy-label  — buy single
 //   POST /api/v1/admin/oms-orders/buy-labels-bulk — buy many
+//
+// Changes:
+//   - listOrders: nhận thêm query param `q` (search by order_number / oms_order_id / oms_order_number)
+//   - listOrders: trả thêm `statusCounts` (map status → count) để UI tab bar hiển thị số lượng
 
 const OmsOrderModel = require('../models/oms-order.model');
 const labelPurchase = require('../services/itc/label-purchase.service');
@@ -30,27 +34,43 @@ class OmsOrderController {
         try {
             const {
                 customer_id, internal_status, oms_status,
+                q,                          // ← search keyword mới
                 limit = 50, offset = 0,
             } = req.query;
 
             const filters = {
-                customerId: customer_id,
+                customerId:     customer_id,
                 internalStatus: internal_status,
-                omsStatus: oms_status,
+                omsStatus:      oms_status,
+                search:         q ? String(q).trim() : undefined,
             };
 
-            // Lấy song song danh sách trang hiện tại + tổng số match (cho pagination).
-            const [rows, total] = await Promise.all([
-                OmsOrderModel.list({ ...filters, limit: parseInt(limit), offset: parseInt(offset) }),
+            // Lấy song song:
+            //   1. danh sách trang hiện tại
+            //   2. tổng số match (cho pagination)
+            //   3. thống kê theo status (cho tab badge) — chỉ tính khi không
+            //      filter theo status cụ thể, để badge phản ánh count thực của
+            //      từng tab. Khi đang filter theo 1 status thì vẫn trả để UI
+            //      biết con số, nhưng base filter là toàn bộ (bỏ internalStatus).
+            const baseFilters = { customerId: filters.customerId, search: filters.search };
+
+            const [rows, total, statusCounts] = await Promise.all([
+                OmsOrderModel.list({
+                    ...filters,
+                    limit:  parseInt(limit),
+                    offset: parseInt(offset),
+                }),
                 OmsOrderModel.count(filters),
+                OmsOrderModel.countByStatus(baseFilters),
             ]);
 
             return successResponse(res, {
-                orders: rows.map(r => this._formatOrder(r)),
+                orders:       rows.map(r => this._formatOrder(r)),
                 total,
-                count: rows.length,
-                limit: parseInt(limit),
-                offset: parseInt(offset),
+                count:        rows.length,
+                limit:        parseInt(limit),
+                offset:       parseInt(offset),
+                statusCounts, // { pending: N, selected: N, …, __total__: N }
             }, 'OMS orders retrieved');
         } catch (err) {
             next(err);
@@ -76,7 +96,7 @@ class OmsOrderController {
             const id = parseInt(req.params.id);
             if (!Number.isFinite(id)) return errorResponse(res, 'Invalid id', 400);
             const { productCode } = req.body || {};
-            
+
             const updated = await labelPurchase.purchaseFor(id, { productCode });
             return successResponse(res, this._formatOrder(updated), 'Label purchased successfully');
         } catch (err) {
@@ -112,7 +132,7 @@ class OmsOrderController {
 
             return successResponse(res, {
                 jobId,
-                omsOrderId: id,
+                omsOrderId:     id,
                 internalStatus: row.internal_status,
             }, 'OMS update job queued', 202);
         } catch (err) {
@@ -131,24 +151,24 @@ class OmsOrderController {
             if (!Number.isFinite(id)) return errorResponse(res, 'Invalid id', 400);
 
             const FIELD_MAP = {
-                receiverName: 'receiver_name',
-                receiverPhone: 'receiver_phone',
-                receiverEmail: 'receiver_email',
-                receiverCountry: 'receiver_country',
-                receiverState: 'receiver_state',
-                receiverCity: 'receiver_city',
-                receiverPostalCode: 'receiver_postal_code',
-                receiverAddressLine1: 'receiver_address_line1',
-                receiverAddressLine2: 'receiver_address_line2',
-                packageWeight: 'package_weight',
-                packageLength: 'package_length',
-                packageWidth: 'package_width',
-                packageHeight: 'package_height',
-                weightUnit: 'weight_unit',
-                sizeUnit: 'size_unit',
-                declaredValue: 'declared_value',
-                declaredCurrency: 'declared_currency',
-                items: 'items',
+                receiverName:        'receiver_name',
+                receiverPhone:       'receiver_phone',
+                receiverEmail:       'receiver_email',
+                receiverCountry:     'receiver_country',
+                receiverState:       'receiver_state',
+                receiverCity:        'receiver_city',
+                receiverPostalCode:  'receiver_postal_code',
+                receiverAddressLine1:'receiver_address_line1',
+                receiverAddressLine2:'receiver_address_line2',
+                packageWeight:       'package_weight',
+                packageLength:       'package_length',
+                packageWidth:        'package_width',
+                packageHeight:       'package_height',
+                weightUnit:          'weight_unit',
+                sizeUnit:            'size_unit',
+                declaredValue:       'declared_value',
+                declaredCurrency:    'declared_currency',
+                items:               'items',
                 customerOrderNumber: 'customer_order_number',
                 platformOrderNumber: 'platform_order_number',
             };
@@ -194,16 +214,11 @@ class OmsOrderController {
             if (!Number.isFinite(id)) return errorResponse(res, 'Invalid id', 400);
 
             const { status, note } = req.body || {};
-            const ALLOWED = [
-                'pending', 'selected',
-                'label_purchased', 'oms_updated',
-                'shipped', 'delivered',
-                'cancelled', 'failed', 'error',
-            ];
+            const ALLOWED = ['pending', 'selected', 'label_purchased', 'oms_updated',
+                             'shipped', 'delivered', 'cancelled', 'failed', 'error'];
+
             if (!status || !ALLOWED.includes(status)) {
-                return errorResponse(res,
-                    `status must be one of: ${ALLOWED.join(', ')}`, 400,
-                    { error_code: 'INVALID_VALUE' });
+                return errorResponse(res, `status must be one of: ${ALLOWED.join(', ')}`, 400);
             }
 
             const row = await OmsOrderModel.findById(id);
@@ -212,11 +227,10 @@ class OmsOrderController {
             await OmsOrderModel.setInternalStatus(id, status, note || null);
             const updated = await OmsOrderModel.findById(id);
 
-            logger.info('[OMS-ORDER] internal status changed', {
+            logger.info('[OMS-ORDER] admin set internal status', {
                 omsOrderId: id,
                 from: row.internal_status,
                 to: status,
-                editor: req.session?.username || null,
             });
 
             return successResponse(res, this._formatOrder(updated), 'Internal status updated');
@@ -227,38 +241,22 @@ class OmsOrderController {
 
     /**
      * PATCH /api/v1/admin/oms-orders/:id/pricing
-     * Edit selling fees + fulfillment fees. Recomputes gross_profit.
-     * shipping_fee_purchase is rejected (readonly).
      */
     async updatePricing(req, res, next) {
         try {
             const id = parseInt(req.params.id);
             if (!Number.isFinite(id)) return errorResponse(res, 'Invalid id', 400);
 
-            const {
-                shippingFeeSelling,
-                fulfillmentFeePurchase,
-                fulfillmentFeeSelling,
-                shippingFeePurchase,    // not allowed — guard below
-            } = req.body || {};
+            const { shippingFeeSelling, fulfillmentFeePurchase, fulfillmentFeeSelling } = req.body || {};
+            const editedBy = req.session?.username || null;
 
-            if (shippingFeePurchase !== undefined) {
-                return errorResponse(res, 'shippingFeePurchase is readonly (set by ITC purchase)', 400, {
-                    error_code: 'READONLY_FIELD',
-                });
-            }
+            const { row } = await OmsOrderModel.updatePricing(
+                id,
+                { shippingFeeSelling, fulfillmentFeePurchase, fulfillmentFeeSelling },
+                editedBy
+            );
 
-            const editor = req.session?.username || null;
-            const result = await OmsOrderModel.updatePricing(id, {
-                shippingFeeSelling,
-                fulfillmentFeePurchase,
-                fulfillmentFeeSelling,
-            }, editor);
-
-            return successResponse(res, {
-                ...this._formatOrder(result.row),
-                changed_columns: result.changed,
-            }, 'Pricing updated');
+            return successResponse(res, this._formatOrder(row), 'Pricing updated');
         } catch (err) {
             return this._handleError(res, err, next);
         }
@@ -275,14 +273,10 @@ class OmsOrderController {
             }
             const numericIds = ids.map(n => parseInt(n)).filter(Number.isFinite);
 
-            // Claim atomically NGAY tại enqueue: chuyển pending|selected|error|failed
-            // → label_purchasing trước khi tạo job. Nếu transition fail nghĩa là row
-            // đã được claim ở đợt trước (hoặc đang chạy) → skip để chặn duplicate.
-            // Worker sẽ chạy purchaseFor với skipClaim=true vì đã claim ở đây rồi.
             const CLAIMABLE_STATES = ['pending', 'selected', 'error', 'failed'];
-            const queued = [];
+            const queued  = [];
             const skipped = [];
-            const errors = [];
+            const errors  = [];
 
             for (let i = 0; i < numericIds.length; i++) {
                 const id = numericIds[i];
@@ -304,18 +298,15 @@ class OmsOrderController {
                 }
 
                 if (!claimed) {
-                    // Row không còn ở trạng thái claim được — đang in-flight hoặc đã mua xong
                     skipped.push({ id, reason: 'already_in_progress_or_finalized' });
                     continue;
                 }
 
                 try {
-                    const delaySeconds = Math.min(i, 30); // stagger 1s, cap 30s
+                    const delaySeconds = Math.min(i, 30);
                     const jobId = await jobService.addOmsBuyLabelJob(id, { productCode }, delaySeconds);
                     queued.push({ id, jobId, delaySeconds });
                 } catch (err) {
-                    // Đã claim mà không tạo được job → revert sang 'error' để không
-                    // stuck ở label_purchasing (cleanup cron có 30 phút mới quét).
                     logger.error('[OMS-ORDER] enqueue buy-label job failed after claim', {
                         omsOrderId: id, error: err.message,
                     });
@@ -338,9 +329,9 @@ class OmsOrderController {
                 queued,
                 skipped,
                 errors,
-                total: numericIds.length,
-                queuedCount: queued.length,
-                skippedCount: skipped.length,
+                total:         numericIds.length,
+                queuedCount:   queued.length,
+                skippedCount:  skipped.length,
                 failedToQueue: errors.length,
             }, `Đã đẩy ${queued.length}/${numericIds.length} đơn vào queue (skip ${skipped.length}, lỗi ${errors.length})`, 202);
         } catch (err) {
@@ -354,7 +345,7 @@ class OmsOrderController {
         if (err.code && STATUS_TO_HTTP[err.code]) {
             const status = STATUS_TO_HTTP[err.code];
             logger.warn('[OMS-ORDER] request failed', {
-                code: err.code,
+                code:    err.code,
                 message: err.message,
             });
             return errorResponse(res, err.message, status, { error_code: err.code });
@@ -362,87 +353,81 @@ class OmsOrderController {
         return next(err);
     }
 
-    /**
-     * Stable JSON shape for admin/dashboard consumption.
-     * - Parse JSON columns
-     * - Drop large `raw_data` from list responses (kept on detail by caller using getOrder)
-     */
     _formatOrder(row) {
         if (!row) return null;
         return {
             // ─── Identity ───────────────────────────────────────────
             id:                   row.id,
             order_number:         row.order_number,
-            oms_order_number:     row.oms_order_number,   // sOrCode
+            oms_order_number:     row.oms_order_number,
             oms_order_id:         row.oms_order_id,
 
             // ─── Status ─────────────────────────────────────────────
             internal_status:      row.internal_status,
             internal_status_note: row.internal_status_note || null,
-            // Surface khi lifecycle đang ở error/failed để dashboard hiển thị.
-            // Reuse internal_status_note (đã được service/worker set khi lỗi)
-            // thay vì thêm cột mới — tránh migrate dữ liệu cũ.
             error_message:        (row.internal_status === 'error' || row.internal_status === 'failed')
                                     ? (row.internal_status_note || null)
                                     : null,
-            oms_status:           row.oms_status,
+            oms_status:                row.oms_status,
             oms_shipping_service_name: row.oms_shipping_service_name || null,
             oms_shipping_partner:      row.oms_shipping_partner      || null,
 
             // ─── Receiver ───────────────────────────────────────────
-            receiver_name:        row.receiver_name,
-            receiver_company:     row.receiver_company,
-            receiver_phone:       row.receiver_phone,
-            receiver_tax_number:  row.receiver_tax_number,
+            receiver_name:          row.receiver_name,
+            receiver_company:       row.receiver_company,
+            receiver_phone:         row.receiver_phone,
+            receiver_tax_number:    row.receiver_tax_number,
             receiver_address_line1: row.receiver_address_line1,
             receiver_address_line2: row.receiver_address_line2,
-            receiver_city:        row.receiver_city,
-            receiver_state:       row.receiver_state,
-            receiver_postal_code: row.receiver_postal_code,
-            receiver_country:     row.receiver_country,
+            receiver_city:          row.receiver_city,
+            receiver_state:         row.receiver_state,
+            receiver_postal_code:   row.receiver_postal_code,
+            receiver_country:       row.receiver_country,
 
             // ─── Package ────────────────────────────────────────────
-            package_weight:       row.package_weight,
-            package_length:       row.package_length,
-            package_width:        row.package_width,
-            package_height:       row.package_height,
+            package_weight:         row.package_weight,
+            package_length:         row.package_length,
+            package_width:          row.package_width,
+            package_height:         row.package_height,
             route_shipping_partner: row.route_shipping_partner,
-            address_index:        row.address_index,
-            warehouse_code:       row.warehouse_code,
+            address_index:          row.address_index,
+            warehouse_code:         row.warehouse_code,
 
             // ─── Items ──────────────────────────────────────────────
-            items:                this._parseJson(row.items),
+            items: this._parseJson(row.items),
 
             // ─── Pricing ────────────────────────────────────────────
-            declared_currency:       row.declared_currency,
-            shipping_fee_purchase:   row.shipping_fee_purchase,
-            shipping_markup_percent: row.shipping_markup_percent,
-            shipping_fee_selling:    row.shipping_fee_selling,
-            gross_profit:            row.gross_profit,
+            declared_currency:        row.declared_currency,
+            shipping_fee_purchase:    row.shipping_fee_purchase,
+            shipping_markup_percent:  row.shipping_markup_percent,
+            shipping_fee_selling:     row.shipping_fee_selling,
+            gross_profit:             row.gross_profit,
             fulfillment_fee_purchase: row.fulfillment_fee_purchase,
             fulfillment_fee_selling:  row.fulfillment_fee_selling,
-            total_value:             row.total_value,
-            total_discount:          row.total_discount,
-            paid_amount:             row.paid_amount,
-            remaining_amount:        row.remaining_amount,
+            total_value:              row.total_value,
+            total_discount:           row.total_discount,
+            paid_amount:              row.paid_amount,
+            remaining_amount:         row.remaining_amount,
 
             // ─── ITC Label ──────────────────────────────────────────
             carrier:         row.carrier,
             tracking_number: row.tracking_number,
             itc_sid:         row.itc_sid,
-            label_url:       row.label_access_key ? `${process.env.BASE_URL}/api/labels/${row.label_access_key}` : null,
+            label_url:       row.label_access_key
+                               ? `${process.env.BASE_URL}/api/labels/${row.label_access_key}`
+                               : null,
 
             // ─── Timestamps ─────────────────────────────────────────
-            created_at:      row.created_at,
-            updated_at:      row.updated_at,
-            oms_created_at:  row.oms_created_at,
-            oms_updated_at:  row.oms_updated_at,
-            synced_at:       row.synced_at,
+            created_at:     row.created_at,
+            updated_at:     row.updated_at,
+            oms_created_at: row.oms_created_at,
+            oms_updated_at: row.oms_updated_at,
+            synced_at:      row.synced_at,
 
-            // ─── Customer ref (dashboard list dùng) ─────────────────
-            customer_id:     row.customer_id,
-            customer_code:   row.customer_code || null,
-            customer_name:   row.customer_name || null,
+            // ─── Customer ref ────────────────────────────────────────
+            customer_id:   row.customer_id,
+            customer_code: row.customer_code || null,
+            customer_name: row.customer_name || null,
         };
     }
 

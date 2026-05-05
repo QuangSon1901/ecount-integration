@@ -3,14 +3,35 @@
  * Admin — OMS Orders section (list, filters, pagination, bulk actions).
  * Exposes: window.OmsOrders
  * Depends on: dashboard.core.js
+ *
+ * Changes vs previous version:
+ *  - Status filter: select → tab bar (All + mỗi status + số lượng đếm từ API)
+ *  - Search input: tìm theo order_number, oms_order_id, oms_order_number
+ *  - Search debounce 400ms, reset page về 0 khi search/đổi tab
  */
 
 (function (global) {
     'use strict';
 
-    var OMS_PAGE_SIZE = 100;
-    var omsPage       = 0;
-    var omsLastRows   = [];
+    var OMS_PAGE_SIZE   = 100;
+    var omsPage         = 0;
+    var omsLastRows     = [];
+    var _searchTimer    = null;  // debounce handle
+
+    // Định nghĩa các tab status — thứ tự hiển thị
+    var STATUS_TABS = [
+        { value: '',                 label: 'All' },
+        { value: 'pending',          label: 'Pending' },
+        { value: 'selected',         label: 'Selected' },
+        { value: 'label_purchasing', label: 'Purchasing' },
+        { value: 'label_purchased',  label: 'Purchased' },
+        { value: 'oms_updated',      label: 'OMS Updated' },
+        { value: 'shipped',          label: 'Shipped' },
+        { value: 'delivered',        label: 'Delivered' },
+        { value: 'cancelled',        label: 'Cancelled' },
+        { value: 'failed',           label: 'Failed' },
+        { value: 'error',            label: 'Error' }
+    ];
 
     // ════════════════════════════════════════
     // HTML TEMPLATE
@@ -25,56 +46,28 @@
         '  </div>',
 
         '  <!-- Filter bar -->',
-        '  <div class="card-header">',
-        '    <div class="filter-bar">',
-        '      <div class="filter-group">',
-        '        <span class="filter-label">Customer</span>',
-        '        <select class="form-select" id="filterCustomer">',
-        '          <option value="">All</option>',
-        '        </select>',
-        '      </div>',
-        '      <div class="filter-group">',
-        '        <span class="filter-label">Status</span>',
-        '        <select class="form-select" id="filterStatus">',
-        '          <option value="">All</option>',
-        '          <option value="pending">Pending</option>',
-        '          <option value="selected">Selected</option>',
-        '          <option value="label_purchasing">Label Purchasing</option>',
-        '          <option value="label_purchased">Label Purchased</option>',
-        '          <option value="oms_updated">OMS Updated</option>',
-        '          <option value="shipped">Shipped</option>',
-        '          <option value="delivered">Delivered</option>',
-        '          <option value="cancelled">Cancelled</option>',
-        '          <option value="failed">Failed</option>',
-        '          <option value="error">Error</option>',
-        '        </select>',
-        '      </div>',
-        '      <button class="btn btn-sm" id="refreshBtn">&#x21BB; Refresh</button>',
+        '  <div class="card-header oms-filter-bar">',
+        '    <div class="filter-group">',
+        '      <span class="filter-label">Customer</span>',
+        '      <select class="form-select" id="filterCustomer">',
+        '        <option value="">All</option>',
+        '      </select>',
         '    </div>',
+        '    <div class="filter-group oms-search-group">',
+        '      <span class="filter-label">Search</span>',
+        '      <div class="oms-search-wrap">',
+        '        <input type="text" class="form-input" id="omsSearch"',
+        '               placeholder="Order #, OMS ID, OMS order number…"',
+        '               autocomplete="off" spellcheck="false">',
+        '        <button class="oms-search-clear" id="omsSearchClear" title="Clear search" style="display:none;">&#x2715;</button>',
+        '      </div>',
+        '    </div>',
+        '    <button class="btn btn-sm" id="refreshBtn">&#x21BB; Refresh</button>',
         '  </div>',
 
-        '  <!-- Mini stats (hidden by default, unhide if desired) -->',
-        '  <div class="oms-stats-grid" style="display:none;">',
-        '    <div class="oms-stat-card s-pending">',
-        '      <div class="oms-stat-label">Pending</div>',
-        '      <div class="oms-stat-value" id="statPending">—</div>',
-        '    </div>',
-        '    <div class="oms-stat-card s-selected">',
-        '      <div class="oms-stat-label">Selected</div>',
-        '      <div class="oms-stat-value" id="statSelected">—</div>',
-        '    </div>',
-        '    <div class="oms-stat-card s-done">',
-        '      <div class="oms-stat-label">Label Bought</div>',
-        '      <div class="oms-stat-value" id="statLabelPurchased">—</div>',
-        '    </div>',
-        '    <div class="oms-stat-card s-updated">',
-        '      <div class="oms-stat-label">OMS Updated</div>',
-        '      <div class="oms-stat-value" id="statOmsUpdated">—</div>',
-        '    </div>',
-        '    <div class="oms-stat-card s-error">',
-        '      <div class="oms-stat-label">Error</div>',
-        '      <div class="oms-stat-value" id="statError">—</div>',
-        '    </div>',
+        '  <!-- Status tabs -->',
+        '  <div class="oms-status-tabs" id="omsStatusTabs">',
+        '    <!-- tabs rendered by JS -->',
         '  </div>',
 
         '  <!-- Bulk action bar -->',
@@ -129,14 +122,90 @@
         if (!mount) return;
         mount.innerHTML = OMS_HTML;
 
+        _renderStatusTabs('');
         _bindEventListeners();
         _loadCustomersDropdown();
     }
 
+    // ── Render tab bar ────────────────────────────────────────────────────────
+    function _renderStatusTabs(activeValue, counts) {
+        counts = counts || {};
+        var container = document.getElementById('omsStatusTabs');
+        if (!container) return;
+
+        container.innerHTML = STATUS_TABS.map(function (tab) {
+            var isActive = tab.value === activeValue;
+            var cnt      = counts[tab.value];
+            var badge    = (cnt !== undefined && cnt !== null)
+                ? '<span class="oms-tab-badge">' + cnt + '</span>'
+                : '';
+            return '<button class="oms-tab-btn' + (isActive ? ' active' : '') + '"' +
+                   ' data-status="' + tab.value + '">' +
+                   esc(tab.label) + badge +
+                   '</button>';
+        }).join('');
+
+        // bind click
+        container.querySelectorAll('.oms-tab-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var status = this.getAttribute('data-status');
+                _setActiveTab(status);
+                omsPage = 0;
+                setUrlParams({ status: status || null }, { replace: true });
+                loadOmsOrders();
+            });
+        });
+    }
+
+    function _setActiveTab(value) {
+        document.querySelectorAll('.oms-tab-btn').forEach(function (btn) {
+            btn.classList.toggle('active', btn.getAttribute('data-status') === value);
+        });
+    }
+
+    function _getActiveTabValue() {
+        var active = document.querySelector('.oms-tab-btn.active');
+        return active ? active.getAttribute('data-status') : '';
+    }
+
+    // ── Bind events ───────────────────────────────────────────────────────────
     function _bindEventListeners() {
-        addChange('filterCustomer', function () { omsPage = 0; setUrlParams({}, { replace: true }); loadOmsOrders(); });
-        addChange('filterStatus',   function () { omsPage = 0; setUrlParams({}, { replace: true }); loadOmsOrders(); });
-        addClick('refreshBtn',           function () { loadOmsOrders(); });
+        addChange('filterCustomer', function () {
+            omsPage = 0;
+            setUrlParams({ page: null }, { replace: true });
+            loadOmsOrders();
+        });
+
+        addClick('refreshBtn', function () { loadOmsOrders(); });
+
+        // Search — debounce 400ms
+        var searchEl = document.getElementById('omsSearch');
+        var clearBtn = document.getElementById('omsSearchClear');
+
+        if (searchEl) {
+            searchEl.addEventListener('input', function () {
+                var hasVal = searchEl.value.trim().length > 0;
+                if (clearBtn) clearBtn.style.display = hasVal ? 'flex' : 'none';
+                clearTimeout(_searchTimer);
+                _searchTimer = setTimeout(function () {
+                    omsPage = 0;
+                    setUrlParams({ page: null, q: searchEl.value.trim() || null }, { replace: true });
+                    loadOmsOrders();
+                }, 400);
+            });
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                if (searchEl) { searchEl.value = ''; }
+                clearBtn.style.display = 'none';
+                clearTimeout(_searchTimer);
+                omsPage = 0;
+                setUrlParams({ page: null, q: null }, { replace: true });
+                loadOmsOrders();
+            });
+        }
+
         addClick('bulkCreateLabelBtn',   bulkCreateLabels);
         addClick('bulkDownloadLabelBtn', bulkDownloadLabels);
 
@@ -178,15 +247,27 @@
         return n - 1; // URL is 1-indexed; omsPage is 0-indexed
     }
 
+    function _readStatusFromUrl() {
+        return parseHash().params.get('status') || '';
+    }
+
+    function _readSearchFromUrl() {
+        return parseHash().params.get('q') || '';
+    }
+
     // ════════════════════════════════════════
     // LOAD ORDERS
     // ════════════════════════════════════════
     function loadOmsOrders() {
         var customer = val('filterCustomer');
-        var status   = val('filterStatus');
-        var params   = new URLSearchParams({ limit: OMS_PAGE_SIZE, offset: omsPage * OMS_PAGE_SIZE });
+        var status   = _getActiveTabValue();
+        var search   = (document.getElementById('omsSearch') || {}).value;
+        search = (search || '').trim();
+
+        var params = new URLSearchParams({ limit: OMS_PAGE_SIZE, offset: omsPage * OMS_PAGE_SIZE });
         if (customer) params.set('customer_id', customer);
         if (status)   params.set('internal_status', status);
+        if (search)   params.set('q', search);
 
         var paginationInfo = document.getElementById('paginationInfo');
         if (paginationInfo) paginationInfo.textContent = 'Loading...';
@@ -201,12 +282,16 @@
                 var data = r.data || {};
                 omsLastRows = data.orders || [];
                 renderOmsRows(omsLastRows);
-                computeOmsStats(omsLastRows);
+
+                // Cập nhật badge đếm trên tab bar
+                if (data.statusCounts) {
+                    _updateTabBadges(data.statusCounts, status);
+                }
 
                 var total      = Number.isFinite(data.total) ? data.total : omsLastRows.length;
                 var totalPages = Math.max(1, Math.ceil(total / OMS_PAGE_SIZE));
 
-                // Clamp omsPage if filter change reduced total pages.
+                // Clamp omsPage nếu filter thu hẹp
                 if (omsPage >= totalPages) {
                     omsPage = totalPages - 1;
                     setUrlParams({ page: omsPage > 0 ? omsPage + 1 : null }, { replace: true });
@@ -226,6 +311,28 @@
                 if (emptyState) emptyState.style.display = omsLastRows.length ? 'none' : 'block';
             })
             .catch(function (e) { showAlert('Failed to load orders: ' + e.message, 'error'); });
+    }
+
+    // Cập nhật badge số lượng trên mỗi tab (chỉ khi không đang filter theo status cụ thể,
+    // hoặc server trả về statusCounts)
+    function _updateTabBadges(counts, activeStatus) {
+        document.querySelectorAll('.oms-tab-btn').forEach(function (btn) {
+            var tabStatus = btn.getAttribute('data-status');
+            var cnt;
+            if (tabStatus === '') {
+                // Tab "All" — hiện tổng
+                cnt = counts.__total__;
+            } else {
+                cnt = counts[tabStatus];
+            }
+            // Cập nhật badge (giữ label text)
+            var labelText = STATUS_TABS.filter(function (t) { return t.value === tabStatus; })
+                                       .map(function (t) { return t.label; })[0] || tabStatus;
+            var badge = (cnt !== undefined && cnt !== null && cnt > 0)
+                ? '<span class="oms-tab-badge">' + cnt + '</span>'
+                : '';
+            btn.innerHTML = esc(labelText) + badge;
+        });
     }
 
     // ════════════════════════════════════════
@@ -315,23 +422,7 @@
             error:            'badge-danger'
         };
         var cls = map[status] || 'badge-info';
-        return '<span class="badge ' + cls + '">' + esc(status.replace(/_/g, ' ')) + '</span>';
-    }
-
-    function computeOmsStats(rows) {
-        var counts = { pending: 0, selected: 0, label_purchased: 0, oms_updated: 0, error: 0 };
-        rows.forEach(function (r) {
-            if      (r.internal_status === 'pending')          counts.pending++;
-            else if (r.internal_status === 'selected')         counts.selected++;
-            else if (r.internal_status === 'label_purchased')  counts.label_purchased++;
-            else if (r.internal_status === 'oms_updated')      counts.oms_updated++;
-            else if (r.internal_status === 'error' || r.internal_status === 'failed') counts.error++;
-        });
-        setText('statPending',        counts.pending);
-        setText('statSelected',       counts.selected);
-        setText('statLabelPurchased', counts.label_purchased);
-        setText('statOmsUpdated',     counts.oms_updated);
-        setText('statError',          counts.error);
+        return '<span class="badge ' + cls + '">' + esc((status || '').replace(/_/g, ' ')) + '</span>';
     }
 
     // ════════════════════════════════════════
@@ -606,11 +697,11 @@
     // PUBLIC API
     // ════════════════════════════════════════
     global.OmsOrders = {
-        init:              init,
-        loadOmsOrders:     loadOmsOrders,
+        init:               init,
+        loadOmsOrders:      loadOmsOrders,
         readOmsPageFromUrl: readOmsPageFromUrl,
-        get omsPage()      { return omsPage; },
-        set omsPage(v)     { omsPage = v; }
+        get omsPage()       { return omsPage; },
+        set omsPage(v)      { omsPage = v; }
     };
 
 })(window);
