@@ -25,19 +25,19 @@ const db = require('./database/connection');
 const app = express();
 if (process.env.NODE_ENV === 'production') {
     app.set('trust proxy', true);
+
+    // Security middleware
+    app.use(helmet({
+        crossOriginResourcePolicy: { policy: "cross-origin" }
+    }));
+
+    app.use(cors({
+        origin: "https://loginia.ecount.com",
+        credentials: true
+    }));
 } else {
     app.set('trust proxy', 'loopback');
 }
-
-// Security middleware
-app.use(helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
-
-app.use(cors({
-  origin: "https://loginia.ecount.com",
-  credentials: true
-}));
 
 const getClientIp = (req) => {
     return req.headers['x-forwarded-for']?.split(',')[0].trim() ||
@@ -80,6 +80,11 @@ app.use('/uploads', express.static(path.join(__dirname, '../public/uploads'), {
 
 
 app.use('/js', express.static(path.join(__dirname, '../public/js'), {
+    maxAge: '1d',
+    etag: true
+}));
+
+app.use('/css', express.static(path.join(__dirname, '../public/css'), {
     maxAge: '1d',
     etag: true
 }));

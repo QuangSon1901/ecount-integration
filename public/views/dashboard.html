@@ -5,426 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>THG-FULFILL Dashboard</title>
     <link rel="icon" type="image/png" href="/uploads/logo.png">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        :root {
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
-            --primary-light: #eff6ff;
-            --secondary: #64748b;
-            --success: #10b981;
-            --success-light: #d1fae5;
-            --warning: #f59e0b;
-            --warning-light: #fef3c7;
-            --danger: #ef4444;
-            --danger-light: #fee2e2;
-            --bg-primary: #ffffff;
-            --bg-secondary: #f8fafc;
-            --border: #e2e8f0;
-            --text-primary: #0f172a;
-            --text-secondary: #64748b;
-            --sidebar-width: 260px;
-            --header-height: 64px;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            line-height: 1.6;
-        }
-
-        .app-container { display: flex; min-height: 100vh; }
-
-        /* ─── Sidebar ─── */
-        .sidebar {
-            position: fixed; left: 0; top: 0;
-            width: var(--sidebar-width); height: 100vh;
-            background: var(--bg-primary);
-            border-right: 1px solid var(--border);
-            overflow-y: auto; z-index: 101;
-            display: flex; flex-direction: column;
-        }
-        .sidebar-logo { padding: 20px; border-bottom: 1px solid var(--border); }
-        .logo-content { display: flex; align-items: center; gap: 12px; }
-        .logo-icon { width: 40px; height: 40px; border-radius: 10px; object-fit: contain; }
-        .logo-text h2 { font-size: 16px; font-weight: 700; }
-        .logo-text p  { font-size: 12px; color: var(--text-secondary); }
-
-        .sidebar-nav { padding: 16px 0; flex: 1; }
-        .nav-section { margin-bottom: 24px; }
-        .nav-section-title {
-            padding: 0 20px 8px; font-size: 11px; font-weight: 700;
-            text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary);
-        }
-        .nav-menu { list-style: none; }
-        .nav-item { margin: 2px 12px; }
-        .nav-link {
-            display: flex; align-items: center; gap: 12px;
-            padding: 10px 12px; color: var(--text-secondary);
-            text-decoration: none; border-radius: 8px;
-            font-size: 14px; font-weight: 500;
-            transition: all 0.2s; cursor: pointer;
-        }
-        .nav-link:hover { background: var(--bg-secondary); color: var(--text-primary); }
-        .nav-link.active { background: var(--primary-light); color: var(--primary); }
-        .nav-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
-        .nav-badge {
-            margin-left: auto; padding: 2px 8px;
-            background: var(--bg-secondary); border-radius: 12px;
-            font-size: 11px; font-weight: 600;
-        }
-        .nav-link.active .nav-badge { background: var(--primary); color: white; }
-
-        .sidebar-footer {
-            padding: 16px 20px; border-top: 1px solid var(--border);
-            font-size: 12px; color: var(--text-secondary);
-        }
-
-        /* ─── Header ─── */
-        .header {
-            position: fixed; top: 0; left: var(--sidebar-width); right: 0;
-            height: var(--header-height); background: var(--bg-primary);
-            border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 0 32px; z-index: 100;
-        }
-        .header-title h1 { font-size: 20px; font-weight: 600; }
-        .header-title p  { font-size: 14px; color: var(--text-secondary); margin-top: 2px; }
-        .header-actions  { display: flex; align-items: center; gap: 16px; }
-        .user-badge {
-            display: flex; align-items: center; gap: 10px;
-            padding: 8px 14px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;
-        }
-        .user-avatar {
-            width: 32px; height: 32px; border-radius: 50%;
-            background: var(--primary); color: white;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 600; font-size: 13px;
-        }
-
-        /* ─── Main Content ─── */
-        .main-content {
-            margin-left: var(--sidebar-width);
-            margin-top: var(--header-height);
-            padding: 32px;
-            min-height: calc(100vh - var(--header-height));
-            width: calc(100% - var(--sidebar-width));
-        }
-
-        /* ─── Sections ─── */
-        .content-section { display: none; }
-        .content-section.active { display: block; }
-
-        /* Role-based visibility */
-        [data-role]:not(.role-visible) { display: none !important; }
-
-        /* ─── Cards ─── */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 20px; margin-bottom: 32px;
-        }
-        .stat-card {
-            background: var(--bg-primary); border: 1px solid var(--border);
-            border-radius: 12px; padding: 20px; transition: all 0.2s;
-        }
-        .stat-card.clickable { cursor: pointer; }
-        .stat-card.clickable:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            border-color: var(--primary);
-        }
-        .stat-header {
-            display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
-        }
-        .stat-label  { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
-        .stat-icon {
-            width: 36px; height: 36px; border-radius: 8px;
-            display: flex; align-items: center; justify-content: center; font-size: 20px;
-        }
-        .stat-value  { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
-        .stat-change { font-size: 13px; font-weight: 500; }
-        .stat-change.positive { color: var(--success); }
-
-        .content-card {
-            background: var(--bg-primary); border: 1px solid var(--border);
-            border-radius: 12px; padding: 24px; margin-bottom: 24px;
-        }
-        .card-header {
-            display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
-        }
-        .card-title    { font-size: 18px; font-weight: 600; }
-        .card-subtitle { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
-        .card-actions  { display: flex; gap: 12px; }
-
-        /* ─── Buttons ─── */
-        .btn {
-            display: inline-flex; align-items: center; gap: 8px;
-            padding: 10px 18px; border: 1px solid var(--border);
-            border-radius: 8px; font-size: 14px; font-weight: 500;
-            cursor: pointer; transition: all 0.2s; text-decoration: none;
-            background: var(--bg-primary); color: var(--text-primary);
-        }
-        .btn:hover { background: var(--bg-secondary); }
-        .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
-        .btn-primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
-        .btn-success { background: var(--success); color: white; border-color: var(--success); }
-        .btn-success:hover { background: #059669; border-color: #059669; }
-        .btn-danger  { background: var(--danger); color: white; border-color: var(--danger); }
-        .btn-danger:hover  { background: #dc2626; }
-        .btn-sm { padding: 6px 12px; font-size: 13px; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        /* ─── Forms ─── */
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px; margin-bottom: 24px;
-        }
-        .form-group { margin-bottom: 20px; }
-        .form-label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 500; }
-        .form-label.required::after { content: ' *'; color: var(--danger); }
-        .form-input, .form-select {
-            width: 100%; padding: 10px 14px;
-            border: 1px solid var(--border); border-radius: 8px;
-            font-size: 14px; background: var(--bg-primary); color: var(--text-primary);
-            transition: all 0.2s;
-        }
-        .form-input:focus, .form-select:focus {
-            outline: none; border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
-        }
-        .form-input[readonly] { background: var(--bg-secondary); }
-
-        /* ─── Table ─── */
-        .table-container { overflow-x: auto; }
-        .data-table { width: 100%; border-collapse: collapse; }
-        .data-table th {
-            text-align: left; padding: 12px 16px;
-            font-size: 13px; font-weight: 600; color: var(--text-secondary);
-            background: var(--bg-secondary); border-bottom: 1px solid var(--border);
-        }
-        .data-table td {
-            padding: 14px 16px; font-size: 14px; border-bottom: 1px solid var(--border);
-        }
-        .data-table tr:hover { background: var(--bg-secondary); }
-
-        /* OMS table: cuộn dọc trong khung cố định, giữ header dính ở trên */
-        #admin-oms-orders .table-container {
-            max-height: calc(100vh - 320px);
-            min-height: 320px;
-            overflow-y: auto;
-            overflow-x: auto;
-        }
-        #admin-oms-orders .data-table thead th {
-            position: sticky; top: 0; z-index: 2;
-            background: var(--bg-secondary);
-        }
-
-        /* ─── Badge ─── */
-        .badge {
-            display: inline-block; padding: 4px 10px;
-            border-radius: 6px; font-size: 12px; font-weight: 600;
-        }
-        .badge-success { background: var(--success-light); color: #065f46; }
-        .badge-warning { background: var(--warning-light); color: #92400e; }
-        .badge-danger  { background: var(--danger-light);  color: #991b1b; }
-        .badge-info    { background: #dbeafe; color: #1e40af; }
-
-        /* ─── Alert ─── */
-        .alert {
-            padding: 14px 16px; border-radius: 8px;
-            margin-bottom: 20px; font-size: 14px; display: none;
-        }
-        .alert.show     { display: block; animation: slideDown 0.3s ease-out; }
-        .alert-success  { background: var(--success-light); color: #065f46; border: 1px solid #a7f3d0; }
-        .alert-error    { background: var(--danger-light);  color: #991b1b; border: 1px solid #fecaca; }
-        .alert-info     { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
-
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-
-        /* ─── Credentials ─── */
-        .credentials-box {
-            background: var(--warning-light); border: 1px solid #fde047;
-            border-radius: 8px; padding: 20px; margin-top: 20px;
-        }
-        .credentials-box h3 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
-        .credential-item    { margin-bottom: 16px; }
-        .credential-label   { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
-        .credential-value {
-            font-family: 'Courier New', monospace; background: white;
-            padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border);
-            word-break: break-all; font-size: 13px;
-        }
-
-        /* ─── Info Box ─── */
-        .info-box { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
-        .info-row {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 12px 0; border-bottom: 1px solid var(--border);
-        }
-        .info-row:last-child { border-bottom: none; }
-        .info-label { font-size: 13px; color: var(--text-secondary); }
-        .info-value { font-size: 14px; font-weight: 600; }
-
-        /* ─── Tool Card ─── */
-        .tool-info-box { padding: 40px; text-align: center; color: var(--text-secondary); }
-        .tool-info-icon { font-size: 48px; margin-bottom: 16px; }
-        .tool-info-title { font-size: 18px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
-        .tool-info-description { font-size: 14px; margin-bottom: 24px; }
-
-        /* ─── Empty / Loading ─── */
-        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
-        .empty-icon  { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
-        .empty-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); }
-        .loading     { display: none; text-align: center; padding: 40px; color: var(--text-secondary); }
-        .loading.show { display: block; }
-        .hidden      { display: none !important; }
-
-        /* ─── Mono ─── */
-        .mono    { font-family: 'Courier New', monospace; }
-        .mono-sm { font-family: 'Courier New', monospace; font-size: 12px; color: var(--text-secondary); }
-        .date-sm { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
-
-        /* ─── Copy group ─── */
-        .copy-group { display: flex; gap: 8px; }
-        .copy-group input { flex: 1; }
-
-        /* ─── Modal ─── */
-        .modal-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-            display: none; align-items: center; justify-content: center;
-            z-index: 1000;
-        }
-        .modal-overlay.show { display: flex; }
-        .modal {
-            background: white; border-radius: 12px; padding: 32px;
-            width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto;
-        }
-        .modal h3 { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
-        .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
-
-        /* ════════════════════════════════════════════ */
-        /* OMS ORDERS SECTION                          */
-        /* ════════════════════════════════════════════ */
-
-        /* Filter bar — matches card-header layout */
-        .filter-bar {
-            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-        }
-        .filter-group {
-            display: flex; align-items: center; gap: 8px;
-        }
-        .filter-label {
-            font-size: 13px; font-weight: 500; color: var(--text-secondary); white-space: nowrap;
-        }
-        .filter-group .form-select {
-            padding: 8px 12px; font-size: 13px; width: auto; min-width: 140px;
-        }
-
-        /* Bulk action bar */
-        .bulk-bar {
-            display: none; align-items: center; gap: 16px;
-            padding: 12px 16px; margin-bottom: 16px;
-            background: var(--primary-light); border: 1px solid #bfdbfe;
-            border-radius: 8px; font-size: 14px;
-        }
-        .bulk-bar.show { display: flex; }
-        .bulk-bar-count { font-weight: 600; color: var(--primary); }
-        .bulk-bar-sep   { width: 1px; height: 20px; background: #bfdbfe; }
-
-        /* OMS stats row */
-        .oms-stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 12px; margin-bottom: 20px;
-        }
-        .oms-stat-card {
-            background: var(--bg-secondary); border: 1px solid var(--border);
-            border-radius: 8px; padding: 14px 16px; text-align: center;
-        }
-        .oms-stat-card .oms-stat-label {
-            font-size: 11px; font-weight: 600; text-transform: uppercase;
-            letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 6px;
-        }
-        .oms-stat-card .oms-stat-value {
-            font-size: 22px; font-weight: 700;
-        }
-        .oms-stat-card.s-pending  .oms-stat-value { color: var(--warning); }
-        .oms-stat-card.s-selected .oms-stat-value { color: var(--primary); }
-        .oms-stat-card.s-done     .oms-stat-value { color: var(--success); }
-        .oms-stat-card.s-updated  .oms-stat-value { color: var(--success); }
-        .oms-stat-card.s-error    .oms-stat-value { color: var(--danger);  }
-
-        /* OMS table cell helpers */
-        .order-link {
-            font-weight: 600; color: var(--primary); text-decoration: none; font-size: 14px;
-        }
-        .order-link:hover { text-decoration: underline; }
-
-        .cust-badge {
-            font-size: 12px; background: var(--bg-secondary);
-            padding: 2px 8px; border-radius: 5px; font-weight: 600;
-            font-family: 'Courier New', monospace;
-        }
-
-        .receiver-name     { font-size: 13px; font-weight: 500; }
-        .receiver-location { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
-
-        .money-cell        { font-size: 12px; line-height: 1.8; }
-        .money-cell strong { font-weight: 600; }
-        .money-profit      { color: var(--success); font-weight: 600; }
-        .money-loss        { color: var(--danger);  font-weight: 600; }
-
-        /* Pagination row */
-        .pagination {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 16px 0 0; margin-top: 8px; border-top: 1px solid var(--border);
-            flex-wrap: wrap; gap: 12px;
-        }
-        .pagination-info     { font-size: 13px; color: var(--text-secondary); }
-        .pagination-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-        .page-info           { font-size: 13px; font-weight: 500; }
-        .pagination-controls .page-btn {
-            min-width: 36px; padding: 6px 10px; border: 1px solid var(--border);
-            border-radius: 6px; font-size: 13px; font-weight: 500;
-            background: var(--bg-primary); color: var(--text-primary); cursor: pointer;
-        }
-        .pagination-controls .page-btn:hover:not(:disabled) { background: var(--bg-secondary); }
-        .pagination-controls .page-btn.active {
-            background: var(--primary); color: #fff; border-color: var(--primary); cursor: default;
-        }
-        .pagination-controls .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .pagination-controls .page-ellipsis {
-            padding: 6px 4px; color: var(--text-secondary); font-size: 13px; user-select: none;
-        }
-
-        /* ─── Responsive ─── */
-        @media (max-width: 1024px) {
-            :root { --sidebar-width: 0px; }
-            .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
-            .sidebar.open { transform: translateX(0); }
-            .header { left: 0; }
-            .main-content { margin-left: 0; width: 100%; }
-            .stats-grid { grid-template-columns: 1fr; }
-            .form-grid  { grid-template-columns: 1fr; }
-            .card-header { flex-direction: column; align-items: flex-start; gap: 12px; }
-            .card-actions { width: 100%; flex-wrap: wrap; }
-        }
-        @media (max-width: 768px) {
-            .header { padding: 0 16px; }
-            .main-content { padding: 16px; }
-            .filter-bar { flex-direction: column; align-items: flex-start; }
-            .oms-stats-grid { grid-template-columns: repeat(3, 1fr); }
-            .bulk-bar { flex-direction: column; align-items: flex-start; }
-        }
-    </style>
+    <link rel="stylesheet" href="/css/dashboard.css">
 </head>
 <body>
     <div class="app-container">
@@ -601,9 +182,9 @@
             <!-- Alert container -->
             <div id="alertContainer"></div>
 
-            <!-- ═══════════════════════════════════════ -->
+            <!-- ─────────────────────────────────────── -->
             <!-- ADMIN SECTIONS                         -->
-            <!-- ═══════════════════════════════════════ -->
+            <!-- ─────────────────────────────────────── -->
 
             <!-- Admin Overview -->
             <section id="admin-overview" class="content-section" data-role="admin">
@@ -671,257 +252,19 @@
                 </div>
             </section>
 
-            <!-- Admin: Customer List -->
+            <!-- Admin: Customer List — loaded from sections/admin-customers.html -->
             <section id="admin-customers" class="content-section" data-role="admin">
-                <div class="content-card">
-                    <div class="card-header">
-                        <div>
-                            <h2 class="card-title">API Customers</h2>
-                            <p class="card-subtitle">All registered API customers</p>
-                        </div>
-                        <div class="card-actions">
-                            <button class="btn" id="btnReloadCustomers">Reload</button>
-                            <button class="btn btn-primary" id="btnGoCreateCustomer">+ Create</button>
-                        </div>
-                    </div>
-                    <div id="loadingCustomers" class="loading">Loading...</div>
-                    <div class="table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Code</th>
-                                    <th>Name</th>
-                                    <th>Environment</th>
-                                    <th>Status</th>
-                                    <th>TG Phụ trách</th>
-                                    <th>TG Groups</th>
-                                    <th>Lark Groups</th>
-                                    <th>Created</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="customersTableBody"></tbody>
-                        </table>
-                    </div>
-                </div>
+                <div id="section-admin-customers-mount"></div>
             </section>
 
-            <!-- Admin: Create Customer -->
+            <!-- Admin: Create Customer — loaded from sections/admin-create-customer.html -->
             <section id="admin-create-customer" class="content-section" data-role="admin">
-                <div class="content-card">
-                    <div class="card-header">
-                        <div>
-                            <h2 class="card-title">Create API Customer</h2>
-                            <p class="card-subtitle">Create a new customer with portal access</p>
-                        </div>
-                    </div>
-                    <form id="createCustomerForm">
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label class="form-label required">Customer Code</label>
-                                <input type="text" class="form-input" id="formCustomerCode" required placeholder="CUS0001">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label required">Customer Name</label>
-                                <input type="text" class="form-input" id="formCustomerName" required placeholder="Company ABC">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Email</label>
-                                <input type="email" class="form-input" id="formEmail" placeholder="contact@example.com">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Phone</label>
-                                <input type="tel" class="form-input" id="formPhone" placeholder="+84 xxx xxx xxx">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label required">Environment</label>
-                                <select class="form-select" id="formEnvironment">
-                                    <option value="production">Production</option>
-                                    <option value="sandbox">Sandbox</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Rate Limit (Hourly)</label>
-                                <input type="number" class="form-input" id="formRateLimitHourly" value="6000">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Rate Limit (Daily)</label>
-                                <input type="number" class="form-input" id="formRateLimitDaily" value="10000">
-                            </div>
-                        </div>
-
-                        <div style="margin-bottom:24px;">
-                            <label class="form-label" style="margin-bottom:12px;">Features</label>
-                            <div style="display:flex;gap:24px;flex-wrap:wrap;">
-                                <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
-                                    <input type="checkbox" id="formWebhookEnabled" style="accent-color:var(--primary);width:16px;height:16px;">
-                                    Webhook Enabled
-                                </label>
-                                <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
-                                    <input type="checkbox" id="formBulkOrderEnabled" style="accent-color:var(--primary);width:16px;height:16px;">
-                                    Bulk Order Enabled
-                                </label>
-                            </div>
-                        </div>
-
-                        <div style="border-top:1px solid var(--border);margin-bottom:24px;padding-top:20px;">
-                            <label class="form-label" style="margin-bottom:4px;font-weight:600;">OMS Integration</label>
-                            <p style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;">OAuth2 client credentials cho hệ thống OMS của khách hàng. Có thể bỏ trống và cấu hình sau ở trang chi tiết.</p>
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label class="form-label">OMS Realm</label>
-                                    <input type="text" class="form-input" id="formOmsRealm" placeholder="vd: customer-realm">
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">OMS Client ID</label>
-                                    <input type="text" class="form-input" id="formOmsClientId" placeholder="OAuth client_id">
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">OMS Client Secret</label>
-                                    <input type="password" class="form-input" id="formOmsClientSecret" placeholder="OAuth client_secret" autocomplete="new-password">
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">OMS URL Auth</label>
-                                    <input type="url" class="form-input" id="formOmsUrlAuth" placeholder="https://oms.example.com/oauth/token">
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">OMS URL API</label>
-                                    <input type="url" class="form-input" id="formOmsUrlApi" placeholder="https://oms.example.com/api">
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Shipping Markup (%)</label>
-                                    <input type="number" class="form-input" id="formShippingMarkupPercent" min="0" max="100" step="0.01" value="0" placeholder="0.00">
-                                </div>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary">+ Create Customer</button>
-                    </form>
-
-                    <div id="createSuccessResult" class="hidden" style="margin-top:20px;padding:20px;background:var(--success-light);border:1px solid #a7f3d0;border-radius:8px;">
-                        <div style="font-size:14px;font-weight:600;color:#065f46;margin-bottom:12px;">Customer created successfully!</div>
-                        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#065f46;">
-                            <div>Customer Code: <strong id="resultCustomerCode"></strong></div>
-                            <div style="background:white;border:1px solid #a7f3d0;border-radius:6px;padding:12px;margin-top:4px;">
-                                <div style="font-size:12px;font-weight:600;color:#92400e;margin-bottom:6px;">Portal Password (copy now — shown only once)</div>
-                                <div style="display:flex;align-items:center;gap:8px;">
-                                    <code id="resultPortalPassword" style="font-family:'Courier New',monospace;font-size:15px;font-weight:700;letter-spacing:1px;flex:1;word-break:break-all;"></code>
-                                    <button class="btn btn-sm" id="btnCopyPortalPw" type="button">Copy</button>
-                                </div>
-                            </div>
-                            <p style="font-size:12px;color:var(--text-secondary);margin-top:4px;">API Credentials can be generated from the customer detail page.</p>
-                        </div>
-                        <a id="resultViewLink" href="#" class="btn btn-sm btn-primary" style="margin-top:12px;">View Customer</a>
-                    </div>
-                </div>
+                <div id="section-admin-create-customer-mount"></div>
             </section>
 
-            <!-- ════════════════════════════════════════ -->
-            <!-- Admin: OMS Orders                       -->
-            <!-- ════════════════════════════════════════ -->
+            <!-- Admin: OMS Orders — loaded from sections/admin-oms-orders.html -->
             <section id="admin-oms-orders" class="content-section" data-role="admin">
-                <div class="content-card">
-                    <div class="card-header">
-                        <div>
-                            <h2 class="card-title">OMS Orders</h2>
-                            <p class="card-subtitle">Outbound request management — pull from customer OMS, buy ITC labels, push tracking back</p>
-                        </div>
-                    </div>
-                    <div class="card-header">
-                        <div class="filter-bar">
-                            <div class="filter-group">
-                                <span class="filter-label">Customer</span>
-                                <select class="form-select" id="filterCustomer">
-                                    <option value="">All</option>
-                                </select>
-                            </div>
-                            <div class="filter-group">
-                                <span class="filter-label">Status</span>
-                                <select class="form-select" id="filterStatus">
-                                    <option value="">All</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="selected">Selected</option>
-                                    <option value="label_purchasing">Label Purchasing</option>
-                                    <option value="label_purchased">Label Purchased</option>
-                                    <option value="oms_updated">OMS Updated</option>
-                                    <option value="shipped">Shipped</option>
-                                    <option value="delivered">Delivered</option>
-                                    <option value="cancelled">Cancelled</option>
-                                    <option value="failed">Failed</option>
-                                    <option value="error">Error</option>
-                                </select>
-                            </div>
-                            <button class="btn btn-sm" id="refreshBtn">&#x21BB; Refresh</button>
-                        </div>
-                    </div>
-
-                    <!-- Mini stats -->
-                    <div class="oms-stats-grid" style="display: none;">
-                        <div class="oms-stat-card s-pending">
-                            <div class="oms-stat-label">Pending</div>
-                            <div class="oms-stat-value" id="statPending">—</div>
-                        </div>
-                        <div class="oms-stat-card s-selected">
-                            <div class="oms-stat-label">Selected</div>
-                            <div class="oms-stat-value" id="statSelected">—</div>
-                        </div>
-                        <div class="oms-stat-card s-done">
-                            <div class="oms-stat-label">Label Bought</div>
-                            <div class="oms-stat-value" id="statLabelPurchased">—</div>
-                        </div>
-                        <div class="oms-stat-card s-updated">
-                            <div class="oms-stat-label">OMS Updated</div>
-                            <div class="oms-stat-value" id="statOmsUpdated">—</div>
-                        </div>
-                        <div class="oms-stat-card s-error">
-                            <div class="oms-stat-label">Error</div>
-                            <div class="oms-stat-value" id="statError">—</div>
-                        </div>
-                    </div>
-
-                    <!-- Bulk bar -->
-                    <div id="bulkBar" class="bulk-bar">
-                        <span class="bulk-bar-count"><span id="selCount">0</span> orders selected</span>
-                        <span class="bulk-bar-sep"></span>
-                        <button class="btn btn-success btn-sm" id="bulkCreateLabelBtn" title="Tạo label cho các đơn đã chọn (chỉ áp dụng đơn đủ điều kiện)">&#x1F3F7; Tạo label</button>
-                        <button class="btn btn-primary btn-sm" id="bulkDownloadLabelBtn" title="Tải label dạng PDF gộp (chỉ đơn có tracking + label)">&#x2B07; Tải xuống label</button>
-                    </div>
-
-                    <!-- Table -->
-                    <div class="table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th><input type="checkbox" id="selectAll" title="Select all"></th>
-                                    <th>Order #</th>
-                                    <th style="min-width: 150px;">Customer</th>
-                                    <th style="min-width: 150px;">OMS Order ID</th>
-                                    <th style="min-width: 150px;">Status</th>
-                                    <th>Tracking</th>
-                                    <th style="min-width: 150px;">Receiver</th>
-                                    <th style="min-width: 150px;">Cost / Sell / Profit</th>
-                                    <th>Created</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="orderRows"></tbody>
-                        </table>
-                    </div>
-
-                    <!-- Empty state -->
-                    <div id="emptyState" class="empty-state" style="display:none;">
-                        <div class="empty-icon">&#x1F69A;</div>
-                        <div class="empty-title">No OMS orders found</div>
-                        <p>No orders match the current filters.</p>
-                    </div>
-
-                    <!-- Pagination -->
-                    <div class="pagination">
-                        <span class="pagination-info" id="paginationInfo">—</span>
-                        <div class="pagination-controls" id="omsPagination"></div>
-                    </div>
-                </div>
+                <div id="section-admin-oms-orders-mount"></div>
             </section>
 
             <!-- Admin: Internal Tools -->
@@ -962,156 +305,30 @@
                 </div>
             </section>
 
-            <!-- ═══════════════════════════════════════ -->
+            <!-- ─────────────────────────────────────── -->
             <!-- CLIENT SECTIONS                        -->
-            <!-- ═══════════════════════════════════════ -->
+            <!-- ─────────────────────────────────────── -->
 
-            <!-- Client: Account Overview -->
+            <!-- Client: Account Overview — loaded from sections/client-overview.html -->
             <section id="client-overview" class="content-section" data-role="customer">
-                <div class="content-card">
-                    <div class="card-header">
-                        <div>
-                            <h2 class="card-title">Account Information</h2>
-                            <p class="card-subtitle">Your account details (read-only)</p>
-                        </div>
-                    </div>
-                    <div class="info-box" id="clientInfoBox">
-                        <div class="info-row">
-                            <span class="info-label">Customer Code</span>
-                            <span class="info-value" id="infoCustomerCode">-</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Customer Name</span>
-                            <span class="info-value" id="infoCustomerName">-</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Email</span>
-                            <span class="info-value" id="infoEmail">-</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Phone</span>
-                            <span class="info-value" id="infoPhone">-</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Environment</span>
-                            <span class="info-value" id="infoEnvironment">-</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Status</span>
-                            <span class="info-value" id="infoStatus">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Change Password -->
-                <div class="content-card">
-                    <div class="card-header">
-                        <div>
-                            <h2 class="card-title">Change Password</h2>
-                            <p class="card-subtitle">Update your portal login password</p>
-                        </div>
-                    </div>
-                    <div style="max-width:400px;">
-                        <div class="form-group">
-                            <label class="form-label">Current Password</label>
-                            <input type="password" class="form-input" id="changePwCurrent" placeholder="Enter current password">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">New Password</label>
-                            <input type="password" class="form-input" id="changePwNew" placeholder="Min 6 characters">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Confirm New Password</label>
-                            <input type="password" class="form-input" id="changePwConfirm" placeholder="Re-enter new password">
-                        </div>
-                        <button class="btn btn-primary" id="btnChangePassword">Change Password</button>
-                    </div>
-                </div>
+                <div id="section-client-overview-mount"></div>
             </section>
 
-            <!-- Client: API Credentials -->
+            <!-- Client: API Credentials — loaded from sections/client-credentials.html -->
             <section id="client-credentials" class="content-section" data-role="customer">
-                <div class="content-card">
-                    <div class="card-header">
-                        <div>
-                            <h2 class="card-title">API Credentials</h2>
-                            <p class="card-subtitle">Your Client ID and Secret Key</p>
-                        </div>
-                    </div>
-
-                    <div id="credentialsDisabledNotice" class="hidden" style="padding:32px 20px;text-align:center;">
-                        <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">Feature Not Activated</div>
-                        <p style="font-size:14px;color:var(--text-secondary);">API access has not been enabled for your account. Please contact the administrator to activate this feature.</p>
-                    </div>
-
-                    <div id="credentialsContent" style="padding:4px 0;">
-                        <div style="background:var(--warning-light);border:1px solid #fbbf24;padding:16px;border-radius:8px;margin-bottom:20px;">
-                            <div style="display:flex;align-items:start;gap:12px;">
-                                <div style="font-size:20px;">&#x26A0;</div>
-                                <div style="font-size:13px;color:#92400e;">
-                                    <strong>Note:</strong> Secret key is shown only once when generated. Please store it securely.
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label" style="font-weight:600;">Client ID</label>
-                            <div class="copy-group">
-                                <input type="text" class="form-input mono" id="credClientId" readonly>
-                                <button class="btn" id="btnCopyClientId">Copy</button>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label" style="font-weight:600;">Secret Key</label>
-                            <div class="copy-group">
-                                <input type="password" class="form-input mono" id="credClientSecret" readonly value="********">
-                                <button class="btn hidden" id="btnCopySecret">Copy</button>
-                                <button class="btn" id="btnShowSecret">Show</button>
-                            </div>
-                            <p id="credSecretMessage" style="margin-top:8px;font-size:13px;color:var(--text-secondary);font-style:italic;"></p>
-                        </div>
-
-                        <button class="btn btn-danger" id="btnResetSecret" style="margin-top:16px;">Reset Secret Key</button>
-
-                        <div id="newSecretBox" class="hidden" style="margin-top:16px;padding:16px;background:#f0fdf4;border:1px solid #10b981;border-radius:8px;">
-                            <div style="font-size:14px;font-weight:600;margin-bottom:8px;color:#065f46;">New Secret Key (Save now!)</div>
-                            <div class="copy-group">
-                                <input type="text" class="form-input mono" id="newSecretValue" readonly>
-                                <button class="btn" id="btnCopyNewSecret">Copy</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <div id="section-client-credentials-mount"></div>
             </section>
 
-            <!-- Client: Webhooks -->
+            <!-- Client: Webhooks — loaded from sections/client-webhooks.html -->
             <section id="client-webhooks" class="content-section" data-role="customer">
-                <div class="content-card">
-                    <div class="card-header">
-                        <div>
-                            <h2 class="card-title">Webhooks</h2>
-                            <p class="card-subtitle">Register URLs to receive automatic notifications</p>
-                        </div>
-                        <button class="btn btn-primary" id="btnAddWebhook">+ Add Webhook</button>
-                    </div>
-
-                    <div id="webhookDisabledNotice" class="hidden" style="padding:32px 20px;text-align:center;">
-                        <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">Feature Not Activated</div>
-                        <p style="font-size:14px;color:var(--text-secondary);">Webhook feature has not been enabled for your account. Please contact the administrator to activate this feature.</p>
-                    </div>
-
-                    <div id="webhooksContainer">
-                        <div class="loading show">Loading...</div>
-                    </div>
-                </div>
+                <div id="section-client-webhooks-mount"></div>
             </section>
 
-            <!-- ═══════════════════════════════════════ -->
+            <!-- ─────────────────────────────────────── -->
             <!-- SHARED SECTIONS                        -->
-            <!-- ═══════════════════════════════════════ -->
+            <!-- ─────────────────────────────────────── -->
 
-            <!-- API Docs (iframe) -->
+            <!-- API Docs -->
             <section id="api-docs" class="content-section">
                 <div class="content-card" style="padding:0;overflow:hidden;">
                     <iframe id="docsIframe" src="/extensions/api-docs" style="width:100%;border:none;min-height:calc(100vh - 160px);"></iframe>
@@ -1141,7 +358,8 @@
         </main>
     </div>
 
-    <!-- Webhook Modal -->
+    <!-- ─── Shared Modals ─── -->
+    <!-- Webhook Add Modal -->
     <div class="modal-overlay" id="webhookModal">
         <div class="modal">
             <h3>Add Webhook</h3>
@@ -1188,6 +406,11 @@
         </div>
     </div>
 
-    <script src="/js/dashboard.js?2024"></script>
+    <!-- Scripts — core first, then section modules -->
+    <script src="/js/dashboard.core.js?v=2028"></script>
+    <script src="/js/sections/customers.js?v=2028"></script>
+    <script src="/js/sections/oms-orders.js?v=2028"></script>
+    <script src="/js/sections/client-portal.js?v=2028"></script>
+    <script src="/js/dashboard.init.js?v=2028"></script>
 </body>
 </html>

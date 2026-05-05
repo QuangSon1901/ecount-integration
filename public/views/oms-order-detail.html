@@ -779,8 +779,8 @@
                             <span class="info-value mono" id="vDimensions">—</span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">Shipping Partner</span>
-                            <span class="info-value" id="vShippingPartner">—</span>
+                            <span class="info-label">Shipping Service</span>
+                            <span class="info-value" id="vOmsShippingService">—</span>
                         </div>
                         <div class="info-item">
                             <span class="info-label">Address Index</span>
@@ -795,16 +795,6 @@
                 <!-- Edit view — weight/dims removed; auto-computed from items -->
                 <div class="panel-body hidden" id="packageEdit">
                     <div class="form-grid-4" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
-                        <div class="form-field">
-                            <label>Shipping Partner <span class="req">*</span></label>
-                            <select class="form-select" id="routeShippingPartner">
-                                <option value="">— select —</option>
-                                <option value="USPS">USPS</option>
-                                <option value="UPS">UPS</option>
-                                <option value="FEDEX">FedEx</option>
-                                <option value="DHL">DHL</option>
-                            </select>
-                        </div>
                         <div class="form-field">
                             <label>Address Index</label>
                             <input class="form-input" id="addressIndex" type="number" min="0" step="1" placeholder="0">
@@ -1091,6 +1081,6 @@
     </div>
 </div>
 
-<script src="/js/oms-order-detail.js?v=2146"></script>
+<script src="/js/oms-order-detail.js?v=2153"></script>
 </body>
 </html>

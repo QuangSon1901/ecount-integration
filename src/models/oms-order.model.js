@@ -24,7 +24,9 @@ const EDITABLE_COLUMNS = [
 ];
 
 const ALWAYS_REFRESHED_COLUMNS = [
-    'oms_order_number', 'oms_status', 'oms_created_at', 'oms_updated_at',
+    'oms_order_number', 'oms_status',
+    'oms_shipping_service_name', 'oms_shipping_partner',
+    'oms_created_at', 'oms_updated_at',
     'raw_data', 'last_oms_synced_at',
 ];
 
@@ -123,18 +125,21 @@ class OmsOrderModel {
             const [result] = await conn.query(
                 `INSERT INTO oms_orders (
                     order_number, customer_id, customer_order_number, platform_order_number,
-                    oms_order_id, oms_order_number, oms_status, oms_created_at, oms_updated_at, last_oms_synced_at,
+                    oms_order_id, oms_order_number, oms_status, 
+                    oms_shipping_service_name, oms_shipping_partner, 
+                    oms_created_at, oms_updated_at, last_oms_synced_at,
                     receiver_name, receiver_phone, receiver_email, receiver_country, receiver_state, receiver_city,
                     receiver_postal_code, receiver_address_line1, receiver_address_line2,
                     package_weight, package_length, package_width, package_height, weight_unit, size_unit,
                     declared_value, declared_currency, items,
                     internal_status,
                     raw_data
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     payload.order_number, payload.customer_id,
                     payload.customer_order_number || null, payload.platform_order_number || null,
                     payload.oms_order_id, payload.oms_order_number || null, payload.oms_status || null,
+                    payload.oms_shipping_service_name || null, payload.oms_shipping_partner ?? null,
                     payload.oms_created_at || null, payload.oms_updated_at || null, payload.last_oms_synced_at || new Date(),
                     payload.receiver_name || null, payload.receiver_phone || null, payload.receiver_email || null,
                     payload.receiver_country || null, payload.receiver_state || null, payload.receiver_city || null,
@@ -169,6 +174,8 @@ class OmsOrderModel {
 
             fields.push('oms_order_number = ?'); values.push(payload.oms_order_number || null);
             fields.push('oms_status = ?');       values.push(payload.oms_status || null);
+            fields.push('oms_shipping_service_name = ?'); values.push(payload.oms_shipping_service_name || null);
+            fields.push('oms_shipping_partner = ?');      values.push(payload.oms_shipping_partner ?? null);
             fields.push('oms_created_at = ?');   values.push(payload.oms_created_at || null);
             fields.push('oms_updated_at = ?');   values.push(payload.oms_updated_at || null);
             fields.push('last_oms_synced_at = ?'); values.push(payload.last_oms_synced_at || new Date());

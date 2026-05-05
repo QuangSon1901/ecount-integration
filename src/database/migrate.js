@@ -1275,6 +1275,20 @@ const migrations = [
                 ADD INDEX idx_oms_tracking_poll (last_tracking_check_at, internal_status, tracking_number(50))
                     COMMENT 'Used by oms-fetch-tracking cron for the polling sweep';
         `
+    },
+    {
+        version: 49,
+        name: 'add_shipping_service_to_oms_orders',
+        up: `
+            ALTER TABLE oms_orders
+                ADD COLUMN oms_shipping_service_name VARCHAR(100) NULL
+                    COMMENT 'shippingServiceName từ OMS detail API (Standard USPS, Priority USPS...)'
+                    AFTER oms_status,
+                ADD COLUMN oms_shipping_partner ENUM('USPS-LABEL', 'USPS-PRIORITY-LABEL') NULL
+                    COMMENT 'Shipping partner mapped từ shippingServiceName — NULL nếu không mua qua ITC'
+                    AFTER oms_shipping_service_name,
+                ADD INDEX idx_oms_shipping_partner (oms_shipping_partner);
+        `
     }
 
 ];

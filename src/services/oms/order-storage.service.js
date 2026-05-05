@@ -67,6 +67,8 @@ class OmsOrderStorageService {
 
             declared_value: normalized.declaredValue ?? null,
             declared_currency: normalized.declaredCurrency || 'USD',
+            oms_shipping_service_name: normalized.shippingServiceName || null,
+            oms_shipping_partner:      normalized.shippingPartner     ?? null,
             items: Array.isArray(normalized.items) ? normalized.items : null,
 
             // raw_data: store the FULL normalized object (which itself contains .raw)

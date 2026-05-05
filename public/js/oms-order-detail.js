@@ -159,11 +159,10 @@ function render(row) {
         ? `${row.package_length} × ${row.package_width} × ${row.package_height}`
         : '—';
     setText('vDimensions', dim);
-    setText('vShippingPartner', row.route_shipping_partner);
+    setText('vOmsShippingService', row.oms_shipping_service_name || '—');
     setText('vAddressIndex', row.address_index != null ? row.address_index : '—');
 
     // ─── Package (edit) — only partner + addressIndex; weight/dims are auto ──
-    setVal('routeShippingPartner', row.route_shipping_partner);
     setVal('addressIndex', row.address_index);
 
     // ─── Items table ───────────────────────────────────────────────────────
@@ -259,7 +258,7 @@ function buildItcPayload(row) {
         order_height: Number(row.package_height || 0),
         order_length: Number(row.package_length || 0),
         order_width: Number(row.package_width || 0),
-        route_shipping_partner: row.route_shipping_partner || '',
+        route_shipping_partner: row.oms_shipping_partner || '',
         taxNumber: row.receiver_tax_number || '',
         addressIndex: row.address_index != null ? Number(row.address_index) : 0,
         items,

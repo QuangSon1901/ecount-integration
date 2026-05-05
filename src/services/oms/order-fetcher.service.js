@@ -408,6 +408,7 @@ class OmsOrderFetcherService {
             // Shipping service (detail only)
             shippingServiceId:   d.shippingServiceId   ?? null,
             shippingServiceName: d.shippingServiceName || null,
+            shippingPartner:     this._mapShippingPartner(d.shippingServiceName),
             shippingType:        d.shippingType        ?? a.shippingType ?? null,
             cutOffTime:          d.cutOffTime          || null,
 
@@ -528,6 +529,17 @@ class OmsOrderFetcherService {
         }
 
         return { items: [], hasNext: false };
+    }
+
+    _mapShippingPartner(serviceName) {
+        if (!serviceName) return null;
+        const lower = serviceName.toLowerCase().trim();
+        const MAP = {
+            'standard usps':  'USPS-LABEL',
+            'priority usps':  'USPS-PRIORITY-LABEL',
+            // 'standard' và 'ups ground' → null (không mua qua ITC)
+        };
+        return MAP[lower] ?? null;
     }
 }
 

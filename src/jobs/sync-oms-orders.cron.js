@@ -40,6 +40,7 @@ class SyncOmsOrdersCron {
     }
 
     start() {
+        this.run();
         cron.schedule(this.schedule, async () => {
             if (this.isRunning) {
                 logger.warn('[OMS-SYNC] previous run still in progress, skipping');

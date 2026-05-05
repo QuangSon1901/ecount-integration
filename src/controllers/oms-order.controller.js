@@ -386,6 +386,8 @@ class OmsOrderController {
                                     ? (row.internal_status_note || null)
                                     : null,
             oms_status:           row.oms_status,
+            oms_shipping_service_name: row.oms_shipping_service_name || null,
+            oms_shipping_partner:      row.oms_shipping_partner      || null,
 
             // ─── Receiver ───────────────────────────────────────────
             receiver_name:        row.receiver_name,
