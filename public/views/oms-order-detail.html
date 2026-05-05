@@ -38,7 +38,7 @@
 
         html, body { height: 100%; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Geist', 'DM Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
             background: var(--bg-app);
             color: var(--text-primary);
             font-size: 13px;
@@ -56,27 +56,22 @@
             position: sticky; top: 0; z-index: 50;
             height: 44px;
         }
-        .topbar-left {
-            display: flex; align-items: center; gap: 14px;
-        }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
         .topbar-brand {
             font-weight: 800; font-size: 13px;
-            letter-spacing: 1.2px;
-            color: var(--text-primary);
+            letter-spacing: 1.2px; color: var(--text-primary);
         }
         .topbar-brand small {
             font-size: 8px; display: block; line-height: 1;
             color: var(--text-secondary); font-weight: 600; letter-spacing: 2px;
         }
         .topbar-crumbs {
-            display: flex; align-items: center; gap: 6px;
-            font-size: 12px;
+            display: flex; align-items: center; gap: 6px; font-size: 12px;
         }
         .topbar-crumbs a { color: var(--text-secondary); text-decoration: none; }
         .topbar-crumbs a:hover { color: var(--primary); }
         .topbar-crumbs .sep { color: var(--text-muted); }
         .topbar-crumbs .current { color: var(--text-primary); font-weight: 600; }
-
         .topbar-right {
             display: flex; align-items: center; gap: 12px;
             font-size: 11px; color: var(--text-secondary);
@@ -94,44 +89,29 @@
         }
 
         /* ─── Page Layout ─── */
-        .page {
-            padding: 10px 14px;
-            max-width: 1600px;
-            margin: 0 auto;
-        }
+        .page { padding: 10px 14px; max-width: 1600px; margin: 0 auto; }
 
-        /* Page header (title + action bar) */
         .page-head {
             background: var(--bg-panel);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 8px 14px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            margin-bottom: 10px;
-            flex-wrap: wrap;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 10px; margin-bottom: 10px; flex-wrap: wrap;
         }
-        .page-head-left {
-            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-        }
-        .page-head h1 {
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--text-link);
-        }
+        .page-head-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .page-head h1 { font-size: 14px; font-weight: 700; color: var(--text-link); }
         .page-head-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
-        /* Main grid */
+        /* 3-column layout: edit | info | meta */
         .layout {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 280px;
+            grid-template-columns: minmax(0, 1fr) 300px 260px;
             gap: 10px;
             align-items: start;
         }
 
-        /* ─── Cards / Panels ─── */
+        /* ─── Panels ─── */
         .panel {
             background: var(--bg-panel);
             border: 1px solid var(--border);
@@ -141,67 +121,84 @@
         }
         .panel-body { padding: 12px 14px; }
         .panel-body.compact { padding: 8px 14px; }
-
         .panel-head {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 6px 14px;
-            border-bottom: 1px solid var(--border);
-            background: var(--bg-muted);
-            gap: 10px;
+            padding: 6px 14px; border-bottom: 1px solid var(--border);
+            background: var(--bg-muted); gap: 10px;
         }
         .panel-head h3 {
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--text-link);
-            text-transform: uppercase;
-            letter-spacing: .6px;
+            font-size: 11px; font-weight: 700; color: var(--text-link);
+            text-transform: uppercase; letter-spacing: .6px;
+            display: flex; align-items: center; gap: 6px;
         }
         .panel-head-actions { display: flex; gap: 6px; align-items: center; }
 
-        /* ─── Side panel ─── */
-        .side-section {
+        /* ─── Info column panels ─── */
+        .info-panel {
             background: var(--bg-panel);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             margin-bottom: 10px;
             overflow: hidden;
         }
+        .info-panel-head {
+            padding: 6px 12px; border-bottom: 1px solid var(--border);
+            background: var(--bg-muted);
+            font-size: 10px; font-weight: 700; color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: .8px;
+            display: flex; align-items: center; justify-content: space-between; gap: 6px;
+        }
+        .info-panel-head-left { display: flex; align-items: center; gap: 6px; }
+        .info-panel-body { padding: 4px 12px 8px; }
+
+        .info-row {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            padding: 5px 0; font-size: 12px; gap: 8px;
+            border-bottom: 1px solid var(--bg-muted);
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-row .lbl { color: var(--text-secondary); flex-shrink: 0; font-size: 11px; }
+        .info-row .val {
+            color: var(--text-primary); font-weight: 500;
+            text-align: right; word-break: break-word; max-width: 160px;
+        }
+        .info-row .val.mono {
+            font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 11px;
+        }
+        .info-row .val.muted { color: var(--text-muted); font-style: italic; }
+
+        /* ─── Side panel (meta) ─── */
+        .side-section {
+            background: var(--bg-panel); border: 1px solid var(--border);
+            border-radius: var(--radius); margin-bottom: 10px; overflow: hidden;
+        }
         .side-head {
-            padding: 6px 12px;
-            border-bottom: 1px solid var(--border);
+            padding: 6px 12px; border-bottom: 1px solid var(--border);
             background: var(--bg-muted);
             display: flex; justify-content: space-between; align-items: center;
         }
         .side-head h3 {
             font-size: 11px; font-weight: 700; color: var(--text-link);
             text-transform: uppercase; letter-spacing: .6px;
+            display: flex; align-items: center; gap: 6px;
         }
         .side-body { padding: 4px 12px 8px; }
-
         .side-row {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 4px 0;
-            font-size: 12px;
-            gap: 8px;
+            padding: 4px 0; font-size: 12px; gap: 8px;
             border-bottom: 1px solid var(--bg-muted);
         }
         .side-row:last-child { border-bottom: none; }
-        .side-row .label {
-            color: var(--text-secondary); flex-shrink: 0;
-        }
+        .side-row .label { color: var(--text-secondary); flex-shrink: 0; }
         .side-row .value {
             color: var(--text-primary); font-weight: 500;
             text-align: right; word-break: break-word;
         }
-        .side-row .value.muted { color: var(--text-muted); }
-        .side-row .value.mono {
-            font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px;
-        }
+        .side-row .value.mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
 
-        /* ─── Order code header (sidebar top) ─── */
+        /* ─── Order code card ─── */
         .order-code-card {
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--border);
+            padding: 10px 12px; border-bottom: 1px solid var(--border);
             background: linear-gradient(135deg, var(--primary-light) 0%, #ffffff 100%);
         }
         .order-code-card .order-label {
@@ -210,17 +207,16 @@
             margin-bottom: 2px; font-weight: 600;
         }
         .order-code-card .order-row {
-            display: flex; align-items: center; justify-content: space-between;
-            gap: 8px;
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
         }
         .order-code-card .code {
             font-size: 15px; font-weight: 700; color: var(--text-link);
-            font-family: 'SF Mono', Menlo, Consolas, monospace;
-            letter-spacing: -.3px;
+            font-family: 'SF Mono', Menlo, Consolas, monospace; letter-spacing: -.3px;
         }
         .order-code-card .copy-icon {
             color: var(--text-muted); cursor: pointer; padding: 2px;
-            background: none; border: none; font-size: 13px;
+            background: none; border: none;
+            display: flex; align-items: center;
         }
         .order-code-card .copy-icon:hover { color: var(--primary); }
         .order-code-card .status-row {
@@ -235,68 +231,42 @@
         /* ─── Tables ─── */
         .table-wrap { overflow-x: auto; }
         table.data {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
+            width: 100%; border-collapse: collapse; font-size: 12px;
         }
         table.data th, table.data td {
-            padding: 7px 10px;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-            vertical-align: middle;
+            padding: 7px 10px; text-align: left;
+            border-bottom: 1px solid var(--border); vertical-align: middle;
         }
         table.data thead th {
-            background: var(--bg-table-head);
-            color: var(--text-secondary);
-            font-weight: 600;
-            font-size: 11px;
-            border-bottom: 1px solid var(--border);
-            white-space: nowrap;
+            background: var(--bg-table-head); color: var(--text-secondary);
+            font-weight: 600; font-size: 11px; border-bottom: 1px solid var(--border); white-space: nowrap;
         }
         table.data tbody tr:last-child td { border-bottom: none; }
         table.data tbody tr:hover td { background: var(--bg-muted); }
         table.data .text-right { text-align: right; }
         table.data .text-center { text-align: center; }
-        table.data .product-name {
-            color: var(--text-link); font-weight: 600;
-            margin-bottom: 1px;
-        }
+        table.data .product-name { color: var(--text-link); font-weight: 600; margin-bottom: 1px; }
         table.data .product-meta,
-        table.data .product-desc {
-            font-size: 11px; color: var(--text-secondary); line-height: 1.4;
-        }
+        table.data .product-desc { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
         table.data .product-dims {
             font-size: 10px; color: var(--text-muted);
-            font-family: 'SF Mono', Menlo, Consolas, monospace;
-            margin-top: 1px;
+            font-family: 'SF Mono', Menlo, Consolas, monospace; margin-top: 1px;
         }
-        table.data .total-row td {
-            background: var(--bg-muted); font-weight: 600;
-        }
+        table.data .total-row td { background: var(--bg-muted); font-weight: 600; }
 
         /* Items edit table */
-        table.items-edit {
-            width: 100%; border-collapse: collapse; font-size: 13px;
-        }
+        table.items-edit { width: 100%; border-collapse: collapse; font-size: 13px; }
         table.items-edit th, table.items-edit td {
-            padding: 6px 8px;
-            border-bottom: 1px solid var(--border);
-            vertical-align: middle;
+            padding: 6px 2px; border-bottom: 1px solid var(--border); vertical-align: middle;
         }
         table.items-edit thead th {
-            background: var(--bg-table-head);
-            font-weight: 600; font-size: 11px;
-            color: var(--text-secondary);
-            text-transform: uppercase; letter-spacing: .5px;
-            text-align: left;
-            white-space: nowrap;
+            background: var(--bg-table-head); font-weight: 600; font-size: 11px;
+            color: var(--text-secondary); text-transform: uppercase; letter-spacing: .5px;
+            text-align: left; white-space: nowrap;
         }
         table.items-edit input {
-            width: 100%; padding: 5px 7px;
-            border: 1px solid var(--border);
-            border-radius: 4px; font-size: 12px;
-            background: var(--bg-panel);
-            font-family: inherit;
+            width: 100%; padding: 5px 7px; border: 1px solid var(--border);
+            border-radius: 4px; font-size: 12px; background: var(--bg-panel); font-family: inherit;
         }
         table.items-edit input:focus {
             outline: none; border-color: var(--primary);
@@ -308,61 +278,39 @@
         table.items-edit .col-action { width: 32px; text-align: center; }
         table.items-edit .btn-remove {
             background: none; border: none; color: var(--danger);
-            cursor: pointer; padding: 4px 6px; font-size: 14px;
-            border-radius: 4px;
+            cursor: pointer; padding: 4px 6px; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
         }
         table.items-edit .btn-remove:hover { background: var(--danger-light); }
 
         /* ─── Buttons ─── */
         .btn {
             display: inline-flex; align-items: center; gap: 5px;
-            padding: 5px 11px;
-            border: 1px solid var(--border-strong);
-            border-radius: var(--radius);
-            font-size: 11px; font-weight: 600;
-            text-transform: uppercase; letter-spacing: .4px;
-            cursor: pointer;
-            background: var(--bg-panel);
-            color: var(--text-primary);
-            transition: all .15s;
-            white-space: nowrap;
-            font-family: inherit;
-            text-decoration: none;
+            padding: 5px 11px; border: 1px solid var(--border-strong);
+            border-radius: var(--radius); font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: .4px; cursor: pointer;
+            background: var(--bg-panel); color: var(--text-primary);
+            transition: all .15s; white-space: nowrap; font-family: inherit; text-decoration: none;
         }
         .btn:hover { background: var(--bg-muted); }
         .btn:disabled { opacity: .5; cursor: not-allowed; pointer-events: none; }
-
         .btn-sm { padding: 3px 8px; font-size: 11px; }
-
         .btn-primary  { background: var(--primary); color: white; border-color: var(--primary); }
         .btn-primary:hover  { background: var(--primary-dark); }
         .btn-success  { background: var(--success); color: white; border-color: var(--success); }
         .btn-success:hover  { background: #059669; }
         .btn-danger   { background: var(--danger); color: white; border-color: var(--danger); }
         .btn-danger:hover   { background: #dc2626; }
-        .btn-ghost    { background: transparent; }
-
-        .btn-icon {
-            padding: 0 10px;
-            width: unset; height: 30px;
-            justify-content: center;
-            background: var(--primary); color: white; border-color: var(--primary);
-            border-radius: 6px;
-            font-size: 14px;
-        }
-        .btn-icon:hover { background: var(--primary-dark); }
-        .btn-icon.ghost {
+        .btn-ghost    {
             background: var(--bg-panel); color: var(--text-secondary);
             border-color: var(--border-strong);
         }
-        .btn-icon.ghost:hover { background: var(--bg-muted); color: var(--primary); }
+        .btn-ghost:hover { background: var(--bg-muted); color: var(--primary); }
 
         /* ─── Badges ─── */
         .badge {
-            display: inline-block; padding: 3px 10px;
-            border-radius: 4px;
-            font-size: 11px; font-weight: 600;
-            text-transform: capitalize;
+            display: inline-block; padding: 3px 10px; border-radius: 4px;
+            font-size: 11px; font-weight: 600; text-transform: capitalize;
         }
         .badge-new              { background: var(--success); color: white; }
         .badge-pending          { background: #fef3c7; color: #92400e; }
@@ -374,58 +322,16 @@
         .badge-cancelled        { background: #f1f5f9; color: #475569; }
         .badge-failed,
         .badge-error            { background: var(--danger-light); color: #991b1b; }
-        .badge-info             { background: #dbeafe; color: #1e40af; }
-
-        /* ─── Read-mode info grid ─── */
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 8px 16px;
-        }
-        .info-item {
-            display: flex; flex-direction: column; gap: 1px;
-            min-width: 0;
-            background: var(--bg-muted);
-            border: 1px solid var(--border);
-            border-radius: 5px;
-            padding: 6px 8px;
-        }
-        .info-item .info-label {
-            font-size: 10px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: .5px;
-            font-weight: 600;
-        }
-        .info-item .info-value {
-            font-size: 13px;
-            color: var(--text-primary);
-            font-weight: 500;
-            word-break: break-word;
-        }
-        .info-item .info-value.mono {
-            font-family: 'SF Mono', Menlo, Consolas, monospace;
-            font-size: 12px;
-        }
-        .info-item .info-value.muted { color: var(--text-muted); font-style: italic; }
-        .info-item.full-width { grid-column: 1 / -1; }
 
         /* ─── Form inputs ─── */
         .form-input, .form-select, .form-textarea {
-            padding: 7px 10px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            font-size: 13px;
-            background: var(--bg-panel);
-            color: var(--text-primary);
-            outline: none;
-            transition: border-color .15s, box-shadow .15s;
-            width: 100%;
-            font-family: inherit;
+            padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px;
+            font-size: 13px; background: var(--bg-panel); color: var(--text-primary);
+            outline: none; transition: border-color .15s, box-shadow .15s;
+            width: 100%; font-family: inherit;
         }
         .form-input:focus, .form-select:focus, .form-textarea:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+            border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1);
         }
         .form-input:disabled, .form-textarea:disabled {
             background: var(--bg-muted); color: var(--text-secondary);
@@ -434,68 +340,35 @@
             font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px;
             min-height: 120px; resize: vertical;
         }
-
-        /* Edit form grid */
         .form-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px 20px;
+            display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px;
         }
         .form-grid .form-field { display: flex; flex-direction: column; gap: 4px; }
         .form-grid .form-field.full-width { grid-column: 1 / -1; }
         .form-grid .form-field label {
-            font-size: 11px;
-            color: var(--text-secondary);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: .5px;
+            font-size: 11px; color: var(--text-secondary); font-weight: 600;
+            text-transform: uppercase; letter-spacing: .5px;
         }
         .form-grid .form-field label .req { color: var(--danger); }
-        .form-grid .form-field .helper {
-            font-size: 11px; color: var(--text-muted); margin-top: 2px;
-        }
+        .form-grid .form-field .helper { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
-        /* Package edit grid (2 cols — weight/dims removed) */
-        .form-grid-4 {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 14px 16px;
-        }
-        .form-grid-4 .form-field { display: flex; flex-direction: column; gap: 4px; }
-        .form-grid-4 .form-field label {
-            font-size: 11px;
-            color: var(--text-secondary);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: .5px;
-        }
-
-        /* Pricing grid (3 cols) */
         .form-grid-3 {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 14px 20px;
+            display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 20px;
         }
         .form-grid-3 .form-field { display: flex; flex-direction: column; gap: 4px; }
         .form-grid-3 .form-field label {
-            font-size: 11px;
-            color: var(--text-secondary);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: .5px;
+            font-size: 11px; color: var(--text-secondary); font-weight: 600;
+            text-transform: uppercase; letter-spacing: .5px;
         }
 
-        /* Totals */
+        /* ─── Totals ─── */
         .totals-card {
-            background: var(--bg-muted);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 10px 14px;
+            background: var(--bg-muted); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 10px 14px;
         }
         .total-line {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 4px 0;
-            font-size: 12px;
+            padding: 4px 0; font-size: 12px;
         }
         .total-line .label { color: var(--text-secondary); }
         .total-line .value {
@@ -503,63 +376,51 @@
             font-family: 'SF Mono', Menlo, Consolas, monospace;
         }
         .total-line.grand {
-            border-top: 1px solid var(--border-strong);
-            padding-top: 7px; margin-top: 4px;
-            font-size: 13px;
+            border-top: 1px solid var(--border-strong); padding-top: 7px; margin-top: 4px; font-size: 13px;
         }
-        .total-line.grand .value {
-            color: var(--text-link); font-size: 14px;
+        .total-line.grand .value { color: var(--text-link); font-size: 14px; }
+
+        /* ─── ITC Label (in info col) ─── */
+        .label-items {
+            display: flex; flex-direction: column; gap: 6px;
+            padding: 8px 12px;
+        }
+        .label-empty {
+            padding: 16px 12px; color: var(--text-muted); font-style: italic;
+            font-size: 12px; text-align: center;
+            background: var(--bg-muted); border-radius: var(--radius); margin: 8px 12px;
         }
 
-        /* Layout helpers */
-        .row-between {
-            display: flex; align-items: center; justify-content: space-between;
-            gap: 12px; flex-wrap: wrap;
+        /* ─── Info items (inside label/etc) ─── */
+        .info-item {
+            display: flex; flex-direction: column; gap: 1px;
+            min-width: 0; background: var(--bg-muted); border: 1px solid var(--border);
+            border-radius: 5px; padding: 6px 8px;
         }
-        .stack { display: flex; flex-direction: column; gap: 12px; }
-        .row { display: flex; gap: 8px; align-items: center; }
-        .grow { flex: 1; }
-        .text-link { color: var(--text-link); font-weight: 600; }
-        .text-muted { color: var(--text-muted); }
-        .text-mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
-        .hidden { display: none !important; }
-        .gap-12 { gap: 12px; }
+        .info-item .info-label {
+            font-size: 10px; color: var(--text-muted); text-transform: uppercase;
+            letter-spacing: .5px; font-weight: 600;
+        }
+        .info-item .info-value {
+            font-size: 13px; color: var(--text-primary); font-weight: 500; word-break: break-word;
+        }
+        .info-item .info-value.mono {
+            font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px;
+        }
 
-        /* Status select inline */
+        /* ─── Status bar ─── */
         .status-bar {
             display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-            padding: 8px 12px;
-            background: var(--bg-muted);
-            border-top: 1px solid var(--border);
-        }
-        .status-bar .label {
-            font-size: 11px; font-weight: 600;
-            color: var(--text-secondary);
-            text-transform: uppercase; letter-spacing: .5px;
+            padding: 8px 12px; background: var(--bg-muted); border-top: 1px solid var(--border);
         }
 
-        /* ─── ITC Label box (highlighted) ─── */
-        .label-box {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 12px 24px;
-        }
-        .label-box.empty {
-            display: flex; align-items: center; justify-content: center;
-            padding: 24px;
-            color: var(--text-muted); font-style: italic;
-            background: var(--bg-muted);
-            border-radius: var(--radius);
-        }
-
-        /* Toast */
+        /* ─── Toast ─── */
         .alert-toast {
             position: fixed; top: 70px; right: 24px; z-index: 999;
             background: var(--bg-panel); border: 1px solid var(--border);
-            border-left: 4px solid var(--primary);
-            border-radius: var(--radius); padding: 12px 18px; max-width: 380px;
-            box-shadow: 0 8px 24px rgba(0,0,0,.10);
-            font-size: 13px;
+            border-left: 4px solid var(--primary); border-radius: var(--radius);
+            padding: 12px 18px; max-width: 380px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.10); font-size: 13px;
             display: flex; align-items: center; gap: 10px;
             transform: translateX(120%); transition: transform .3s ease;
         }
@@ -567,36 +428,27 @@
         .alert-toast.success { border-left-color: var(--success); }
         .alert-toast.error   { border-left-color: var(--danger); }
 
-        /* Section divider inside panel */
-        .section-divider {
-            height: 1px; background: var(--border);
-            margin: 10px 0;
-        }
-        .section-subhead {
-            font-size: 10px; font-weight: 700;
-            color: var(--text-secondary);
-            text-transform: uppercase; letter-spacing: 1px;
-            margin-bottom: 6px;
-            padding-bottom: 4px;
-            border-bottom: 1px dashed var(--border);
-        }
+        /* Helpers */
+        .row { display: flex; gap: 8px; align-items: center; }
+        .hidden { display: none !important; }
+        .text-muted { color: var(--text-muted); }
+        .text-mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
 
-        /* Responsive */
-        @media (max-width: 1100px) {
+        /* ─── Responsive ─── */
+        @media (max-width: 1200px) {
+            .layout { grid-template-columns: minmax(0, 1fr) 240px; }
+            .layout > aside.meta-col { display: none; }
+        }
+        @media (max-width: 900px) {
             .layout { grid-template-columns: 1fr; }
-            .info-grid { grid-template-columns: repeat(2, 1fr); }
-            .label-box { grid-template-columns: repeat(2, 1fr); }
-            .form-grid-3 { grid-template-columns: repeat(2, 1fr); }
-            .form-grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .layout > .info-col, .layout > aside.meta-col { display: block; }
         }
         @media (max-width: 640px) {
             .topbar { padding: 6px 10px; }
             .topbar-crumbs { display: none; }
             .page { padding: 6px; }
             .panel-body { padding: 10px; }
-            .info-grid, .form-grid { grid-template-columns: 1fr; }
-            .label-box { grid-template-columns: 1fr; }
-            .form-grid-3, .form-grid-4 { grid-template-columns: 1fr; }
+            .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -635,75 +487,58 @@
 
 <div class="page">
 
-    <!-- ─── Page Header / Actions ─── -->
+    <!-- ─── Page Header ─── -->
     <div class="page-head">
         <div class="page-head-left">
             <h1 id="pageTitle">View OMS Order</h1>
             <span id="headStatusBadge"></span>
         </div>
         <div class="page-head-actions">
-            <button class="btn btn-success" id="btnBuyLabel" disabled>🏷️ Buy ITC Label</button>
-            <a href="/extensions/dashboard#admin-oms-orders" class="btn">Close</a>
+            <button class="btn btn-success" id="btnBuyLabel" disabled>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none"/></svg>
+                Buy ITC Label
+            </button>
+            <a href="/extensions/dashboard#admin-oms-orders" class="btn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                Close
+            </a>
         </div>
     </div>
 
+    <!-- layout: edit column | info column | meta column -->
     <div class="layout">
 
-        <!-- ═══════════════ MAIN COLUMN ═══════════════ -->
+        <!-- ═══════════ EDIT COLUMN (left) ═══════════ -->
         <div>
 
-            <!-- ═══ 1. RECEIVER (info needed for ITC) ═══ -->
+            <!-- 1. RECEIVER EDIT FORM -->
             <div class="panel">
                 <div class="panel-head">
-                    <h3>📦 Receiver Information</h3>
+                    <h3>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1116 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        Receiver Information
+                    </h3>
                     <div class="panel-head-actions">
-                        <button class="btn btn-sm btn-icon ghost" id="btnEditReceiver" title="Edit receiver">✎ Edit</button>
+                        <button class="btn btn-sm btn-ghost" id="btnEditReceiver">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Edit
+                        </button>
                     </div>
                 </div>
 
-                <!-- Read view -->
+                <!-- Read view: compact key-value in 2 cols -->
                 <div class="panel-body" id="receiverView">
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <span class="info-label">Name</span>
-                            <span class="info-value" id="vReceiverName">—</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Company</span>
-                            <span class="info-value" id="vReceiverCompany">—</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Phone</span>
-                            <span class="info-value mono" id="vReceiverPhone">—</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Tax Number</span>
-                            <span class="info-value mono" id="vReceiverTaxNumber">—</span>
-                        </div>
-                        <div class="info-item full-width">
-                            <span class="info-label">Address Line 1</span>
-                            <span class="info-value" id="vAddress1">—</span>
-                        </div>
-                        <div class="info-item full-width">
-                            <span class="info-label">Address Line 2</span>
-                            <span class="info-value" id="vAddress2">—</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">City</span>
-                            <span class="info-value" id="vCity">—</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">State / Province</span>
-                            <span class="info-value" id="vState">—</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Postal Code</span>
-                            <span class="info-value mono" id="vPostalCode">—</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Country</span>
-                            <span class="info-value mono" id="vCountry">—</span>
-                        </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0 24px;">
+                        <div class="info-row"><span class="lbl">Name</span><span class="val" id="vReceiverName">—</span></div>
+                        <div class="info-row"><span class="lbl">Company</span><span class="val" id="vReceiverCompany">—</span></div>
+                        <div class="info-row"><span class="lbl">Phone</span><span class="val mono" id="vReceiverPhone">—</span></div>
+                        <div class="info-row"><span class="lbl">Tax Number</span><span class="val mono" id="vReceiverTaxNumber">—</span></div>
+                        <div class="info-row" style="grid-column:1/-1"><span class="lbl">Address Line 1</span><span class="val" id="vAddress1" style="max-width:none; text-align:left;">—</span></div>
+                        <div class="info-row" style="grid-column:1/-1"><span class="lbl">Address Line 2</span><span class="val" id="vAddress2" style="max-width:none; text-align:left;">—</span></div>
+                        <div class="info-row"><span class="lbl">City</span><span class="val" id="vCity">—</span></div>
+                        <div class="info-row"><span class="lbl">State</span><span class="val" id="vState">—</span></div>
+                        <div class="info-row"><span class="lbl">Postal Code</span><span class="val mono" id="vPostalCode">—</span></div>
+                        <div class="info-row"><span class="lbl">Country</span><span class="val mono" id="vCountry">—</span></div>
                     </div>
                 </div>
 
@@ -758,68 +593,20 @@
                 </div>
             </div>
 
-            <!-- ═══ 2. PACKAGE & SHIPPING ═══ -->
+            <!-- 2. ITEMS -->
             <div class="panel">
                 <div class="panel-head">
-                    <h3>📐 Package & Shipping</h3>
+                    <h3>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        Order Items
+                    </h3>
                     <div class="panel-head-actions">
-                        <button class="btn btn-sm btn-icon ghost" id="btnEditPackage" title="Edit package">✎ Edit</button>
+                        <button class="btn btn-sm btn-ghost" id="btnEditItems">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Edit
+                        </button>
                     </div>
                 </div>
-
-                <!-- Read view -->
-                <div class="panel-body" id="packageView">
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <span class="info-label">Weight (kg)</span>
-                            <span class="info-value mono" id="vWeight">—</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Dimensions L × W × H (cm)</span>
-                            <span class="info-value mono" id="vDimensions">—</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Shipping Service</span>
-                            <span class="info-value" id="vOmsShippingService">—</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Address Index</span>
-                            <span class="info-value mono" id="vAddressIndex">—</span>
-                        </div>
-                    </div>
-                    <p style="font-size:11px; color:var(--text-muted); margin-top:8px;">
-                        ℹ️ Weight and dimensions are automatically calculated from item totals when items are saved.
-                    </p>
-                </div>
-
-                <!-- Edit view — weight/dims removed; auto-computed from items -->
-                <div class="panel-body hidden" id="packageEdit">
-                    <div class="form-grid-4" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
-                        <div class="form-field">
-                            <label>Address Index</label>
-                            <input class="form-input" id="addressIndex" type="number" min="0" step="1" placeholder="0">
-                        </div>
-                    </div>
-                    <p style="font-size:11px; color:var(--text-muted); margin-top:10px;">
-                        ℹ️ Weight and dimensions are automatically calculated from item totals when items are saved.
-                    </p>
-                    <div class="row" style="margin-top:14px; justify-content:flex-end;">
-                        <button class="btn" id="btnCancelPackage">Cancel</button>
-                        <button class="btn btn-primary" id="btnSavePackage">Save Package</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ═══ 3. ITEMS ═══ -->
-            <div class="panel">
-                <div class="panel-head">
-                    <h3>🛒 Order Items</h3>
-                    <div class="panel-head-actions">
-                        <button class="btn btn-sm btn-icon ghost" id="btnEditItems" title="Edit items">✎ Edit</button>
-                    </div>
-                </div>
-
-                <!-- Read view -->
                 <div class="table-wrap" id="itemsView">
                     <table class="data" id="itemsTable">
                         <thead>
@@ -838,8 +625,6 @@
                         <tfoot id="itemsFoot"></tfoot>
                     </table>
                 </div>
-
-                <!-- Edit view -->
                 <div class="panel-body hidden" id="itemsEdit">
                     <div class="table-wrap">
                         <table class="items-edit" id="itemsEditTable">
@@ -862,7 +647,10 @@
                         </table>
                     </div>
                     <div class="row" style="margin-top:14px; justify-content:space-between;">
-                        <button class="btn btn-sm" id="btnAddItem">+ Add Item</button>
+                        <button class="btn btn-sm" id="btnAddItem">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Add Item
+                        </button>
                         <div class="row">
                             <button class="btn" id="btnCancelItems">Cancel</button>
                             <button class="btn btn-primary" id="btnSaveItems">Save Items</button>
@@ -871,68 +659,38 @@
                 </div>
             </div>
 
-            <!-- ═══ 4. PRICING ═══ -->
+            <!-- 3. PRICING -->
             <div class="panel">
                 <div class="panel-head">
-                    <h3>💰 Pricing</h3>
+                    <h3>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                        Pricing
+                    </h3>
                     <div class="panel-head-actions">
-                        <button class="btn btn-sm btn-icon ghost" id="btnEditPricing" title="Edit pricing">✎ Edit</button>
+                        <button class="btn btn-sm btn-ghost" id="btnEditPricing">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Edit
+                        </button>
                     </div>
                 </div>
-
-                <!-- Read view -->
                 <div class="panel-body" id="pricingView">
-                    <div style="display:grid; grid-template-columns: 1fr 260px; gap:16px; align-items:flex-start;">
-                        <div class="info-grid" style="grid-template-columns: repeat(3, 1fr)">
-                            <div class="info-item">
-                                <span class="info-label">Shipping Fee — Purchase</span>
-                                <span class="info-value mono" id="vShippingPurchase">—</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Shipping Markup %</span>
-                                <span class="info-value mono" id="vShippingMarkup">—</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Shipping Fee — Selling</span>
-                                <span class="info-value mono" id="vShippingSelling">—</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Gross Profit</span>
-                                <span class="info-value mono" id="vGrossProfit">—</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Fulfillment — Purchase</span>
-                                <span class="info-value mono" id="vFulfillmentPurchase">—</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Fulfillment — Selling</span>
-                                <span class="info-value mono" id="vFulfillmentSelling">—</span>
-                            </div>
+                    <div style="display:grid; grid-template-columns: 1fr 240px; gap:16px; align-items:flex-start;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 24px;">
+                            <div class="info-row"><span class="lbl">Shipping — Purchase</span><span class="val mono" id="vShippingPurchase">—</span></div>
+                            <div class="info-row"><span class="lbl">Shipping Markup %</span><span class="val mono" id="vShippingMarkup">—</span></div>
+                            <div class="info-row"><span class="lbl">Shipping — Selling</span><span class="val mono" id="vShippingSelling">—</span></div>
+                            <div class="info-row"><span class="lbl">Gross Profit</span><span class="val mono" id="vGrossProfit">—</span></div>
+                            <div class="info-row"><span class="lbl">Fulfillment — Purchase</span><span class="val mono" id="vFulfillmentPurchase">—</span></div>
+                            <div class="info-row"><span class="lbl">Fulfillment — Selling</span><span class="val mono" id="vFulfillmentSelling">—</span></div>
                         </div>
-
-                        <!-- Totals card -->
                         <div class="totals-card">
-                            <div class="total-line">
-                                <span class="label">Total Value (A)</span>
-                                <span class="value" id="vTotalValue">0</span>
-                            </div>
-                            <div class="total-line">
-                                <span class="label">Total Discount (B)</span>
-                                <span class="value" id="vTotalDiscount">0</span>
-                            </div>
-                            <div class="total-line">
-                                <span class="label">Paid Amount (C)</span>
-                                <span class="value" id="vPaidAmount">0</span>
-                            </div>
-                            <div class="total-line grand">
-                                <span class="label">Remaining</span>
-                                <span class="value" id="vRemaining">0</span>
-                            </div>
+                            <div class="total-line"><span class="label">Total Value (A)</span><span class="value" id="vTotalValue">0</span></div>
+                            <div class="total-line"><span class="label">Total Discount (B)</span><span class="value" id="vTotalDiscount">0</span></div>
+                            <div class="total-line"><span class="label">Paid Amount (C)</span><span class="value" id="vPaidAmount">0</span></div>
+                            <div class="total-line grand"><span class="label">Remaining</span><span class="value" id="vRemaining">0</span></div>
                         </div>
                     </div>
                 </div>
-
-                <!-- Edit view -->
                 <div class="panel-body hidden" id="pricingEdit">
                     <div class="form-grid-3">
                         <div class="form-field">
@@ -956,37 +714,70 @@
                 </div>
             </div>
 
-            <!-- ═══ 5. ITC LABEL & TRACKING ═══ -->
-            <div class="panel">
-                <div class="panel-head">
-                    <h3>🧾 ITC Label & Tracking</h3>
-                    <div id="labelLinkWrap"></div>
-                </div>
-                <div class="panel-body compact" id="labelBody">
-                    <div class="label-box empty" id="labelEmpty">
-                        No label yet. Click "Buy ITC Label" to purchase.
+        </div><!-- /edit column -->
+
+        <!-- ═══════════ INFO COLUMN (middle) ═══════════ -->
+        <div class="info-col">
+
+            <!-- Package dimensions & shipping info -->
+            <div class="info-panel">
+                <div class="info-panel-head">
+                    <div class="info-panel-head-left">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+                        Package Specs
                     </div>
-                    <div class="label-box hidden" id="labelDetails">
-                        <div class="info-item">
-                            <span class="info-label">Carrier</span>
-                            <span class="info-value" id="vCarrier">—</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Tracking Number</span>
-                            <span class="info-value mono" id="vTrackingNumber">—</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">ITC SID</span>
-                            <span class="info-value mono" id="vItcSid">—</span>
-                        </div>
+                </div>
+                <div class="info-panel-body">
+                    <div class="info-row"><span class="lbl">Weight (kg)</span><span class="val mono" id="vWeight">—</span></div>
+                    <div class="info-row"><span class="lbl">Dimensions (cm)</span><span class="val mono" id="vDimensions">—</span></div>
+                    <div class="info-row"><span class="lbl">Shipping Service</span><span class="val" id="vOmsShippingService">—</span></div>
+                </div>
+            </div>
+
+            <!-- ITC Label & Tracking (moved here from left col) -->
+            <div class="info-panel">
+                <div class="info-panel-head">
+                    <div class="info-panel-head-left">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none"/></svg>
+                        ITC Label &amp; Tracking
+                    </div>
+                </div>
+                <div id="labelEmpty" class="label-empty">No label yet. Click "Buy ITC Label" to purchase.</div>
+                <div class="label-items hidden" id="labelDetails">
+                    <div class="info-item">
+                        <span class="info-label">Carrier</span>
+                        <span class="info-value" id="vCarrier">—</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Tracking Number</span>
+                        <span class="info-value mono" id="vTrackingNumber">—</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">ITC SID</span>
+                        <span class="info-value mono" id="vItcSid">—</span>
                     </div>
                 </div>
             </div>
 
-        </div>
+            <!-- ITC Label PDF viewer -->
+            <div class="info-panel hidden" id="labelPdfSection">
+                <div class="info-panel-head">
+                    <div class="info-panel-head-left">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        Label PDF
+                    </div>
+                </div>
+                <div style="padding:8px 12px;">
+                    <iframe id="labelPdfFrame" src=""
+                        style="width:100%; aspect-ratio: 1/1.7; border:1px solid var(--border); border-radius:4px;">
+                    </iframe>
+                </div>
+            </div>
 
-        <!-- ═══════════════ SIDE COLUMN ═══════════════ -->
-        <aside>
+        </div><!-- /info column -->
+
+        <!-- ═══════════ META COLUMN (right) ═══════════ -->
+        <aside class="meta-col">
 
             <!-- Order code + status -->
             <div class="side-section">
@@ -994,18 +785,18 @@
                     <div class="order-label">Order Number</div>
                     <div class="order-row">
                         <div class="code" id="sideOrderNumber">—</div>
-                        <button class="copy-icon" id="btnCopyOrderNum" title="Copy">📋</button>
+                        <button class="copy-icon" id="btnCopyOrderNum" title="Copy order number">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                        </button>
                     </div>
                     <div class="status-row">
                         <span class="status-label">Internal Status</span>
                         <span id="sideStatusBadge"></span>
                     </div>
                 </div>
-
-                <!-- Status changer (compact) -->
                 <div class="status-bar">
                     <select class="form-select" id="newStatus" style="flex:1; min-width:0;">
-                        <option value="">Change status...</option>
+                        <option value="">Change status…</option>
                         <option value="pending">pending</option>
                         <option value="selected">selected</option>
                         <option value="label_purchased">label_purchased</option>
@@ -1018,9 +809,14 @@
                 </div>
             </div>
 
-            <!-- General Info (slim) -->
+            <!-- General -->
             <div class="side-section">
-                <div class="side-head"><h3>General</h3></div>
+                <div class="side-head">
+                    <h3>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        General
+                    </h3>
+                </div>
                 <div class="side-body">
                     <div class="side-row">
                         <span class="label">OR Code</span>
@@ -1035,7 +831,12 @@
 
             <!-- Dates -->
             <div class="side-section">
-                <div class="side-head"><h3>Dates</h3></div>
+                <div class="side-head">
+                    <h3>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        Dates
+                    </h3>
+                </div>
                 <div class="side-body">
                     <div class="side-row">
                         <span class="label">Created</span>
@@ -1055,32 +856,24 @@
             <!-- ITC Request Preview -->
             <div class="side-section">
                 <div class="side-head">
-                    <h3>ITC Preview</h3>
-                    <button class="btn btn-sm btn-icon ghost" id="btnTogglePreview" title="Toggle">👁</button>
+                    <h3>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                        ITC Preview
+                    </h3>
+                    <button class="btn btn-sm btn-ghost" id="btnTogglePreview" title="Toggle preview">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
                 </div>
                 <div class="side-body hidden" id="itcPreviewBody">
                     <textarea class="form-textarea" id="itcPreview" disabled style="min-height:200px; font-size:11px;"></textarea>
                 </div>
             </div>
 
-            <!-- Label PDF Viewer -->
-            <div class="side-section hidden" id="labelPdfSection">
-                <div class="side-head">
-                    <h3>Label PDF</h3>
-                </div>
-                <div class="side-body" id="labelPdfBody">
-                    <iframe id="labelPdfFrame"
-                        src=""
-                        style="width:100%; height:420px; border:1px solid var(--border); border-radius:4px;"
-                    ></iframe>
-                </div>
-            </div>
-
-        </aside>
+        </aside><!-- /meta column -->
 
     </div>
 </div>
 
-<script src="/js/oms-order-detail.js?v=2153"></script>
+<script src="/js/oms-order-detail.js?v=2159"></script>
 </body>
 </html>

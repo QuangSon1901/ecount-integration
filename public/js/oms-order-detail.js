@@ -101,6 +101,18 @@ function escapeHtml(s) {
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+function esc(text) {
+    if (!text) return '';
+    var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return String(text).replace(/[&<>"']/g, function (m) { return map[m]; });
+}
+
+// SVG icon: open PDF link button
+const SVG_OPEN = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/></svg>`;
+
+// SVG icon: remove row
+const SVG_REMOVE = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+
 // ─── Load & Render ───────────────────────────────────────────────────────────
 async function load() {
     try {
@@ -113,12 +125,6 @@ async function load() {
     }
 }
 
-function esc(text) {
-    if (!text) return '';
-    var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-    return String(text).replace(/[&<>"']/g, function (m) { return map[m]; });
-}
-
 function render(row) {
     // ─── Top bar / page title ──────────────────────────────────────────────
     setText('topbarOrderNum', row.order_number);
@@ -129,7 +135,7 @@ function render(row) {
     setText('sideOrderNumber', row.order_number);
     setHtml('sideStatusBadge', badge(row.internal_status || row.oms_status || 'new'));
 
-    // ─── Receiver (read view) ──────────────────────────────────────────────
+    // ─── Receiver (read) ──────────────────────────────────────────────────
     setText('vReceiverName', row.receiver_name);
     setText('vReceiverCompany', row.receiver_company);
     setText('vReceiverPhone', row.receiver_phone);
@@ -141,7 +147,7 @@ function render(row) {
     setText('vPostalCode', row.receiver_postal_code);
     setText('vCountry', row.receiver_country);
 
-    // ─── Receiver (edit view) ──────────────────────────────────────────────
+    // ─── Receiver (edit) ──────────────────────────────────────────────────
     setVal('receiverName', row.receiver_name);
     setVal('receiverCompany', row.receiver_company);
     setVal('receiverPhone', row.receiver_phone);
@@ -153,16 +159,16 @@ function render(row) {
     setVal('receiverAddressLine1', row.receiver_address_line1);
     setVal('receiverAddressLine2', row.receiver_address_line2);
 
-    // ─── Package (read) ────────────────────────────────────────────────────
+    // ─── Package (info col — read-only) ───────────────────────────────────
     setText('vWeight', row.package_weight != null ? row.package_weight : '—');
     const dim = (row.package_length && row.package_width && row.package_height)
         ? `${row.package_length} × ${row.package_width} × ${row.package_height}`
         : '—';
     setText('vDimensions', dim);
     setText('vOmsShippingService', row.oms_shipping_service_name || '—');
-    setText('vAddressIndex', row.address_index != null ? row.address_index : '—');
 
-    // ─── Package (edit) — only partner + addressIndex; weight/dims are auto ──
+    // ─── Package edit ──────────────────────────────────────────────────────
+    setText('vAddressIndex', row.address_index != null ? row.address_index : '—');
     setVal('addressIndex', row.address_index);
 
     // ─── Items table ───────────────────────────────────────────────────────
@@ -206,9 +212,6 @@ function render(row) {
     setText('vCarrier', row.carrier);
     setText('vTrackingNumber', row.tracking_number);
     setText('vItcSid', row.itc_sid);
-    setHtml('labelLinkWrap', row.label_url
-        ? `<a class="btn btn-sm btn-primary" href="${escapeHtml(row.label_url)}" target="_blank" rel="noopener">📄 Open Label PDF</a>`
-        : '');
 
     updateLabelPdf(row.label_url || null);
 
@@ -254,10 +257,7 @@ function buildItcPayload(row) {
         country: row.receiver_country || '',
         state: row.receiver_state || '',
         postalCode: row.receiver_postal_code || '',
-        order_weight: Number(row.package_weight || 0),
-        order_height: Number(row.package_height || 0),
-        order_length: Number(row.package_length || 0),
-        order_width: Number(row.package_width || 0),
+        weight: 0,
         route_shipping_partner: row.oms_shipping_partner || '',
         taxNumber: row.receiver_tax_number || '',
         addressIndex: row.address_index != null ? Number(row.address_index) : 0,
@@ -266,17 +266,8 @@ function buildItcPayload(row) {
 }
 
 // ─── Compute package weight / dims from items list ───────────────────────────
-// Rules:
-//   packageWeight = sum of (item.weight * item.quantity) for all items
-//   packageLength = sum of (item.length * item.quantity) for all items
-//   packageWidth  = sum of (item.width  * item.quantity) for all items
-//   packageHeight = sum of (item.height * item.quantity) for all items
-// Any field that sums to 0 (i.e. no values entered) is returned as null.
 function computePackageTotalsFromItems(items) {
-    let weight = 0;
-    let length = 0;
-    let width  = 0;
-    let height = 0;
+    let weight = 0, length = 0, width = 0, height = 0;
 
     for (const it of items) {
         const qty = Number(it.quantity) || 0;
@@ -286,7 +277,6 @@ function computePackageTotalsFromItems(items) {
         height += (Number(it.height) || 0) * qty;
     }
 
-    // Round to 3 decimal places; return null when nothing was entered
     const round3 = n => Math.round(n * 1000) / 1000;
     return {
         packageWeight: weight > 0 ? round3(weight) : null,
@@ -307,8 +297,7 @@ function renderItemsRead(items, currency) {
         return;
     }
 
-    let totalQty = 0;
-    let totalSub = 0;
+    let totalQty = 0, totalSub = 0;
 
     body.innerHTML = items.map((it, i) => {
         const qty = Number(it.quantity || 0);
@@ -319,13 +308,16 @@ function renderItemsRead(items, currency) {
         totalSub += subtotal;
 
         const sku = it.sku || it.skuNumber || '';
-        const url = it.saleUrl ? `<br><a href="${escapeHtml(it.saleUrl)}" target="_blank" rel="noopener" style="font-size:11px;">🔗 Sale URL</a>` : '';
+        const url = it.saleUrl
+            ? `<br><a href="${escapeHtml(it.saleUrl)}" target="_blank" rel="noopener" style="font-size:11px;">🔗 Sale URL</a>`
+            : '';
         const dimsBits = [];
         if (it.weight) dimsBits.push(`W:${it.weight}gram`);
         if (it.length || it.width || it.height) {
             dimsBits.push(`${it.length || 0}×${it.width || 0}×${it.height || 0}cm`);
         }
-        const dimsLine = dimsBits.length ? `<div class="product-dims">${dimsBits.join(' · ')}</div>` : '';
+        const dimsLine = dimsBits.length
+            ? `<div class="product-dims">${dimsBits.join(' · ')}</div>` : '';
 
         return `
             <tr>
@@ -361,7 +353,7 @@ function renderItemsEdit(items) {
     const body = document.getElementById('itemsEditBody');
     if (!items.length) {
         body.innerHTML = '';
-        addItemRow(); // start with one empty row
+        addItemRow();
         return;
     }
     body.innerHTML = items.map(it => itemRowHtml(it)).join('');
@@ -374,15 +366,17 @@ function itemRowHtml(it) {
         <tr>
             <td><input type="text" data-field="sku" value="${escapeHtml(it.sku || it.skuNumber || '')}" placeholder="SKU-001"></td>
             <td><input type="text" data-field="productName" value="${escapeHtml(it.productName || '')}" placeholder="Product Name"></td>
-            <td><input type="text" data-field="itemDescription" value="${escapeHtml(it.itemDescription || '')}" placeholder="Item Description"></td>
+            <td><input type="text" data-field="itemDescription" value="${escapeHtml(it.itemDescription || '')}" placeholder="Description"></td>
             <td><input type="number" class="num" data-field="quantity" value="${it.quantity ?? ''}" min="0" step="1"></td>
             <td><input type="number" class="num" data-field="unitPrice" value="${it.unitPrice ?? ''}" min="0" step="0.01"></td>
             <td><input type="number" class="num" data-field="weight" value="${it.weight ?? ''}" min="0" step="0.001" placeholder="gram"></td>
             <td><input type="number" class="num" data-field="length" value="${it.length ?? ''}" min="0" step="0.1" placeholder="cm"></td>
             <td><input type="number" class="num" data-field="width" value="${it.width ?? ''}" min="0" step="0.1" placeholder="cm"></td>
             <td><input type="number" class="num" data-field="height" value="${it.height ?? ''}" min="0" step="0.1" placeholder="cm"></td>
-            <td><input type="url" data-field="saleUrl" value="${escapeHtml(it.saleUrl || '')}" placeholder="https://..."></td>
-            <td class="col-action"><button type="button" class="btn-remove" title="Remove">×</button></td>
+            <td><input type="url" data-field="saleUrl" value="${escapeHtml(it.saleUrl || '')}" placeholder="https://…"></td>
+            <td class="col-action">
+                <button type="button" class="btn-remove" title="Remove row">${SVG_REMOVE}</button>
+            </td>
         </tr>
     `;
 }
@@ -419,14 +413,11 @@ function collectItemsEdit() {
             return Number.isFinite(n) ? n : null;
         };
         const sku = get('sku');
-        const productName = get('productName');
-        const itemDescription = get('itemDescription');
-        // skip empty rows
-        if (!sku) return;
+        if (!sku) return; // skip empty rows
         items.push({
-            sku: sku,
-            productName: productName,
-            itemDescription: itemDescription,
+            sku,
+            productName: get('productName'),
+            itemDescription: get('itemDescription'),
             quantity: num('quantity'),
             unitPrice: num('unitPrice'),
             weight: num('weight'),
@@ -485,28 +476,13 @@ async function saveReceiver() {
     if (ok) toggleEdit('receiver', false);
 }
 
-// Package save — weight/dims are NOT editable here; only partner + address index.
-async function savePackage() {
-    const ok = await patch({
-        routeShippingPartner: v('routeShippingPartner'),
-        addressIndex: numOrNull('addressIndex'),
-    }, 'Package saved');
-    if (ok) toggleEdit('package', false);
-}
-
-// Items save — after persisting items, recompute package weight/dims from the
-// collected rows and send a second PATCH to update the package fields.
 async function saveItems() {
     const items = collectItemsEdit();
 
-    // Step 1: save items
     const itemsOk = await patch({ items }, 'Items saved');
     if (!itemsOk) return;
 
-    // Step 2: compute package totals from the saved items
     const packageTotals = computePackageTotalsFromItems(items);
-
-    // Only send the second patch when at least one dimension was computed
     const hasAnyTotal = Object.values(packageTotals).some(val => val !== null);
     if (!hasAnyTotal) {
         toggleEdit('items', false);
@@ -522,7 +498,6 @@ async function saveItems() {
         render(r.data);
         toast('Items saved · package dimensions updated');
     } catch (e) {
-        // Items were already saved successfully; just warn about the dims patch
         toast('Items saved, but failed to update package dimensions: ' + e.message, false);
     }
 
@@ -605,7 +580,6 @@ function updateLabelPdf(url) {
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    // Receiver
     document.getElementById('btnEditReceiver').addEventListener('click', () => toggleEdit('receiver', true));
     document.getElementById('btnCancelReceiver').addEventListener('click', () => {
         toggleEdit('receiver', false);
@@ -613,15 +587,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('btnSaveReceiver').addEventListener('click', saveReceiver);
 
-    // Package
-    document.getElementById('btnEditPackage').addEventListener('click', () => toggleEdit('package', true));
-    document.getElementById('btnCancelPackage').addEventListener('click', () => {
-        toggleEdit('package', false);
-        if (currentRow) render(currentRow);
-    });
-    document.getElementById('btnSavePackage').addEventListener('click', savePackage);
-
-    // Items
     document.getElementById('btnEditItems').addEventListener('click', () => toggleEdit('items', true));
     document.getElementById('btnCancelItems').addEventListener('click', () => {
         toggleEdit('items', false);
@@ -630,7 +595,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnSaveItems').addEventListener('click', saveItems);
     document.getElementById('btnAddItem').addEventListener('click', addItemRow);
 
-    // Pricing
     document.getElementById('btnEditPricing').addEventListener('click', () => toggleEdit('pricing', true));
     document.getElementById('btnCancelPricing').addEventListener('click', () => {
         toggleEdit('pricing', false);
@@ -638,7 +602,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('btnSavePricing').addEventListener('click', savePricing);
 
-    // Top-level actions
     document.getElementById('btnBuyLabel').addEventListener('click', buyLabel);
     document.getElementById('btnSetStatus').addEventListener('click', setStatus);
     document.getElementById('btnCopyOrderNum').addEventListener('click', copyOrderNum);

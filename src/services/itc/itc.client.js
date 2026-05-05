@@ -256,7 +256,7 @@ class ItcClient {
             // order_height: Number(row.package_height || 0),
             // order_length: Number(row.package_length || 0),
             // order_width: Number(row.package_width || 0),
-            route_shipping_partner: row.route_shipping_partner || "USPS",
+            route_shipping_partner: row.oms_shipping_partner || "",
             taxNumber: row.tax_number || "",
             addressIndex: 0,
             items: items.map((it, idx) => ({
