@@ -255,7 +255,10 @@ function render(row) {
         banner.classList.toggle('hidden', !row.needs_manual_pricing);
     }
 
-    // Pricing (edit) — chỉ additional_fee + note còn editable
+    // Pricing (edit) — fields editable: shipping purchase, shipping markup,
+    // additional fee, additional fee note
+    setVal('shippingFeePurchase', row.shipping_fee_purchase);
+    setVal('shippingMarkupPercent', row.shipping_markup_percent);
     setVal('additionalFee', row.additional_fee);
     setVal('additionalFeeNote', row.additional_fee_note);
 
@@ -570,8 +573,10 @@ async function savePricing() {
         const noteRaw = noteEl ? noteEl.value : '';
 
         const body = {
-            additionalFee:     numOrNull('additionalFee'),
-            additionalFeeNote: noteRaw === '' ? null : noteRaw,
+            shippingFeePurchase:   numOrNull('shippingFeePurchase'),
+            shippingMarkupPercent: numOrNull('shippingMarkupPercent'),
+            additionalFee:         numOrNull('additionalFee'),
+            additionalFeeNote:     noteRaw === '' ? null : noteRaw,
         };
         const r = await fetchJson('/api/v1/admin/oms-orders/' + ID + '/pricing', {
             method: 'PATCH',
@@ -580,7 +585,7 @@ async function savePricing() {
         currentRow = r.data;
         render(r.data);
         toggleEdit('pricing', false);
-        toast('Saved (gross profit recomputed)');
+        toast('Saved (shipping selling + gross profit recomputed)');
     } catch (e) {
         toast(e.message, false);
     }

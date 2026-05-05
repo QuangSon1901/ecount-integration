@@ -246,20 +246,29 @@ class OmsOrderController {
 
     /**
      * PATCH /api/v1/admin/oms-orders/:id/pricing
-     * Chỉ cho phép edit `additional_fee` + `additional_fee_note`.
-     * Sau khi update, recompute gross_profit (cộng additional_fee mới vào).
+     * Cho phép edit:
+     *   - shipping_fee_purchase, shipping_markup_percent (đơn không qua ITC,
+     *     hoặc cần đặt lại markup theo order)
+     *   - additional_fee, additional_fee_note
+     * Khi shipping_fee_purchase/markup thay đổi, shipping_fee_selling được
+     * tính lại tự động (theo service + partner). Gross_profit luôn recompute.
      */
     async updatePricing(req, res, next) {
         try {
             const id = parseInt(req.params.id);
             if (!Number.isFinite(id)) return errorResponse(res, 'Invalid id', 400);
 
-            const { additionalFee, additionalFeeNote } = req.body || {};
+            const {
+                shippingFeePurchase,
+                shippingMarkupPercent,
+                additionalFee,
+                additionalFeeNote,
+            } = req.body || {};
             const editedBy = req.session?.username || null;
 
             const { row } = await OmsOrderModel.updatePricing(
                 id,
-                { additionalFee, additionalFeeNote },
+                { shippingFeePurchase, shippingMarkupPercent, additionalFee, additionalFeeNote },
                 editedBy
             );
 

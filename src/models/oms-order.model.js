@@ -29,7 +29,10 @@ const EDITABLE_COLUMNS = [
 ];
 
 // Shipping services áp dụng markup. Spec ai-tasks/oms-pricing.md §1.
-const SHIPPING_SERVICES_WITH_MARKUP = new Set(['Standard USPS', 'Priority USPS']);
+// So sánh case-insensitive + trim vì OMS có thể trả về 'standard usps', 'Standard USPS', v.v.
+const SHIPPING_SERVICES_WITH_MARKUP = new Set(['standard usps', 'priority usps']);
+// Partners đã được normalize thành enum trong DB — fallback khi service_name không match
+const SHIPPING_PARTNERS_WITH_MARKUP = new Set(['USPS-LABEL', 'USPS-PRIORITY-LABEL']);
 
 function _round4(n) {
     if (n === null || n === undefined) return null;
@@ -376,11 +379,44 @@ class OmsOrderModel {
     }
 
     static async updatePricing(id, edits, editedBy = null) {
-        // Chỉ admin được edit `additional_fee` và `additional_fee_note`.
-        // Các field còn lại (shipping/fulfillment/packaging selling) là tự động —
-        // tính lại qua `computeAndApplySellingFees`. `needs_manual_pricing` là
-        // indicator do hệ thống set, không cho admin chỉnh.
+        // Admin có thể edit:
+        //   - shipping_fee_purchase  (đơn không mua qua ITC → nhập tay)
+        //   - shipping_markup_percent (đặt lại % theo từng order)
+        //   - additional_fee + additional_fee_note
+        // Khi shipping_fee_purchase hoặc markup thay đổi → tự động recompute
+        // shipping_fee_selling theo công thức (có check service name + partner).
+        // Fulfillment / packaging chỉ được tính qua computeAndApplySellingFees.
         const sets = {};
+
+        // shipping_fee_purchase — >= 0 hoặc null
+        if (edits.shippingFeePurchase !== undefined) {
+            if (edits.shippingFeePurchase === null || edits.shippingFeePurchase === '') {
+                sets.shipping_fee_purchase = null;
+            } else {
+                const n = Number(edits.shippingFeePurchase);
+                if (!Number.isFinite(n) || n < 0) {
+                    const e = new Error('shippingFeePurchase must be a number >= 0');
+                    e.code = 'INVALID_VALUE';
+                    throw e;
+                }
+                sets.shipping_fee_purchase = Math.round(n * 10000) / 10000;
+            }
+        }
+
+        // shipping_markup_percent — >= 0 (cho phép 0% / null = clear)
+        if (edits.shippingMarkupPercent !== undefined) {
+            if (edits.shippingMarkupPercent === null || edits.shippingMarkupPercent === '') {
+                sets.shipping_markup_percent = null;
+            } else {
+                const n = Number(edits.shippingMarkupPercent);
+                if (!Number.isFinite(n) || n < 0) {
+                    const e = new Error('shippingMarkupPercent must be a number >= 0');
+                    e.code = 'INVALID_VALUE';
+                    throw e;
+                }
+                sets.shipping_markup_percent = Math.round(n * 10000) / 10000;
+            }
+        }
 
         // additional_fee — number, có thể âm hoặc dương
         if (edits.additionalFee !== undefined) {
@@ -422,21 +458,25 @@ class OmsOrderModel {
             }
             const row = rows[0];
 
-            if (row.shipping_fee_purchase === null) {
-                await conn.rollback();
-                const e = new Error('Cannot edit pricing: shipping_fee_purchase not set yet (no label purchased)');
-                e.code = 'NO_PURCHASE_COST';
-                throw e;
-            }
-
             // Merge sets vào row hiện tại để tính gross_profit chuẩn
             const pickNum = (col) => {
                 if (sets[col] !== undefined) return sets[col];
                 return row[col] === null ? null : Number(row[col]);
             };
 
+            // Recompute shipping_fee_selling khi purchase hoặc markup thay đổi
+            if (sets.shipping_fee_purchase !== undefined || sets.shipping_markup_percent !== undefined) {
+                const newSelling = OmsOrderModel.computeShippingFeeSelling({
+                    shippingFeePurchase:   pickNum('shipping_fee_purchase'),
+                    shippingMarkupPercent: pickNum('shipping_markup_percent'),
+                    shippingServiceName:   row.oms_shipping_service_name,
+                    shippingPartner:       row.oms_shipping_partner,
+                });
+                sets.shipping_fee_selling = newSelling;
+            }
+
             const newProfit = OmsOrderModel.computeGrossProfit({
-                shippingFeePurchase:         Number(row.shipping_fee_purchase),
+                shippingFeePurchase:         pickNum('shipping_fee_purchase'),
                 shippingFeeSelling:          pickNum('shipping_fee_selling'),
                 fulfillmentFeePurchase:      pickNum('fulfillment_fee_purchase'),
                 fulfillmentFeeSelling:       pickNum('fulfillment_fee_selling'),
@@ -494,12 +534,23 @@ class OmsOrderModel {
     }
 
     /**
-     * Tính shipping_fee_selling từ purchase + markup, có check service name.
+     * Tính shipping_fee_selling từ purchase + markup, có check service name / partner.
      * Spec ai-tasks/oms-pricing.md §1.
+     *
+     * Match cả `shippingServiceName` (case-insensitive) và `shippingPartner` (enum
+     * đã normalize) để tránh phụ thuộc casing OMS trả về.
      */
-    static computeShippingFeeSelling({ shippingFeePurchase, shippingMarkupPercent, shippingServiceName }) {
+    static computeShippingFeeSelling({ shippingFeePurchase, shippingMarkupPercent, shippingServiceName, shippingPartner }) {
         if (shippingFeePurchase === null || shippingFeePurchase === undefined) return null;
-        if (!SHIPPING_SERVICES_WITH_MARKUP.has(shippingServiceName)) return 0;
+
+        const nameKey = shippingServiceName
+            ? String(shippingServiceName).trim().toLowerCase().replace(/\s+/g, ' ')
+            : null;
+        const eligible =
+            (nameKey && SHIPPING_SERVICES_WITH_MARKUP.has(nameKey)) ||
+            (shippingPartner && SHIPPING_PARTNERS_WITH_MARKUP.has(shippingPartner));
+        if (!eligible) return 0;
+
         const purchase = Number(shippingFeePurchase);
         if (!Number.isFinite(purchase)) return null;
         const markup = Number(shippingMarkupPercent ?? 0);
@@ -571,6 +622,7 @@ class OmsOrderModel {
                     shippingFeePurchase:   row.shipping_fee_purchase,
                     shippingMarkupPercent: row.shipping_markup_percent,
                     shippingServiceName:   row.oms_shipping_service_name,
+                    shippingPartner:       row.oms_shipping_partner,
                 });
                 fields.push('shipping_fee_selling = ?');
                 values.push(effectiveShippingSelling);
