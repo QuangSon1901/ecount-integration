@@ -1289,6 +1289,69 @@ const migrations = [
                     AFTER oms_shipping_service_name,
                 ADD INDEX idx_oms_shipping_partner (oms_shipping_partner);
         `
+    },
+    {
+        version: 50,
+        name: 'create_oms_packaging_materials_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS oms_packaging_materials (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                name        VARCHAR(255) NOT NULL,
+                description TEXT DEFAULT NULL,
+                cost_price  DECIMAL(10,4) DEFAULT NULL COMMENT 'Giá cost — sẽ tính sau, hiện chưa dùng',
+                sell_price  DECIMAL(10,4) NOT NULL COMMENT 'Giá tính vào selling',
+                is_active   TINYINT(1) NOT NULL DEFAULT 1,
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_is_active (is_active)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='Danh mục vật liệu đóng gói cho OMS (poly mailer, hộp carton...)';
+        `
+    },
+    {
+        version: 51,
+        name: 'create_oms_sku_packaging_mapping_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS oms_sku_packaging_mapping (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                sku         VARCHAR(255) NOT NULL,
+                material_id INT NOT NULL,
+                customer_id INT DEFAULT NULL COMMENT 'NULL = áp dụng cho mọi customer',
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (material_id) REFERENCES oms_packaging_materials(id) ON DELETE CASCADE,
+                FOREIGN KEY (customer_id) REFERENCES api_customers(id) ON DELETE CASCADE,
+                UNIQUE KEY uq_sku_customer (sku, customer_id),
+                INDEX idx_sku (sku),
+                INDEX idx_customer_id (customer_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='Map SKU → vật liệu đóng gói. customer_id=NULL là default cho mọi customer.';
+        `
+    },
+    {
+        version: 52,
+        name: 'add_pricing_columns_to_oms_orders',
+        up: `
+            ALTER TABLE oms_orders
+                ADD COLUMN fulfillment_fee_detail JSON DEFAULT NULL
+                    COMMENT 'Audit JSON: { heaviest_weight_gram, heaviest_weight_lbs, bracket, base_rate, total_items, extra_items, extra_fee }'
+                    AFTER fulfillment_fee_selling,
+                ADD COLUMN packaging_material_fee_selling DECIMAL(10,4) DEFAULT NULL
+                    COMMENT 'Tổng phí vật liệu đóng gói tính vào selling'
+                    AFTER fulfillment_fee_detail,
+                ADD COLUMN packaging_material_fee_detail JSON DEFAULT NULL
+                    COMMENT 'Audit JSON array: [{ sku, material_id, material_name, sell_price, quantity, subtotal }]'
+                    AFTER packaging_material_fee_selling,
+                ADD COLUMN additional_fee DECIMAL(10,4) DEFAULT NULL
+                    COMMENT 'Phụ phí nhập tay — âm hoặc dương'
+                    AFTER packaging_material_fee_detail,
+                ADD COLUMN additional_fee_note TEXT DEFAULT NULL
+                    COMMENT 'Ghi chú phụ phí'
+                    AFTER additional_fee,
+                ADD COLUMN needs_manual_pricing TINYINT(1) NOT NULL DEFAULT 0
+                    COMMENT 'TRUE khi không tự động tính được fulfillment (>10 lbs hoặc weight thiếu)'
+                    AFTER additional_fee_note;
+        `
     }
 
 ];

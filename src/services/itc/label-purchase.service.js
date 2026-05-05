@@ -159,6 +159,19 @@ class LabelPurchaseService {
                 err);
         }
 
+        // 7b. Tính lại toàn bộ selling fees (fulfillment, packaging, shipping markup
+        //     theo service name, gross_profit). Spec ai-tasks/oms-pricing.md §7.
+        //     Failure ở đây non-fatal — label đã được mua, gross_profit đã có giá trị
+        //     ban đầu (chỉ shipping). Admin có thể edit pricing sau.
+        try {
+            await OmsOrderModel.computeAndApplySellingFees(omsOrderId);
+        } catch (err) {
+            logger.warn('[ITC] computeAndApplySellingFees failed after label purchase', {
+                omsOrderId,
+                error: err.message,
+            });
+        }
+
         logger.info('[ITC] label purchased', {
             omsOrderId,
             customerCode: customer?.customer_code,

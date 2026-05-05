@@ -152,6 +152,7 @@ var pageTitles = {
     'admin-customers':       { t: 'API Customers',        s: 'Manage API customers' },
     'admin-create-customer': { t: 'Create Customer',      s: 'Create new API customer' },
     'admin-oms-orders':      { t: 'OMS Orders',           s: 'Outbound request management' },
+    'admin-oms-packaging':   { t: 'OMS Packaging & SKU',  s: 'Vật liệu đóng gói & mapping SKU' },
     'admin-tools':           { t: 'Internal Tools',       s: 'Admin-only tools and extensions' },
     'client-overview':       { t: 'Account Overview',     s: 'Your account information' },
     'client-credentials':    { t: 'API Credentials',      s: 'Your Client ID and Secret Key' },
@@ -178,6 +179,10 @@ function navigateToSection(sectionId, options) {
         if (sectionId === 'admin-oms-orders'   && window.OmsOrders) {
             OmsOrders.omsPage = OmsOrders.readOmsPageFromUrl();
             OmsOrders.loadOmsOrders();
+        }
+        if (sectionId === 'admin-oms-packaging' && window.OmsPackaging) {
+            if (OmsPackaging.getActiveView() === 'mappings') OmsPackaging.loadMappings();
+            else                                              OmsPackaging.loadMaterials();
         }
         if (sectionId === 'client-credentials' && window.ClientPortal) ClientPortal.loadCredentials();
         if (sectionId === 'client-webhooks'    && window.ClientPortal) ClientPortal.loadWebhooks();

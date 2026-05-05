@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // 1. Let each section module render its HTML into the DOM.
     if (window.Customers)    Customers.init();
     if (window.OmsOrders)    OmsOrders.init();
+    if (window.OmsPackaging) OmsPackaging.init();
     if (window.ClientPortal) ClientPortal.init();
 
     // 2. Init navigation (requires section mounts to already be in the DOM).

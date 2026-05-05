@@ -15,6 +15,8 @@ const apiOrderRoutes = require('./api-order.routes');
 const apiWebhookRoutes = require('./api-webhook.routes');
 const podProductRoutes = require('./pod-product.routes');
 const omsOrderRoutes = require('./oms-order.routes');
+const { materialsRouter: omsPackagingMaterialsRoutes,
+        mappingsRouter:  omsSkuPackagingMappingsRoutes } = require('./oms-packaging.routes');
 
 /**
  * Apply audit middleware to all API routes
@@ -129,6 +131,12 @@ router.use('/admin/pod-products', requireAdmin, podProductRoutes);
  * Auth handled per-route in oms-order.routes.js (requireRole('admin')).
  */
 router.use('/admin/oms-orders', omsOrderRoutes);
+
+/**
+ * Admin routes (OMS packaging materials + SKU mappings — Phase OMS pricing)
+ */
+router.use('/admin/oms-packaging-materials', omsPackagingMaterialsRoutes);
+router.use('/admin/oms-sku-packaging-mappings', omsSkuPackagingMappingsRoutes);
 
 router.use('/webhooks', apiWebhookRoutes);
 

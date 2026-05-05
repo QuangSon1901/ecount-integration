@@ -674,14 +674,48 @@
                     </div>
                 </div>
                 <div class="panel-body" id="pricingView">
+                    <!-- Cảnh báo cần admin nhập tay -->
+                    <div id="manualPricingBanner" class="hidden" style="margin-bottom:10px; padding:8px 12px; background:var(--warning-light); border:1px solid var(--warning); border-radius:6px; color:#92400e; font-size:12px;">
+                        <strong>⚠ Manual pricing required</strong>
+                        <span id="manualPricingReason"> — package &gt; 10 lbs, fulfillment chưa quote được. Hãy cộng phụ phí qua Additional Fee.</span>
+                    </div>
+                    <div style="margin-bottom:10px; display:flex; justify-content:flex-end;">
+                        <button class="btn btn-sm" id="btnRecomputePricing" title="Tính lại fulfillment + packaging + shipping selling từ items hiện tại">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                            Recompute Pricing
+                        </button>
+                    </div>
+
                     <div style="display:grid; grid-template-columns: 1fr 240px; gap:16px; align-items:flex-start;">
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 24px;">
-                            <div class="info-row"><span class="lbl">Shipping — Purchase</span><span class="val mono" id="vShippingPurchase">—</span></div>
+                            <div class="info-row"><span class="lbl">Shipping Service</span><span class="val" id="vPricingShippingService">—</span></div>
                             <div class="info-row"><span class="lbl">Shipping Markup %</span><span class="val mono" id="vShippingMarkup">—</span></div>
+                            <div class="info-row"><span class="lbl">Shipping — Purchase</span><span class="val mono" id="vShippingPurchase">—</span></div>
                             <div class="info-row"><span class="lbl">Shipping — Selling</span><span class="val mono" id="vShippingSelling">—</span></div>
-                            <div class="info-row"><span class="lbl">Gross Profit</span><span class="val mono" id="vGrossProfit">—</span></div>
                             <div class="info-row"><span class="lbl">Fulfillment — Purchase</span><span class="val mono" id="vFulfillmentPurchase">—</span></div>
-                            <div class="info-row"><span class="lbl">Fulfillment — Selling</span><span class="val mono" id="vFulfillmentSelling">—</span></div>
+                            <div class="info-row" style="grid-column:1/-1; align-items:flex-start;">
+                                <span class="lbl">Fulfillment — Selling</span>
+                                <span class="val" id="vFulfillmentSellingWrap" style="text-align:right; max-width:none;">
+                                    <span class="mono" id="vFulfillmentSelling">—</span>
+                                    <div id="vFulfillmentDetail" class="text-muted" style="font-size:11px; margin-top:2px;"></div>
+                                </span>
+                            </div>
+                            <div class="info-row" style="grid-column:1/-1; align-items:flex-start;">
+                                <span class="lbl">Packaging Material</span>
+                                <span class="val" id="vPackagingWrap" style="text-align:right; max-width:none;">
+                                    <span class="mono" id="vPackagingSelling">—</span>
+                                    <div id="vPackagingDetail" class="text-muted" style="font-size:11px; margin-top:2px;"></div>
+                                </span>
+                            </div>
+                            <div class="info-row" style="grid-column:1/-1; align-items:flex-start;">
+                                <span class="lbl">Additional Fee</span>
+                                <span class="val" id="vAdditionalWrap" style="text-align:right; max-width:none;">
+                                    <span class="mono" id="vAdditionalFee">—</span>
+                                    <div id="vAdditionalNote" class="text-muted" style="font-size:11px; margin-top:2px; white-space:pre-wrap;"></div>
+                                </span>
+                            </div>
+                            <div class="info-row" style="grid-column:1/-1;"><span class="lbl"><strong>Total Selling</strong></span><span class="val mono" id="vTotalSelling" style="font-weight:700;">—</span></div>
+                            <div class="info-row" style="grid-column:1/-1;"><span class="lbl"><strong>Gross Profit</strong></span><span class="val mono" id="vGrossProfit">—</span></div>
                         </div>
                         <div class="totals-card">
                             <div class="total-line"><span class="label">Total Value (A)</span><span class="value" id="vTotalValue">0</span></div>
@@ -692,24 +726,25 @@
                     </div>
                 </div>
                 <div class="panel-body hidden" id="pricingEdit">
-                    <div class="form-grid-3">
+                    <div style="background:var(--bg-muted); border:1px solid var(--border); border-radius:6px; padding:10px 12px; margin-bottom:12px; font-size:12px; color:var(--text-secondary);">
+                        Tất cả phí khác đều tự động tính từ items + label. Để cập nhật chúng, bấm <strong>Recompute Pricing</strong> ở chế độ xem.
+                        Ở đây chỉ chỉnh được <strong>Additional Fee</strong> (âm = giảm giá, dương = phụ phí).
+                    </div>
+
+                    <div class="form-grid">
                         <div class="form-field">
-                            <label>Shipping Fee — Selling</label>
-                            <input class="form-input" id="shippingFeeSelling" type="number" step="0.0001">
-                            <span class="helper">Purchase price + markup determines this</span>
+                            <label>Additional Fee</label>
+                            <input class="form-input" id="additionalFee" type="number" step="0.0001">
+                            <span class="helper">Có thể âm (giảm giá) hoặc dương (phụ phí)</span>
                         </div>
-                        <div class="form-field">
-                            <label>Fulfillment — Purchase</label>
-                            <input class="form-input" id="fulfillmentFeePurchase" type="number" step="0.0001">
-                        </div>
-                        <div class="form-field">
-                            <label>Fulfillment — Selling</label>
-                            <input class="form-input" id="fulfillmentFeeSelling" type="number" step="0.0001">
+                        <div class="form-field full-width">
+                            <label>Additional Fee — Note</label>
+                            <input class="form-input" id="additionalFeeNote" type="text" placeholder="Ghi chú phụ phí (vd: phí thùng carton đặc biệt, fulfillment >10 lbs…)">
                         </div>
                     </div>
                     <div class="row" style="margin-top:18px; justify-content:flex-end;">
                         <button class="btn" id="btnCancelPricing">Cancel</button>
-                        <button class="btn btn-primary" id="btnSavePricing">Save Pricing</button>
+                        <button class="btn btn-primary" id="btnSavePricing">Save Additional Fee</button>
                     </div>
                 </div>
             </div>
@@ -728,7 +763,7 @@
                     </div>
                 </div>
                 <div class="info-panel-body">
-                    <div class="info-row"><span class="lbl">Weight (kg)</span><span class="val mono" id="vWeight">—</span></div>
+                    <div class="info-row"><span class="lbl">Weight (gram)</span><span class="val mono" id="vWeight">—</span></div>
                     <div class="info-row"><span class="lbl">Dimensions (cm)</span><span class="val mono" id="vDimensions">—</span></div>
                     <div class="info-row"><span class="lbl">Shipping Service</span><span class="val" id="vOmsShippingService">—</span></div>
                 </div>
@@ -874,6 +909,6 @@
     </div>
 </div>
 
-<script src="/js/oms-order-detail.js?v=2159"></script>
+<script src="/js/oms-order-detail.js?v=2164"></script>
 </body>
 </html>

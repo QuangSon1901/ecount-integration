@@ -158,13 +158,17 @@
     }
 
     function _setActiveTab(value) {
-        document.querySelectorAll('.oms-tab-btn').forEach(function (btn) {
+        var container = document.getElementById('omsStatusTabs');
+        if (!container) return;
+        container.querySelectorAll('.oms-tab-btn').forEach(function (btn) {
             btn.classList.toggle('active', btn.getAttribute('data-status') === value);
         });
     }
 
     function _getActiveTabValue() {
-        var active = document.querySelector('.oms-tab-btn.active');
+        var container = document.getElementById('omsStatusTabs');
+        if (!container) return '';
+        var active = container.querySelector('.oms-tab-btn.active');
         return active ? active.getAttribute('data-status') : '';
     }
 
@@ -316,7 +320,9 @@
     // Cập nhật badge số lượng trên mỗi tab (chỉ khi không đang filter theo status cụ thể,
     // hoặc server trả về statusCounts)
     function _updateTabBadges(counts, activeStatus) {
-        document.querySelectorAll('.oms-tab-btn').forEach(function (btn) {
+        var container = document.getElementById('omsStatusTabs');
+        if (!container) return;
+        container.querySelectorAll('.oms-tab-btn').forEach(function (btn) {
             var tabStatus = btn.getAttribute('data-status');
             var cnt;
             if (tabStatus === '') {

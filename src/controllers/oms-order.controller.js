@@ -144,6 +144,8 @@ class OmsOrderController {
      * PATCH /api/v1/admin/oms-orders/:id
      * Admin edit of receiver / package / items / customer-ref fields.
      * Stamps admin_edited_at so future syncs preserve these columns.
+     *
+     * Khi `items` được chỉnh sửa → trigger tính lại selling fees (spec §7).
      */
     async editOrder(req, res, next) {
         try {
@@ -189,6 +191,9 @@ class OmsOrderController {
 
             const editor = req.session?.username || null;
             await OmsOrderModel.applyAdminEdits(id, edits, editor);
+
+            // Note: KHÔNG tự động tính lại pricing khi save items — admin phải
+            // bấm nút "Recompute pricing" trên UI để chạy lại thủ công.
             const updated = await OmsOrderModel.findById(id);
 
             logger.info('[OMS-ORDER] admin edit applied', {
@@ -241,22 +246,50 @@ class OmsOrderController {
 
     /**
      * PATCH /api/v1/admin/oms-orders/:id/pricing
+     * Chỉ cho phép edit `additional_fee` + `additional_fee_note`.
+     * Sau khi update, recompute gross_profit (cộng additional_fee mới vào).
      */
     async updatePricing(req, res, next) {
         try {
             const id = parseInt(req.params.id);
             if (!Number.isFinite(id)) return errorResponse(res, 'Invalid id', 400);
 
-            const { shippingFeeSelling, fulfillmentFeePurchase, fulfillmentFeeSelling } = req.body || {};
+            const { additionalFee, additionalFeeNote } = req.body || {};
             const editedBy = req.session?.username || null;
 
             const { row } = await OmsOrderModel.updatePricing(
                 id,
-                { shippingFeeSelling, fulfillmentFeePurchase, fulfillmentFeeSelling },
+                { additionalFee, additionalFeeNote },
                 editedBy
             );
 
             return successResponse(res, this._formatOrder(row), 'Pricing updated');
+        } catch (err) {
+            return this._handleError(res, err, next);
+        }
+    }
+
+    /**
+     * POST /api/v1/admin/oms-orders/:id/recompute-pricing
+     * Chạy lại computeAndApplySellingFees: tính lại fulfillment, packaging,
+     * shipping selling, gross_profit từ items hiện tại.
+     */
+    async recomputePricing(req, res, next) {
+        try {
+            const id = parseInt(req.params.id);
+            if (!Number.isFinite(id)) return errorResponse(res, 'Invalid id', 400);
+
+            const exists = await OmsOrderModel.findById(id);
+            if (!exists) return errorResponse(res, 'OMS order not found', 404);
+
+            const updated = await OmsOrderModel.computeAndApplySellingFees(id);
+
+            logger.info('[OMS-ORDER] manual recompute pricing', {
+                omsOrderId: id,
+                editor:     req.session?.username || null,
+            });
+
+            return successResponse(res, this._formatOrder(updated), 'Pricing recomputed');
         } catch (err) {
             return this._handleError(res, err, next);
         }
@@ -397,17 +430,23 @@ class OmsOrderController {
             items: this._parseJson(row.items),
 
             // ─── Pricing ────────────────────────────────────────────
-            declared_currency:        row.declared_currency,
-            shipping_fee_purchase:    row.shipping_fee_purchase,
-            shipping_markup_percent:  row.shipping_markup_percent,
-            shipping_fee_selling:     row.shipping_fee_selling,
-            gross_profit:             row.gross_profit,
-            fulfillment_fee_purchase: row.fulfillment_fee_purchase,
-            fulfillment_fee_selling:  row.fulfillment_fee_selling,
-            total_value:              row.total_value,
-            total_discount:           row.total_discount,
-            paid_amount:              row.paid_amount,
-            remaining_amount:         row.remaining_amount,
+            declared_currency:               row.declared_currency,
+            shipping_fee_purchase:           row.shipping_fee_purchase,
+            shipping_markup_percent:         row.shipping_markup_percent,
+            shipping_fee_selling:            row.shipping_fee_selling,
+            gross_profit:                    row.gross_profit,
+            fulfillment_fee_purchase:        row.fulfillment_fee_purchase,
+            fulfillment_fee_selling:         row.fulfillment_fee_selling,
+            fulfillment_fee_detail:          this._parseJson(row.fulfillment_fee_detail),
+            packaging_material_fee_selling:  row.packaging_material_fee_selling,
+            packaging_material_fee_detail:   this._parseJson(row.packaging_material_fee_detail),
+            additional_fee:                  row.additional_fee,
+            additional_fee_note:             row.additional_fee_note,
+            needs_manual_pricing:            row.needs_manual_pricing ? true : false,
+            total_value:                     row.total_value,
+            total_discount:                  row.total_discount,
+            paid_amount:                     row.paid_amount,
+            remaining_amount:                row.remaining_amount,
 
             // ─── ITC Label ──────────────────────────────────────────
             carrier:         row.carrier,

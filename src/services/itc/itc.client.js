@@ -259,6 +259,16 @@ class ItcClient {
             route_shipping_partner: row.oms_shipping_partner || "",
             taxNumber: row.tax_number || "",
             addressIndex: 0,
+            sellerInformation: {
+                name: "min min",
+                address1: "4136 sunflower cir",
+                address2: "",
+                city: "Winston Salem",
+                state: "NC",
+                postalCode: "18337-7525",
+                country: "US",
+                phone: "+84-900-123-4567"
+            },
             items: items.map((it, idx) => ({
                 skuNumber: it.sku || '',
                 productName: it.productName || '',

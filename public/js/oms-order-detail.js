@@ -107,6 +107,44 @@ function esc(text) {
     return String(text).replace(/[&<>"']/g, function (m) { return map[m]; });
 }
 
+function sumMoney(arr) {
+    let sum = 0;
+    let any = false;
+    for (const v of arr) {
+        if (v === null || v === undefined || v === '') continue;
+        const n = Number(v);
+        if (!Number.isFinite(n)) continue;
+        sum += n;
+        any = true;
+    }
+    return any ? Math.round(sum * 10000) / 10000 : null;
+}
+
+// Render fulfillment_fee_detail JSON thành HTML breakdown.
+function renderFulfillmentDetail(detail) {
+    if (!detail || typeof detail !== 'object') return '';
+    const bracketLabel = detail.bracket === 6 ? 'Bracket 6 (>10 lbs — manual)' : `Bracket ${detail.bracket}`;
+    const bits = [];
+    if (detail.heaviest_weight_lbs != null) {
+        bits.push(`Heaviest item: ${detail.heaviest_weight_lbs} lbs (${detail.heaviest_weight_gram}g)`);
+    }
+    bits.push(bracketLabel);
+    if (detail.base_rate != null) bits.push(`Base $${Number(detail.base_rate).toFixed(2)}`);
+    if (detail.total_items != null) {
+        bits.push(`${detail.total_items} item(s) → +${detail.extra_items || 0} extra × $0.50 = $${Number(detail.extra_fee || 0).toFixed(2)}`);
+    }
+    return bits.map(escapeHtml).join(' · ');
+}
+
+// Render packaging_material_fee_detail JSON array thành HTML.
+function renderPackagingDetail(detail) {
+    if (!Array.isArray(detail) || detail.length === 0) return '';
+    return detail.map(d => {
+        const name = d.material_name || `Material #${d.material_id}`;
+        return `${escapeHtml(d.sku)} → ${escapeHtml(name)} × ${d.quantity} = $${Number(d.subtotal).toFixed(4)}`;
+    }).join('<br>');
+}
+
 // SVG icon: open PDF link button
 const SVG_OPEN = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/></svg>`;
 
@@ -177,14 +215,31 @@ function render(row) {
 
     // ─── Pricing (read) ────────────────────────────────────────────────────
     const cur = row.declared_currency || 'USD';
+    setText('vPricingShippingService', row.oms_shipping_service_name || '—');
     setText('vShippingPurchase', fmtMoney(row.shipping_fee_purchase, cur));
     setText('vShippingMarkup',
         row.shipping_markup_percent != null ? `${row.shipping_markup_percent}%` : '—');
     setText('vShippingSelling', fmtMoney(row.shipping_fee_selling, cur));
-    setText('vGrossProfit', fmtMoney(row.gross_profit, cur));
     setText('vFulfillmentPurchase', fmtMoney(row.fulfillment_fee_purchase, cur));
     setText('vFulfillmentSelling', fmtMoney(row.fulfillment_fee_selling, cur));
+    setHtml('vFulfillmentDetail', renderFulfillmentDetail(row.fulfillment_fee_detail, cur));
 
+    setText('vPackagingSelling', fmtMoney(row.packaging_material_fee_selling, cur));
+    setHtml('vPackagingDetail', renderPackagingDetail(row.packaging_material_fee_detail, cur));
+
+    setText('vAdditionalFee', row.additional_fee != null ? fmtMoney(row.additional_fee, cur) : '—');
+    setText('vAdditionalNote', row.additional_fee_note || '');
+
+    // Total selling = shipping + fulfillment + packaging + additional
+    const totalSelling = sumMoney([
+        row.shipping_fee_selling,
+        row.fulfillment_fee_selling,
+        row.packaging_material_fee_selling,
+        row.additional_fee,
+    ]);
+    setText('vTotalSelling', totalSelling != null ? fmtMoney(totalSelling, cur) : '—');
+
+    setText('vGrossProfit', fmtMoney(row.gross_profit, cur));
     const profitEl = document.getElementById('vGrossProfit');
     if (profitEl) {
         profitEl.style.color = '';
@@ -194,10 +249,15 @@ function render(row) {
         }
     }
 
-    // Pricing (edit)
-    setVal('shippingFeeSelling', row.shipping_fee_selling);
-    setVal('fulfillmentFeePurchase', row.fulfillment_fee_purchase);
-    setVal('fulfillmentFeeSelling', row.fulfillment_fee_selling);
+    // Manual pricing banner
+    const banner = document.getElementById('manualPricingBanner');
+    if (banner) {
+        banner.classList.toggle('hidden', !row.needs_manual_pricing);
+    }
+
+    // Pricing (edit) — chỉ additional_fee + note còn editable
+    setVal('additionalFee', row.additional_fee);
+    setVal('additionalFeeNote', row.additional_fee_note);
 
     // Totals
     setText('vTotalValue',    fmtMoney(row.total_value, cur));
@@ -506,10 +566,12 @@ async function saveItems() {
 
 async function savePricing() {
     try {
+        const noteEl = document.getElementById('additionalFeeNote');
+        const noteRaw = noteEl ? noteEl.value : '';
+
         const body = {
-            shippingFeeSelling: numOrNull('shippingFeeSelling'),
-            fulfillmentFeePurchase: numOrNull('fulfillmentFeePurchase'),
-            fulfillmentFeeSelling: numOrNull('fulfillmentFeeSelling'),
+            additionalFee:     numOrNull('additionalFee'),
+            additionalFeeNote: noteRaw === '' ? null : noteRaw,
         };
         const r = await fetchJson('/api/v1/admin/oms-orders/' + ID + '/pricing', {
             method: 'PATCH',
@@ -518,9 +580,28 @@ async function savePricing() {
         currentRow = r.data;
         render(r.data);
         toggleEdit('pricing', false);
-        toast('Pricing saved (gross profit recomputed)');
+        toast('Saved (gross profit recomputed)');
     } catch (e) {
         toast(e.message, false);
+    }
+}
+
+async function recomputePricing() {
+    if (!confirm('Tính lại fulfillment + packaging + shipping selling từ items hiện tại?')) return;
+    const btn = document.getElementById('btnRecomputePricing');
+    if (btn) { btn.disabled = true; }
+    try {
+        const r = await fetchJson('/api/v1/admin/oms-orders/' + ID + '/recompute-pricing', {
+            method: 'POST',
+            body: JSON.stringify({}),
+        });
+        currentRow = r.data;
+        render(r.data);
+        toast('Pricing recomputed');
+    } catch (e) {
+        toast(e.message, false);
+    } finally {
+        if (btn) { btn.disabled = false; }
     }
 }
 
@@ -601,6 +682,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentRow) render(currentRow);
     });
     document.getElementById('btnSavePricing').addEventListener('click', savePricing);
+
+    const btnRecompute = document.getElementById('btnRecomputePricing');
+    if (btnRecompute) btnRecompute.addEventListener('click', recomputePricing);
 
     document.getElementById('btnBuyLabel').addEventListener('click', buyLabel);
     document.getElementById('btnSetStatus').addEventListener('click', setStatus);

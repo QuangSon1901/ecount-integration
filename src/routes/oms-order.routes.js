@@ -40,6 +40,11 @@ router.patch('/:id/pricing',
     ctrl.updatePricing.bind(ctrl)
 );
 
+router.post('/:id/recompute-pricing',
+    requireRole('admin'),
+    ctrl.recomputePricing.bind(ctrl)
+);
+
 router.patch('/:id/internal-status',
     requireRole('admin'),
     ctrl.setInternalStatus.bind(ctrl)
