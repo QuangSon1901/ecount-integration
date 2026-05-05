@@ -322,7 +322,7 @@ function renderItemsRead(items, currency) {
         const sku = it.sku || it.skuNumber || '';
         const url = it.saleUrl ? `<br><a href="${escapeHtml(it.saleUrl)}" target="_blank" rel="noopener" style="font-size:11px;">🔗 Sale URL</a>` : '';
         const dimsBits = [];
-        if (it.weight) dimsBits.push(`W:${it.weight}kg`);
+        if (it.weight) dimsBits.push(`W:${it.weight}gram`);
         if (it.length || it.width || it.height) {
             dimsBits.push(`${it.length || 0}×${it.width || 0}×${it.height || 0}cm`);
         }
@@ -378,7 +378,7 @@ function itemRowHtml(it) {
             <td><input type="text" data-field="itemDescription" value="${escapeHtml(it.itemDescription || '')}" placeholder="Item Description"></td>
             <td><input type="number" class="num" data-field="quantity" value="${it.quantity ?? ''}" min="0" step="1"></td>
             <td><input type="number" class="num" data-field="unitPrice" value="${it.unitPrice ?? ''}" min="0" step="0.01"></td>
-            <td><input type="number" class="num" data-field="weight" value="${it.weight ?? ''}" min="0" step="0.001" placeholder="kg"></td>
+            <td><input type="number" class="num" data-field="weight" value="${it.weight ?? ''}" min="0" step="0.001" placeholder="gram"></td>
             <td><input type="number" class="num" data-field="length" value="${it.length ?? ''}" min="0" step="0.1" placeholder="cm"></td>
             <td><input type="number" class="num" data-field="width" value="${it.width ?? ''}" min="0" step="0.1" placeholder="cm"></td>
             <td><input type="number" class="num" data-field="height" value="${it.height ?? ''}" min="0" step="0.1" placeholder="cm"></td>
