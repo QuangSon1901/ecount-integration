@@ -270,6 +270,21 @@ class OmsOrderController {
             if (!order) return errorResponse(res, 'OMS order not found', 404);
 
             const editor = req.session?.username || null;
+
+            if (edits.items && Array.isArray(edits.items)) {
+                let totalWeight = null, maxLength = null, maxWidth = null, maxHeight = null;
+                for (const item of edits.items) {
+                    const qty = (item.quantity != null && item.quantity > 0) ? item.quantity : 1;
+                    if (item.weight != null) totalWeight = (totalWeight ?? 0) + item.weight * qty;
+                    if (item.length != null) maxLength = Math.max(maxLength ?? 0, item.length);
+                    if (item.width  != null) maxWidth  = Math.max(maxWidth  ?? 0, item.width);
+                    if (item.height != null) maxHeight = Math.max(maxHeight ?? 0, item.height);
+                }
+                edits.package_weight = totalWeight;
+                edits.package_length = maxLength;
+                edits.package_width  = maxWidth;
+                edits.package_height = maxHeight;
+            }
             await OmsOrderModel.applyAdminEdits(id, edits, editor);
 
             // Note: KHÔNG tự động tính lại pricing khi save items — admin phải

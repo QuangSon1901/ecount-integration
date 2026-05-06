@@ -386,27 +386,6 @@ function buildItcPayload(row) {
     };
 }
 
-// ─── Compute package weight / dims from items list ───────────────────────────
-function computePackageTotalsFromItems(items) {
-    let weight = 0, length = 0, width = 0, height = 0;
-
-    for (const it of items) {
-        const qty = Number(it.quantity) || 0;
-        weight += (Number(it.weight) || 0) * qty;
-        length += (Number(it.length) || 0) * qty;
-        width  += (Number(it.width)  || 0) * qty;
-        height += (Number(it.height) || 0) * qty;
-    }
-
-    const round3 = n => Math.round(n * 1000) / 1000;
-    return {
-        packageWeight: weight > 0 ? round3(weight) : null,
-        packageLength: length > 0 ? round3(length) : null,
-        packageWidth:  width  > 0 ? round3(width)  : null,
-        packageHeight: height > 0 ? round3(height) : null,
-    };
-}
-
 // ─── Items: read view ────────────────────────────────────────────────────────
 function renderItemsRead(items, currency) {
     const body = document.getElementById('itemsBody');
@@ -600,29 +579,8 @@ async function saveReceiver() {
 async function saveItems() {
     const items = collectItemsEdit();
 
-    const itemsOk = await patch({ items }, 'Items saved');
-    if (!itemsOk) return;
-
-    const packageTotals = computePackageTotalsFromItems(items);
-    const hasAnyTotal = Object.values(packageTotals).some(val => val !== null);
-    if (!hasAnyTotal) {
-        toggleEdit('items', false);
-        return;
-    }
-
-    try {
-        const r = await fetchJson('/api/v1/admin/oms-orders/' + ID, {
-            method: 'PATCH',
-            body: JSON.stringify(packageTotals),
-        });
-        currentRow = r.data;
-        render(r.data);
-        toast('Items saved · package dimensions updated');
-    } catch (e) {
-        toast('Items saved, but failed to update package dimensions: ' + e.message, false);
-    }
-
-    toggleEdit('items', false);
+    const ok = await patch({ items }, 'Items saved · package dimensions updated');
+    if (ok) toggleEdit('items', false);
 }
 
 async function savePricing() {
