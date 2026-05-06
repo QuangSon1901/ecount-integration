@@ -324,14 +324,8 @@ class OmsOrderModel {
     }
 
     static async recordItcLabel(id, data) {
-        const purchase      = data.shippingFeePurchase ?? null;
-        const selling       = data.shippingFeeSelling  ?? null;
-        const initialProfit = OmsOrderModel.computeGrossProfit({
-            shippingFeePurchase:   purchase,
-            shippingFeeSelling:    selling,
-            fulfillmentFeePurchase: null,
-            fulfillmentFeeSelling:  null,
-        });
+        const purchase = data.shippingFeePurchase ?? null;
+        const selling  = data.shippingFeeSelling  ?? null;
 
         const conn = await db.getConnection();
         try {
@@ -349,7 +343,6 @@ class OmsOrderModel {
                     shipping_fee_purchase = ?,
                     shipping_markup_percent = ?,
                     shipping_fee_selling = ?,
-                    gross_profit = ?,
                     cost_currency = ?,
                     internal_status = ?,
                     internal_status_note = ?
@@ -367,7 +360,6 @@ class OmsOrderModel {
                     purchase,
                     data.shippingMarkupPercent ?? null,
                     selling,
-                    initialProfit,
                     data.costCurrency || 'USD',
                     data.internalStatus || 'label_purchased',
                     data.internalStatusNote || null,
@@ -460,14 +452,12 @@ class OmsOrderModel {
             }
             const row = rows[0];
 
-            // Merge sets vào row hiện tại để tính gross_profit chuẩn
-            const pickNum = (col) => {
-                if (sets[col] !== undefined) return sets[col];
-                return row[col] === null ? null : Number(row[col]);
-            };
-
             // Recompute shipping_fee_selling khi purchase hoặc markup thay đổi
             if (sets.shipping_fee_purchase !== undefined || sets.shipping_markup_percent !== undefined) {
+                const pickNum = (col) => {
+                    if (sets[col] !== undefined) return sets[col];
+                    return row[col] === null ? null : Number(row[col]);
+                };
                 const newSelling = OmsOrderModel.computeShippingFeeSelling({
                     shippingFeePurchase:   pickNum('shipping_fee_purchase'),
                     shippingMarkupPercent: pickNum('shipping_markup_percent'),
@@ -477,22 +467,13 @@ class OmsOrderModel {
                 sets.shipping_fee_selling = newSelling;
             }
 
-            const newProfit = OmsOrderModel.computeGrossProfit({
-                shippingFeePurchase:         pickNum('shipping_fee_purchase'),
-                shippingFeeSelling:          pickNum('shipping_fee_selling'),
-                fulfillmentFeePurchase:      pickNum('fulfillment_fee_purchase'),
-                fulfillmentFeeSelling:       pickNum('fulfillment_fee_selling'),
-                packagingMaterialFeeSelling: pickNum('packaging_material_fee_selling'),
-                additionalFee:               pickNum('additional_fee'),
-            });
-
+            // gross_profit được tính động (dựa vào cost tier tháng đơn) — không lưu DB
             const fields = [];
             const values = [];
             for (const [col, val] of Object.entries(sets)) {
                 fields.push(`${col} = ?`);
                 values.push(val);
             }
-            fields.push('gross_profit = ?');      values.push(newProfit);
             fields.push('pricing_edited_at = NOW()');
             fields.push('pricing_edited_by = ?'); values.push(editedBy);
             values.push(id);
@@ -503,7 +484,7 @@ class OmsOrderModel {
             const [updated] = await conn.query('SELECT * FROM oms_orders WHERE id = ?', [id]);
             return {
                 row:     updated[0],
-                changed: Object.keys(sets).concat(['gross_profit']),
+                changed: Object.keys(sets),
             };
         } catch (err) {
             try { await conn.rollback(); } catch {}
@@ -517,20 +498,25 @@ class OmsOrderModel {
         shippingFeePurchase, shippingFeeSelling,
         fulfillmentFeePurchase, fulfillmentFeeSelling,
         packagingMaterialFeeSelling,
+        packagingMaterialFeeCost,
         additionalFee,
     }) {
-        const sp = shippingFeePurchase;
-        const ss = shippingFeeSelling;
-        if (sp === null || sp === undefined || ss === null || ss === undefined) return null;
+        // Các field bắt buộc — nếu NULL thì chưa đủ dữ liệu tính
+        if (shippingFeePurchase == null) return null;
+        if (shippingFeeSelling  == null) return null;
+        if (fulfillmentFeePurchase == null) return null;
+        if (fulfillmentFeeSelling  == null) return null;
 
-        const fp  = Number(fulfillmentFeePurchase ?? 0);
-        const fs  = Number(fulfillmentFeeSelling  ?? 0);
-        const pm  = Number(packagingMaterialFeeSelling ?? 0);
-        const ad  = Number(additionalFee ?? 0);
+        const revenue = Number(shippingFeeSelling)
+                      + Number(fulfillmentFeeSelling)
+                      + Number(packagingMaterialFeeSelling ?? 0)
+                      + Number(additionalFee ?? 0);
 
-        const totalSelling  = Number(ss) + fs + pm + ad;
-        const totalPurchase = Number(sp) + fp;
-        return _round4(totalSelling - totalPurchase);
+        const cost    = Number(shippingFeePurchase)
+                      + Number(fulfillmentFeePurchase)
+                      + Number(packagingMaterialFeeCost ?? 0);
+
+        return _round4(revenue - cost);
     }
 
     /**
@@ -546,10 +532,6 @@ class OmsOrderModel {
         const nameKey = shippingServiceName
             ? String(shippingServiceName).trim().toLowerCase().replace(/\s+/g, ' ')
             : null;
-        const eligible =
-            (nameKey && SHIPPING_SERVICES_WITH_MARKUP.has(nameKey)) ||
-            (shippingPartner && SHIPPING_PARTNERS_WITH_MARKUP.has(shippingPartner));
-        if (!eligible) return 0;
 
         const purchase = Number(shippingFeePurchase);
         if (!Number.isFinite(purchase)) return null;
@@ -558,11 +540,11 @@ class OmsOrderModel {
     }
 
     /**
-     * Orchestrate: tính fulfillment, packaging, shipping selling, gross_profit và lưu lại.
+     * Orchestrate: tính fulfillment selling + cost, packaging selling + cost,
+     * shipping selling, gross_profit và lưu lại.
      *
      * Luôn tính lại từ items hiện tại — không có gate "skip auto".
-     * `needs_manual_pricing` chỉ là indicator: TRUE khi bracket=6 (>10 lbs) → admin
-     * cần dùng `additional_fee` để bù phụ phí thủ công.
+     * `needs_manual_pricing` là union của cả selling lẫn cost calculator.
      *
      * Trigger:
      *   - Sau khi mua label thành công (label-purchase.service.js)
@@ -571,7 +553,7 @@ class OmsOrderModel {
      * @param {number} orderId
      * @returns {Promise<object>} updated row
      */
-    static async computeAndApplySellingFees(orderId) {
+    static async computeAndApplyFees(orderId) {
         const fulfillmentCalc = require('../services/pricing/fulfillment-calculator.service');
         const packagingCalc   = require('../services/pricing/packaging-material.service');
 
@@ -595,30 +577,31 @@ class OmsOrderModel {
             }
             if (!Array.isArray(items)) items = [];
 
-            // 1. Fulfillment + packaging — luôn recompute từ items
-            const fulfillmentRes = fulfillmentCalc.computeFulfillmentFeeSelling(items);
-            const packagingRes   = await packagingCalc.computePackagingFee(items, row.customer_id);
+            // 1. Selling fees — fulfillment + packaging
+            const fulfillmentSellingRes = fulfillmentCalc.computeFulfillmentFeeSelling(items);
+            const packagingSellingRes   = await packagingCalc.computePackagingFee(items, row.customer_id);
 
-            const fulfillmentFeeSelling = fulfillmentRes.fee_selling;
-            const fulfillmentDetail     = fulfillmentRes.detail;
-            const needsManual           = fulfillmentRes.needs_manual_pricing;
-            const packagingTotal        = packagingRes.total;
-            const packagingDetail       = packagingRes.detail;
+            const fulfillmentFeeSelling = fulfillmentSellingRes.fee_selling;
+            const fulfillmentDetail     = fulfillmentSellingRes.detail;
+            const needsManual           = fulfillmentSellingRes.needs_manual_pricing;
+            const packagingTotal        = packagingSellingRes.total;
+            const packagingDetail       = packagingSellingRes.detail;
 
             const fields = [];
             const values = [];
 
+            // Selling
             fields.push('fulfillment_fee_selling = ?');         values.push(fulfillmentFeeSelling);
             fields.push('fulfillment_fee_detail = ?');          values.push(fulfillmentDetail ? JSON.stringify(fulfillmentDetail) : null);
             fields.push('packaging_material_fee_selling = ?');  values.push(packagingTotal);
             fields.push('packaging_material_fee_detail = ?');   values.push(packagingDetail && packagingDetail.length ? JSON.stringify(packagingDetail) : null);
+
             fields.push('needs_manual_pricing = ?');            values.push(needsManual ? 1 : 0);
 
             // 2. Shipping fee selling (cập nhật theo service name + purchase + markup,
             //    chỉ ghi đè khi đã có purchase để tránh wipe lúc chưa mua label)
-            let effectiveShippingSelling;
             if (row.shipping_fee_purchase !== null && row.shipping_fee_purchase !== undefined) {
-                effectiveShippingSelling = OmsOrderModel.computeShippingFeeSelling({
+                const effectiveShippingSelling = OmsOrderModel.computeShippingFeeSelling({
                     shippingFeePurchase:   row.shipping_fee_purchase,
                     shippingMarkupPercent: row.shipping_markup_percent,
                     shippingServiceName:   row.oms_shipping_service_name,
@@ -626,22 +609,10 @@ class OmsOrderModel {
                 });
                 fields.push('shipping_fee_selling = ?');
                 values.push(effectiveShippingSelling);
-            } else {
-                effectiveShippingSelling = row.shipping_fee_selling === null
-                    ? null : Number(row.shipping_fee_selling);
             }
 
-            // 3. Gross profit
-            const grossProfit = OmsOrderModel.computeGrossProfit({
-                shippingFeePurchase:         row.shipping_fee_purchase,
-                shippingFeeSelling:          effectiveShippingSelling,
-                fulfillmentFeePurchase:      row.fulfillment_fee_purchase,
-                fulfillmentFeeSelling:       fulfillmentFeeSelling,
-                packagingMaterialFeeSelling: packagingTotal,
-                additionalFee:               row.additional_fee,
-            });
-            fields.push('gross_profit = ?');
-            values.push(grossProfit);
+            // Cost (fulfillment_fee_purchase, packaging_material_fee_cost, gross_profit)
+            // không lưu vào DB — tính động khi hiển thị theo tháng tạo đơn.
 
             values.push(orderId);
             await conn.query(
@@ -659,6 +630,14 @@ class OmsOrderModel {
         } finally {
             conn.release();
         }
+    }
+
+    /**
+     * @deprecated Dùng computeAndApplyFees thay thế.
+     * Giữ lại alias để tránh break caller chưa cập nhật.
+     */
+    static async computeAndApplySellingFees(orderId) {
+        return OmsOrderModel.computeAndApplyFees(orderId);
     }
 
     static async findStuckLabelPurchasing(olderThanMinutes = 5, limit = 100) {

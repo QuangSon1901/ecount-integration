@@ -52,7 +52,9 @@ class OmsSkuPackagingMappingModel {
             }
 
             const [rows] = await conn.query(
-                `SELECT m.*, mat.name AS material_name, mat.sell_price AS material_sell_price
+                `SELECT m.*, mat.name AS material_name,
+                        mat.sell_price AS material_sell_price,
+                        mat.cost_price AS material_cost_price
                  FROM oms_sku_packaging_mapping m
                  INNER JOIN oms_packaging_materials mat ON mat.id = m.material_id
                  WHERE m.sku IN (${placeholders})

@@ -120,7 +120,7 @@ function sumMoney(arr) {
     return any ? Math.round(sum * 10000) / 10000 : null;
 }
 
-// Render fulfillment_fee_detail JSON thành HTML breakdown.
+// Render fulfillment_fee_detail JSON (selling) thành HTML breakdown.
 function renderFulfillmentDetail(detail) {
     if (!detail || typeof detail !== 'object') return '';
     const bracketLabel = detail.bracket === 6 ? 'Bracket 6 (>10 lbs — manual)' : `Bracket ${detail.bracket}`;
@@ -136,12 +136,34 @@ function renderFulfillmentDetail(detail) {
     return bits.map(escapeHtml).join(' · ');
 }
 
+// Render fulfillment_fee_cost_detail JSON (cost) thành HTML breakdown.
+function renderFulfillmentCostDetail(detail) {
+    if (!detail || typeof detail !== 'object') return '';
+    const bits = [];
+    if (detail.tier != null) {
+        const tierLabel = `Tier ${detail.tier}`;
+        const totalLabel = detail.monthly_total != null ? ` (${detail.monthly_total} đơn/tháng)` : '';
+        bits.push(escapeHtml(tierLabel + totalLabel));
+    }
+    if (detail.weight_bracket != null && detail.heaviest_weight_lbs != null) {
+        bits.push(escapeHtml(`Bracket ${detail.weight_bracket} — ${detail.heaviest_weight_lbs} lbs (${detail.heaviest_weight_gram}g)`));
+    }
+    if (detail.base_rate != null) bits.push(escapeHtml(`Base $${Number(detail.base_rate).toFixed(2)}`));
+    if (detail.total_items != null) {
+        bits.push(escapeHtml(`${detail.total_items} item(s) → +${detail.extra_items || 0} extra × $0.25 = $${Number(detail.extra_fee || 0).toFixed(2)}`));
+    }
+    return bits.join(' · ');
+}
+
 // Render packaging_material_fee_detail JSON array thành HTML.
 function renderPackagingDetail(detail) {
     if (!Array.isArray(detail) || detail.length === 0) return '';
     return detail.map(d => {
         const name = d.material_name || `Material #${d.material_id}`;
-        return `${escapeHtml(d.sku)} → ${escapeHtml(name)} × ${d.quantity} = $${Number(d.subtotal).toFixed(4)}`;
+        // Hiển thị sell_price hoặc cost_price tùy loại detail
+        const price = d.sell_price != null ? d.sell_price : (d.cost_price != null ? d.cost_price : null);
+        const priceStr = price != null ? ` @$${Number(price).toFixed(4)}` : '';
+        return `${escapeHtml(d.sku)} → ${escapeHtml(name)} × ${d.quantity}${priceStr} = $${Number(d.subtotal).toFixed(4)}`;
     }).join('<br>');
 }
 
@@ -216,19 +238,36 @@ function render(row) {
     // ─── Pricing (read) ────────────────────────────────────────────────────
     const cur = row.declared_currency || 'USD';
     setText('vPricingShippingService', row.oms_shipping_service_name || '—');
-    setText('vShippingPurchase', fmtMoney(row.shipping_fee_purchase, cur));
     setText('vShippingMarkup',
         row.shipping_markup_percent != null ? `${row.shipping_markup_percent}%` : '—');
-    setText('vShippingSelling', fmtMoney(row.shipping_fee_selling, cur));
+
+    // Shipping: Cost | Selling
+    setText('vShippingPurchase', fmtMoney(row.shipping_fee_purchase, cur));
+    setText('vShippingSelling',  fmtMoney(row.shipping_fee_selling, cur));
+
+    // Fulfillment: Cost | Selling
     setText('vFulfillmentPurchase', fmtMoney(row.fulfillment_fee_purchase, cur));
-    setText('vFulfillmentSelling', fmtMoney(row.fulfillment_fee_selling, cur));
-    setHtml('vFulfillmentDetail', renderFulfillmentDetail(row.fulfillment_fee_detail, cur));
+    setText('vFulfillmentSelling',  fmtMoney(row.fulfillment_fee_selling, cur));
+    setHtml('vFulfillmentCostDetail', renderFulfillmentCostDetail(row.fulfillment_fee_cost_detail));
+    setHtml('vFulfillmentDetail',     renderFulfillmentDetail(row.fulfillment_fee_detail));
 
+    // Packaging: Cost | Selling
+    setText('vPackagingCost',    fmtMoney(row.packaging_material_fee_cost, cur));
     setText('vPackagingSelling', fmtMoney(row.packaging_material_fee_selling, cur));
-    setHtml('vPackagingDetail', renderPackagingDetail(row.packaging_material_fee_detail, cur));
+    setHtml('vPackagingCostDetail', renderPackagingDetail(row.packaging_material_fee_cost_detail));
+    setHtml('vPackagingDetail',     renderPackagingDetail(row.packaging_material_fee_detail));
 
+    // Additional fee
     setText('vAdditionalFee', row.additional_fee != null ? fmtMoney(row.additional_fee, cur) : '—');
     setText('vAdditionalNote', row.additional_fee_note || '');
+
+    // Total cost = shipping purchase + fulfillment purchase + packaging cost
+    const totalCost = sumMoney([
+        row.shipping_fee_purchase,
+        row.fulfillment_fee_purchase,
+        row.packaging_material_fee_cost,
+    ]);
+    setText('vTotalCost', totalCost != null ? fmtMoney(totalCost, cur) : '—');
 
     // Total selling = shipping + fulfillment + packaging + additional
     const totalSelling = sumMoney([
@@ -263,10 +302,10 @@ function render(row) {
     setVal('additionalFeeNote', row.additional_fee_note);
 
     // Totals
-    setText('vTotalValue',    fmtMoney(row.total_value, cur));
-    setText('vTotalDiscount', fmtMoney(row.total_discount, cur));
-    setText('vPaidAmount',    fmtMoney(row.paid_amount, cur));
-    setText('vRemaining',     fmtMoney(row.remaining_amount, cur));
+    // setText('vTotalValue',    fmtMoney(row.total_value, cur));
+    // setText('vTotalDiscount', fmtMoney(row.total_discount, cur));
+    // setText('vPaidAmount',    fmtMoney(row.paid_amount, cur));
+    // setText('vRemaining',     fmtMoney(row.remaining_amount, cur));
 
     // ─── ITC Label ─────────────────────────────────────────────────────────
     const hasLabel = !!(row.tracking_number || row.carrier || row.itc_sid);

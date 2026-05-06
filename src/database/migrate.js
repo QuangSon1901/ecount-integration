@@ -1376,6 +1376,33 @@ const migrations = [
                     COMMENT 'Snapshot seller profile đã gửi ITC lúc mua label: { profileName, name, address1, city, state, postalCode, country, phone }'
                     AFTER itc_response;
         `
+    },
+    {
+        version: 55,
+        name: 'add_cost_pricing_columns_to_oms_orders',
+        up: `
+            ALTER TABLE oms_orders
+                ADD COLUMN fulfillment_fee_cost_detail JSON DEFAULT NULL
+                    COMMENT 'Audit JSON cost: { year_month, monthly_total, tier, heaviest_weight_gram, heaviest_weight_lbs, weight_bracket, base_rate, total_items, extra_items, extra_fee, computed_at }'
+                    AFTER fulfillment_fee_purchase,
+                ADD COLUMN packaging_material_fee_cost DECIMAL(10,4) DEFAULT NULL
+                    COMMENT 'Tổng phí vật liệu đóng gói theo cost_price'
+                    AFTER packaging_material_fee_detail,
+                ADD COLUMN packaging_material_fee_cost_detail JSON DEFAULT NULL
+                    COMMENT 'Audit JSON array cost: [{ sku, material_id, material_name, cost_price, quantity, subtotal }]'
+                    AFTER packaging_material_fee_cost;
+        `
+    },
+
+    {
+        version: 56,
+        name: 'drop_stored_cost_columns_from_oms_orders',
+        up: `
+            ALTER TABLE oms_orders
+                DROP COLUMN fulfillment_fee_cost_detail,
+                DROP COLUMN packaging_material_fee_cost,
+                DROP COLUMN packaging_material_fee_cost_detail;
+        `
     }
 
 ];

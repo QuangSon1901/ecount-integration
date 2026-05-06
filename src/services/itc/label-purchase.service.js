@@ -210,9 +210,9 @@ class LabelPurchaseService {
         //     Failure ở đây non-fatal — label đã được mua, gross_profit đã có giá trị
         //     ban đầu (chỉ shipping). Admin có thể edit pricing sau.
         try {
-            await OmsOrderModel.computeAndApplySellingFees(omsOrderId);
+            await OmsOrderModel.computeAndApplyFees(omsOrderId);
         } catch (err) {
-            logger.warn('[ITC] computeAndApplySellingFees failed after label purchase', {
+            logger.warn('[ITC] computeAndApplyFees failed after label purchase', {
                 omsOrderId,
                 error: err.message,
             });

@@ -669,63 +669,118 @@
                         Pricing
                     </h3>
                     <div class="panel-head-actions">
+                        <button class="btn btn-sm btn-ghost" id="btnRecomputePricing" title="Recompute">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                            Recompute
+                        </button>
                         <button class="btn btn-sm btn-ghost" id="btnEditPricing">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                             Edit
                         </button>
                     </div>
                 </div>
+
                 <div class="panel-body" id="pricingView">
-                    <!-- Cảnh báo cần admin nhập tay -->
-                    <div id="manualPricingBanner" class="hidden" style="margin-bottom:10px; padding:8px 12px; background:var(--warning-light); border:1px solid var(--warning); border-radius:6px; color:#92400e; font-size:12px;">
+
+                    <!-- Warning banner -->
+                    <div id="manualPricingBanner" class="hidden" style="margin-bottom:12px; padding:8px 12px; background:var(--warning-light); border:1px solid var(--warning); border-radius:6px; color:#92400e; font-size:12px;">
                         <strong>⚠ Manual pricing required</strong>
                         <span id="manualPricingReason"> — package &gt; 10 lbs, fulfillment chưa quote được. Hãy cộng phụ phí qua Additional Fee.</span>
                     </div>
-                    <div style="margin-bottom:10px; display:flex; justify-content:flex-end;">
-                        <button class="btn btn-sm" id="btnRecomputePricing" title="Tính lại fulfillment + packaging + shipping selling từ items hiện tại">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-                            Recompute Pricing
-                        </button>
+
+                    <!-- Service + Markup -->
+                    <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:0; background:var(--bg-muted); border:1px solid var(--border); border-radius:6px; padding:8px 10px;">
+                            <div style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.6px; margin-bottom:3px;">Shipping Service</div>
+                            <div style="font-size:13px; font-weight:600; color:var(--text-primary);" id="vPricingShippingService">—</div>
+                        </div>
+                        <div style="width:120px; background:var(--bg-muted); border:1px solid var(--border); border-radius:6px; padding:8px 10px;">
+                            <div style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.6px; margin-bottom:3px;">Markup %</div>
+                            <div style="font-size:13px; font-weight:600; color:var(--text-primary); font-family:'SF Mono',Menlo,Consolas,monospace;" id="vShippingMarkup">—</div>
+                        </div>
                     </div>
 
-                    <div style="display:grid; grid-template-columns: 1fr 240px; gap:16px; align-items:flex-start;">
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 24px;">
-                            <div class="info-row"><span class="lbl">Shipping Service</span><span class="val" id="vPricingShippingService">—</span></div>
-                            <div class="info-row"><span class="lbl">Shipping Markup %</span><span class="val mono" id="vShippingMarkup">—</span></div>
-                            <div class="info-row"><span class="lbl">Shipping — Purchase</span><span class="val mono" id="vShippingPurchase">—</span></div>
-                            <div class="info-row"><span class="lbl">Shipping — Selling</span><span class="val mono" id="vShippingSelling">—</span></div>
-                            <div class="info-row"><span class="lbl">Fulfillment — Purchase</span><span class="val mono" id="vFulfillmentPurchase">—</span></div>
-                            <div class="info-row" style="grid-column:1/-1; align-items:flex-start;">
-                                <span class="lbl">Fulfillment — Selling</span>
-                                <span class="val" id="vFulfillmentSellingWrap" style="text-align:right; max-width:none;">
-                                    <span class="mono" id="vFulfillmentSelling">—</span>
-                                    <div id="vFulfillmentDetail" class="text-muted" style="font-size:11px; margin-top:2px;"></div>
-                                </span>
-                            </div>
-                            <div class="info-row" style="grid-column:1/-1; align-items:flex-start;">
-                                <span class="lbl">Packaging Material</span>
-                                <span class="val" id="vPackagingWrap" style="text-align:right; max-width:none;">
-                                    <span class="mono" id="vPackagingSelling">—</span>
-                                    <div id="vPackagingDetail" class="text-muted" style="font-size:11px; margin-top:2px;"></div>
-                                </span>
-                            </div>
-                            <div class="info-row" style="grid-column:1/-1; align-items:flex-start;">
-                                <span class="lbl">Additional Fee</span>
-                                <span class="val" id="vAdditionalWrap" style="text-align:right; max-width:none;">
-                                    <span class="mono" id="vAdditionalFee">—</span>
-                                    <div id="vAdditionalNote" class="text-muted" style="font-size:11px; margin-top:2px; white-space:pre-wrap;"></div>
-                                </span>
-                            </div>
-                            <div class="info-row" style="grid-column:1/-1;"><span class="lbl"><strong>Total Selling</strong></span><span class="val mono" id="vTotalSelling" style="font-weight:700;">—</span></div>
-                            <div class="info-row" style="grid-column:1/-1;"><span class="lbl"><strong>Gross Profit</strong></span><span class="val mono" id="vGrossProfit">—</span></div>
-                        </div>
-                        <div class="totals-card">
-                            <div class="total-line"><span class="label">Total Value (A)</span><span class="value" id="vTotalValue">0</span></div>
-                            <div class="total-line"><span class="label">Total Discount (B)</span><span class="value" id="vTotalDiscount">0</span></div>
-                            <div class="total-line"><span class="label">Paid Amount (C)</span><span class="value" id="vPaidAmount">0</span></div>
-                            <div class="total-line grand"><span class="label">Remaining</span><span class="value" id="vRemaining">0</span></div>
-                        </div>
+                    <!-- Cost / Selling table -->
+                    <div style="border:1px solid var(--border); border-radius:6px; overflow:hidden;">
+                        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                            <thead>
+                                <tr style="background:var(--bg-table-head);">
+                                    <th style="padding:6px 10px; text-align:left; font-size:11px; font-weight:700; color:var(--text-secondary); letter-spacing:.4px; border-bottom:1px solid var(--border); width:40%;">Line Item</th>
+                                    <th style="padding:6px 10px; text-align:right; font-size:11px; font-weight:700; color:var(--text-muted); letter-spacing:.4px; border-bottom:1px solid var(--border); width:30%;">Cost</th>
+                                    <th style="padding:6px 10px; text-align:right; font-size:11px; font-weight:700; color:var(--text-secondary); letter-spacing:.4px; border-bottom:1px solid var(--border); width:30%;">Selling</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Shipping -->
+                                <tr>
+                                    <td style="padding:8px 10px; border-bottom:1px solid var(--bg-muted);">
+                                        <div style="font-weight:600; color:var(--text-primary);">Shipping</div>
+                                    </td>
+                                    <td style="padding:8px 10px; border-bottom:1px solid var(--bg-muted); text-align:right; font-family:'SF Mono',Menlo,Consolas,monospace; color:var(--text-muted); font-weight:600;" id="vShippingPurchase">—</td>
+                                    <td style="padding:8px 10px; border-bottom:1px solid var(--bg-muted); text-align:right; font-family:'SF Mono',Menlo,Consolas,monospace; font-weight:600;" id="vShippingSelling">—</td>
+                                </tr>
+
+                                <!-- Fulfillment -->
+                                <tr>
+                                    <td style="padding:8px 10px 4px; border-bottom:1px solid var(--bg-muted);">
+                                        <div style="font-weight:600; color:var(--text-primary);">Fulfillment</div>
+                                    </td>
+                                    <td style="padding:8px 10px 4px; border-bottom:1px solid var(--bg-muted); text-align:right; vertical-align:top;">
+                                        <div id="vFulfillmentPurchase" style="font-family:'SF Mono',Menlo,Consolas,monospace; color:var(--text-muted); font-weight:600;">—</div>
+                                        <div id="vFulfillmentCostDetail" style="font-size:10px; color:var(--text-muted); margin-top:2px; line-height:1.5;"></div>
+                                    </td>
+                                    <td style="padding:8px 10px 4px; border-bottom:1px solid var(--bg-muted); text-align:right; vertical-align:top;">
+                                        <div style="font-family:'SF Mono',Menlo,Consolas,monospace; font-weight:600;" id="vFulfillmentSelling">—</div>
+                                        <div id="vFulfillmentDetail" style="font-size:10px; color:var(--text-muted); margin-top:2px; line-height:1.5; text-align:right;"></div>
+                                    </td>
+                                </tr>
+
+                                <!-- Packaging -->
+                                <tr>
+                                    <td style="padding:8px 10px 4px; border-bottom:1px solid var(--bg-muted);">
+                                        <div style="font-weight:600; color:var(--text-primary);">Packaging Material</div>
+                                    </td>
+                                    <td style="padding:8px 10px 4px; border-bottom:1px solid var(--bg-muted); text-align:right; vertical-align:top;">
+                                        <div id="vPackagingCost" style=" font-family:'SF Mono',Menlo,Consolas,monospace; color:var(--text-muted); font-weight:600;">—</div>
+                                        <div id="vPackagingCostDetail" style="font-size:10px; color:var(--text-muted); margin-top:2px; line-height:1.5;"></div>
+                                    </td>
+                                    <td style="padding:8px 10px 4px; border-bottom:1px solid var(--bg-muted); text-align:right; vertical-align:top;">
+                                        <div style="font-family:'SF Mono',Menlo,Consolas,monospace; font-weight:600;" id="vPackagingSelling">—</div>
+                                        <div id="vPackagingDetail" style="font-size:10px; color:var(--text-muted); margin-top:2px; line-height:1.5; text-align:right;"></div>
+                                    </td>
+                                </tr>
+
+                                <!-- Additional Fee -->
+                                <tr>
+                                    <td style="padding:8px 10px; border-bottom:1px solid var(--border);">
+                                        <div style="font-weight:600; color:var(--text-primary);">Additional Fee</div>
+                                    </td>
+                                    <td style="padding:8px 10px; border-bottom:1px solid var(--border); text-align:right; color:var(--text-muted); font-size:11px;">—</td>
+                                    <td style="padding:8px 10px; border-bottom:1px solid var(--border); text-align:right;">
+                                        <div id="vAdditionalFee" style="font-family:'SF Mono',Menlo,Consolas,monospace; font-weight:600;"></div>
+                                        <div id="vAdditionalNote" style="font-size:10px; color:var(--text-muted); margin-top:2px; white-space:pre-wrap; line-height:1.5;"></div>
+                                    </td>
+                                </tr>
+
+                                <!-- Total row -->
+                                <tr style="background:var(--bg-muted);">
+                                    <td style="padding:8px 10px; font-weight:700; font-size:12px; color:var(--text-primary);">Total</td>
+                                    <td style="padding:8px 10px; text-align:right; font-family:'SF Mono',Menlo,Consolas,monospace; font-weight:600; color:var(--text-secondary);" id="vTotalCost">—</td>
+                                    <td style="padding:8px 10px; text-align:right; font-family:'SF Mono',Menlo,Consolas,monospace; font-weight:700; font-size:13px;" id="vTotalSelling">—</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
+
+                    <!-- Gross Profit card -->
+                    <div style="margin-top:10px; display:flex; align-items:center; justify-content:space-between; background:var(--bg-muted); border:1px solid var(--border); border-radius:6px; padding:10px 14px;">
+                        <div>
+                            <div style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.6px;">Gross Profit</div>
+                            <div style="font-size:10px; color:var(--text-muted); margin-top:1px;">Selling − Cost</div>
+                        </div>
+                        <div id="vGrossProfit" style="font-family:'SF Mono',Menlo,Consolas,monospace; font-weight:700; font-size:16px;">—</div>
+                    </div>
+
                 </div>
                 <div class="panel-body hidden" id="pricingEdit">
                     <div style="background:var(--bg-muted); border:1px solid var(--border); border-radius:6px; padding:10px 12px; margin-bottom:12px; font-size:12px; color:var(--text-secondary);">
@@ -948,6 +1003,6 @@
     </div>
 </div>
 
-<script src="/js/oms-order-detail.js?v=2171"></script>
+<script src="/js/oms-order-detail.js?v=2178"></script>
 </body>
 </html>

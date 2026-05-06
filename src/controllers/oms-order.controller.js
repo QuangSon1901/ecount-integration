@@ -16,6 +16,8 @@ const labelPurchase = require('../services/itc/label-purchase.service');
 const jobService = require('../services/queue/job.service');
 const { successResponse, errorResponse } = require('../utils/response');
 const logger = require('../utils/logger');
+const fulfillmentCostCalc = require('../services/pricing/fulfillment-cost-calculator.service');
+const packagingCalc = require('../services/pricing/packaging-material.service');
 
 const STATUS_TO_HTTP = {
     NOT_FOUND: 404,
@@ -85,7 +87,8 @@ class OmsOrderController {
             const row = await OmsOrderModel.findById(id);
             if (!row) return errorResponse(res, 'OMS order not found', 404);
 
-            return successResponse(res, this._formatOrder(row), 'OMS order retrieved');
+            const costData = await this._computeCostForOrder(row);
+            return successResponse(res, { ...this._formatOrder(row), ...costData }, 'OMS order retrieved');
         } catch (err) {
             next(err);
         }
@@ -98,7 +101,8 @@ class OmsOrderController {
             const { productCode, sellerProfileId } = req.body || {};
 
             const updated = await labelPurchase.purchaseFor(id, { productCode, sellerProfileId });
-            return successResponse(res, this._formatOrder(updated), 'Label purchased successfully');
+            const costData = await this._computeCostForOrder(updated);
+            return successResponse(res, { ...this._formatOrder(updated), ...costData }, 'Label purchased successfully');
         } catch (err) {
             return this._handleError(res, err, next);
         }
@@ -272,7 +276,8 @@ class OmsOrderController {
                 editedBy
             );
 
-            return successResponse(res, this._formatOrder(row), 'Pricing updated');
+            const costData = await this._computeCostForOrder(row);
+            return successResponse(res, { ...this._formatOrder(row), ...costData }, 'Pricing updated');
         } catch (err) {
             return this._handleError(res, err, next);
         }
@@ -280,8 +285,8 @@ class OmsOrderController {
 
     /**
      * POST /api/v1/admin/oms-orders/:id/recompute-pricing
-     * Chạy lại computeAndApplySellingFees: tính lại fulfillment, packaging,
-     * shipping selling, gross_profit từ items hiện tại.
+     * Tính lại selling fees (fulfillment, packaging, shipping selling) và lưu DB.
+     * Cost + gross_profit tính động và trả về trong response (không lưu).
      */
     async recomputePricing(req, res, next) {
         try {
@@ -291,14 +296,15 @@ class OmsOrderController {
             const exists = await OmsOrderModel.findById(id);
             if (!exists) return errorResponse(res, 'OMS order not found', 404);
 
-            const updated = await OmsOrderModel.computeAndApplySellingFees(id);
+            const updated = await OmsOrderModel.computeAndApplyFees(id);
 
             logger.info('[OMS-ORDER] manual recompute pricing', {
                 omsOrderId: id,
                 editor:     req.session?.username || null,
             });
 
-            return successResponse(res, this._formatOrder(updated), 'Pricing recomputed');
+            const costData = await this._computeCostForOrder(updated);
+            return successResponse(res, { ...this._formatOrder(updated), ...costData }, 'Pricing recomputed');
         } catch (err) {
             return this._handleError(res, err, next);
         }
@@ -395,6 +401,63 @@ class OmsOrderController {
         return next(err);
     }
 
+    /**
+     * Tính cost fields động dựa theo tháng tạo đơn.
+     * Kết quả không lưu DB — trả về để merge vào response.
+     * Fail-safe: lỗi → trả null fields, không block response chính.
+     */
+    async _computeCostForOrder(row) {
+        const nullResult = {
+            fulfillment_fee_purchase:           null,
+            fulfillment_fee_cost_detail:        null,
+            packaging_material_fee_cost:        null,
+            packaging_material_fee_cost_detail: null,
+            gross_profit:                       null,
+        };
+        try {
+            let items = row.items;
+            if (typeof items === 'string') {
+                try { items = JSON.parse(items); } catch { items = []; }
+            }
+            if (!Array.isArray(items)) items = [];
+
+            // Tháng của đơn để tra đúng tier
+            const dateSource = row.created_at || row.oms_created_at;
+            const d = dateSource ? new Date(dateSource) : new Date();
+            const orderYearMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+            const [fulfillmentCostRes, packagingCostRes] = await Promise.all([
+                fulfillmentCostCalc.computeFulfillmentFeeCost(items, orderYearMonth),
+                packagingCalc.computePackagingFeeCost(items, row.customer_id),
+            ]);
+
+            const fulfillmentFeePurchase = fulfillmentCostRes.fee_purchase;
+            const packagingCostTotal     = packagingCostRes.total;
+
+            const grossProfit = OmsOrderModel.computeGrossProfit({
+                shippingFeePurchase:         row.shipping_fee_purchase   == null ? null : Number(row.shipping_fee_purchase),
+                shippingFeeSelling:          row.shipping_fee_selling    == null ? null : Number(row.shipping_fee_selling),
+                fulfillmentFeePurchase,
+                fulfillmentFeeSelling:       row.fulfillment_fee_selling == null ? null : Number(row.fulfillment_fee_selling),
+                packagingMaterialFeeSelling: row.packaging_material_fee_selling == null ? null : Number(row.packaging_material_fee_selling),
+                packagingMaterialFeeCost:    packagingCostTotal,
+                additionalFee:              row.additional_fee == null ? null : Number(row.additional_fee),
+            });
+
+            return {
+                fulfillment_fee_purchase:           fulfillmentFeePurchase,
+                fulfillment_fee_cost_detail:        fulfillmentCostRes.detail,
+                packaging_material_fee_cost:        packagingCostTotal,
+                packaging_material_fee_cost_detail: packagingCostRes.detail && packagingCostRes.detail.length
+                    ? packagingCostRes.detail : null,
+                gross_profit: grossProfit,
+            };
+        } catch (err) {
+            logger.warn('[OMS-ORDER] cost computation failed', { id: row.id, error: err.message });
+            return nullResult;
+        }
+    }
+
     _formatOrder(row) {
         if (!row) return null;
         return {
@@ -444,14 +507,17 @@ class OmsOrderController {
             shipping_markup_percent:         row.shipping_markup_percent,
             shipping_fee_selling:            row.shipping_fee_selling,
             gross_profit:                    row.gross_profit,
-            fulfillment_fee_purchase:        row.fulfillment_fee_purchase,
-            fulfillment_fee_selling:         row.fulfillment_fee_selling,
-            fulfillment_fee_detail:          this._parseJson(row.fulfillment_fee_detail),
-            packaging_material_fee_selling:  row.packaging_material_fee_selling,
-            packaging_material_fee_detail:   this._parseJson(row.packaging_material_fee_detail),
-            additional_fee:                  row.additional_fee,
-            additional_fee_note:             row.additional_fee_note,
-            needs_manual_pricing:            row.needs_manual_pricing ? true : false,
+            fulfillment_fee_purchase:             row.fulfillment_fee_purchase,
+            fulfillment_fee_cost_detail:          null,
+            fulfillment_fee_selling:              row.fulfillment_fee_selling,
+            fulfillment_fee_detail:               this._parseJson(row.fulfillment_fee_detail),
+            packaging_material_fee_selling:       row.packaging_material_fee_selling,
+            packaging_material_fee_detail:        this._parseJson(row.packaging_material_fee_detail),
+            packaging_material_fee_cost:          null,
+            packaging_material_fee_cost_detail:   null,
+            additional_fee:                       row.additional_fee,
+            additional_fee_note:                  row.additional_fee_note,
+            needs_manual_pricing:                 row.needs_manual_pricing ? true : false,
             total_value:                     row.total_value,
             total_discount:                  row.total_discount,
             paid_amount:                     row.paid_amount,
