@@ -203,12 +203,12 @@
                         renderCustomerRows(customers, tbody);
                     }
                 } else {
-                    showAlert(result.message || 'Failed to load customers', 'error');
+                    toast(result.message || 'Failed to load customers', false);
                 }
             })
             .catch(function () {
                 if (token !== _fetchToken) return;
-                showAlert('Server connection error', 'error');
+                toast('Server connection error', false);
             })
             .finally(function () {
                 if (token !== _fetchToken) return;
@@ -269,17 +269,17 @@
 
         var urlRe = /^https?:\/\/\S+$/i;
         if (omsUrlAuth && !urlRe.test(omsUrlAuth)) {
-            showAlert('OMS URL Auth must be a valid http/https URL', 'error'); return;
+            toast('OMS URL Auth must be a valid http/https URL', false); return;
         }
         if (omsUrlApi && !urlRe.test(omsUrlApi)) {
-            showAlert('OMS URL API must be a valid http/https URL', 'error'); return;
+            toast('OMS URL API must be a valid http/https URL', false); return;
         }
 
         var markupVal;
         if (markupRaw !== '') {
             markupVal = Number(markupRaw);
             if (!isFinite(markupVal) || markupVal < 0 || markupVal > 100) {
-                showAlert('Shipping markup must be a number between 0 and 100', 'error'); return;
+                toast('Shipping markup must be a number between 0 and 100', false); return;
             }
         }
 
@@ -309,14 +309,14 @@
         .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
         .then(function (res) {
             if (res.ok) {
-                showAlert('Customer created successfully!', 'success');
+                toast('Customer created successfully!', true);
                 displayCreateSuccess(res.data.data);
                 document.getElementById('createCustomerForm').reset();
             } else {
-                showAlert(res.data.message || 'Error creating customer', 'error');
+                toast(res.data.message || 'Error creating customer', false);
             }
         })
-        .catch(function () { showAlert('Server connection error', 'error'); });
+        .catch(function () { toast('Server connection error', false); });
     }
 
     function displayCreateSuccess(data) {

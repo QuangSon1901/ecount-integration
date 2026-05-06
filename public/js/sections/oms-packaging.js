@@ -3,7 +3,7 @@
  * Admin — OMS Packaging Materials + SKU Mappings.
  * Exposes: window.OmsPackaging
  * Depends on: dashboard.core.js (API, esc, val, setText, addClick, addChange,
- *             showAlert, fmtDatetime).
+ *             toast, fmtDatetime).
  *
  * Hai sub-view trong cùng section:
  *   - Materials: CRUD vật liệu đóng gói (poly mailer, hộp carton...)
@@ -311,7 +311,7 @@
                 _renderMaterials(_materials);
                 _populateMaterialDropdown();
             })
-            .catch(function (e) { showAlert('Failed to load materials: ' + e.message, 'error'); });
+            .catch(function (e) { toast('Failed to load materials: ' + e.message, false); });
     }
 
     function _renderMaterials(rows) {
@@ -393,8 +393,8 @@
         var sell = val('pkgMatSell');
         var active = !!(document.getElementById('pkgMatActive') || {}).checked;
 
-        if (!name) { showAlert('Name là bắt buộc', 'error'); return; }
-        if (sell === '' || sell === null) { showAlert('Sell Price là bắt buộc', 'error'); return; }
+        if (!name) { toast('Name là bắt buộc', false); return; }
+        if (sell === '' || sell === null) { toast('Sell Price là bắt buộc', false); return; }
 
         var payload = {
             name: name,
@@ -419,11 +419,11 @@
         .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
         .then(function (res) {
             if (!res.ok) throw new Error((res.body && res.body.message) || 'Request failed');
-            showAlert(_editingMatId ? 'Cập nhật vật liệu' : 'Đã thêm vật liệu', 'success');
+            toast(_editingMatId ? 'Cập nhật vật liệu' : 'Đã thêm vật liệu', true);
             _closeModal('pkgMatModal');
             loadMaterials();
         })
-        .catch(function (e) { showAlert(e.message || 'Save failed', 'error'); })
+        .catch(function (e) { toast(e.message || 'Save failed', false); })
         .finally(function () {
             if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
         });
@@ -437,11 +437,11 @@
         .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
         .then(function (res) {
             if (!res.ok) throw new Error((res.body && res.body.message) || 'Delete failed');
-            showAlert('Đã xóa vật liệu', 'success');
+            toast('Đã xóa vật liệu', true);
             loadMaterials();
             if (_activeView === 'mappings') loadMappings();
         })
-        .catch(function (e) { showAlert(e.message || 'Delete failed', 'error'); });
+        .catch(function (e) { toast(e.message || 'Delete failed', false); });
     }
 
     // ════════════════════════════════════════
@@ -468,7 +468,7 @@
                 var rows = (r.data && r.data.mappings) || [];
                 _renderMappings(rows);
             })
-            .catch(function (e) { showAlert('Failed to load mappings: ' + e.message, 'error'); });
+            .catch(function (e) { toast('Failed to load mappings: ' + e.message, false); });
     }
 
     function _renderMappings(rows) {
@@ -528,8 +528,8 @@
         var customer = val('pkgMapNewCustomer');
         var material = val('pkgMapNewMaterial');
 
-        if (!sku)      { showAlert('SKU là bắt buộc', 'error'); return; }
-        if (!material) { showAlert('Material là bắt buộc', 'error'); return; }
+        if (!sku)      { toast('SKU là bắt buộc', false); return; }
+        if (!material) { toast('Material là bắt buộc', false); return; }
 
         var payload = {
             sku: sku,
@@ -549,11 +549,11 @@
         .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
         .then(function (res) {
             if (!res.ok) throw new Error((res.body && res.body.message) || 'Save failed');
-            showAlert('Đã thêm mapping', 'success');
+            toast('Đã thêm mapping', true);
             _closeModal('pkgMapModal');
             loadMappings();
         })
-        .catch(function (e) { showAlert(e.message || 'Save failed', 'error'); })
+        .catch(function (e) { toast(e.message || 'Save failed', false); })
         .finally(function () {
             if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
         });
@@ -567,10 +567,10 @@
         .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
         .then(function (res) {
             if (!res.ok) throw new Error((res.body && res.body.message) || 'Delete failed');
-            showAlert('Đã xóa mapping', 'success');
+            toast('Đã xóa mapping', true);
             loadMappings();
         })
-        .catch(function (e) { showAlert(e.message || 'Delete failed', 'error'); });
+        .catch(function (e) { toast(e.message || 'Delete failed', false); });
     }
 
     // ════════════════════════════════════════

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>THG-FULFILL Dashboard</title>
     <link rel="icon" type="image/png" href="/uploads/logo.png">
-    <link rel="stylesheet" href="/css/dashboard.css?123">
+    <link rel="stylesheet" href="/css/dashboard.css?1235">
 </head>
 <body>
     <div class="app-container">
@@ -63,6 +63,11 @@
                             <li class="nav-item">
                                 <div class="nav-link" data-section="admin-oms-packaging">
                                     <span class="nav-icon">&#x1F4E6;</span> Packaging &amp; SKU
+                                </div>
+                            </li>
+                            <li class="nav-item">
+                                <div class="nav-link" data-section="admin-warehouse-billing">
+                                    <span class="nav-icon">&#x1F4B0;</span> Warehouse Billing
                                 </div>
                             </li>
                         </ul>
@@ -331,6 +336,11 @@
                 <div id="section-admin-system-config-mount"></div>
             </section>
 
+            <!-- Admin: Warehouse Billing -->
+            <section id="admin-warehouse-billing" class="content-section" data-role="admin">
+                <div id="section-admin-warehouse-billing-mount"></div>
+            </section>
+
             <!-- ─────────────────────────────────────── -->
             <!-- CLIENT SECTIONS                        -->
             <!-- ─────────────────────────────────────── -->
@@ -451,13 +461,18 @@
         </div>
     </div>
 
+    <div id="alertToast" class="alert-toast">
+        <span id="alertText"></span>
+    </div>
+
     <!-- Scripts — core first, then section modules -->
-    <script src="/js/dashboard.core.js?v=2040"></script>
-    <script src="/js/sections/customers.js?v=2040"></script>
-    <script src="/js/sections/oms-orders.js?v=2040"></script>
-    <script src="/js/sections/oms-packaging.js?v=2040"></script>
-    <script src="/js/sections/client-portal.js?v=2040"></script>
-    <script src="/js/sections/system-config.js?v=2040"></script>
-    <script src="/js/dashboard.init.js?v=2040"></script>
+    <script src="/js/dashboard.core.js?v=2057"></script>
+    <script src="/js/sections/customers.js?v=2057"></script>
+    <script src="/js/sections/oms-orders.js?v=2057"></script>
+    <script src="/js/sections/oms-packaging.js?v=2057"></script>
+    <script src="/js/sections/client-portal.js?v=2057"></script>
+    <script src="/js/sections/system-config.js?v=2057"></script>
+    <script src="/js/sections/warehouse-billing.js?v=2057"></script>
+    <script src="/js/dashboard.init.js?v=2057"></script>
 </body>
 </html>

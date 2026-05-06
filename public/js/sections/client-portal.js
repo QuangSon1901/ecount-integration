@@ -157,7 +157,7 @@
         addClick('btnCopyNewSecret', function () { copyField('newSecretValue'); });
         addClick('btnCopySecret',    function () { copyField('credClientSecret'); });
         addClick('btnShowSecret',    function () {
-            showAlert('Secret key is not stored. It is only shown when newly generated.', 'info');
+            toast('Secret key is not stored. It is only shown when newly generated.', false);
         });
         addClick('btnResetSecret', handleResetSecret);
     }
@@ -266,14 +266,14 @@
                     }
                 }
             })
-            .catch(function () { showAlert('Failed to load credentials', 'error'); });
+            .catch(function () { toast('Failed to load credentials', false); });
     }
 
     function handleResetSecret() {
         if (!currentUser) return;
 
         if (currentUser.environment === 'sandbox') {
-            showAlert('Sandbox customers cannot reset secret keys. Please contact admin.', 'error');
+            toast('Sandbox customers cannot reset secret keys. Please contact admin.', false);
             return;
         }
 
@@ -310,12 +310,12 @@
                     document.getElementById('newSecretValue').value = data.data.client_secret;
                     document.getElementById('newSecretBox').classList.remove('hidden');
                     document.getElementById('credClientId').value  = data.data.client_id;
-                    showAlert('Secret key has been reset! Save it now.', 'success');
+                    toast('Secret key has been reset! Save it now.', true);
                 } else {
                     throw new Error(data.message || 'Failed to reset');
                 }
             })
-            .catch(function (err) { showAlert('Error: ' + err.message, 'error'); })
+            .catch(function (err) { toast('Error: ' + err.message, false); })
             .finally(function () {
                 btn.disabled    = false;
                 btn.textContent = 'Reset Secret Key';
@@ -332,9 +332,9 @@
         var newPw   = val('changePwNew');
         var confirm = val('changePwConfirm');
 
-        if (!current)                   { showAlert('Please enter your current password', 'error'); return; }
-        if (!newPw || newPw.length < 6) { showAlert('New password must be at least 6 characters', 'error'); return; }
-        if (newPw !== confirm)          { showAlert('New password and confirmation do not match', 'error'); return; }
+        if (!current)                   { toast('Please enter your current password', false); return; }
+        if (!newPw || newPw.length < 6) { toast('New password must be at least 6 characters', false); return; }
+        if (newPw !== confirm)          { toast('New password and confirmation do not match', false); return; }
 
         var btn = document.getElementById('btnChangePassword');
         btn.disabled    = true;
@@ -348,15 +348,15 @@
         .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
         .then(function (res) {
             if (res.ok) {
-                showAlert('Password changed successfully!', 'success');
+                toast('Password changed successfully!', true);
                 document.getElementById('changePwCurrent').value = '';
                 document.getElementById('changePwNew').value     = '';
                 document.getElementById('changePwConfirm').value = '';
             } else {
-                showAlert(res.data.message || 'Failed to change password', 'error');
+                toast(res.data.message || 'Failed to change password', false);
             }
         })
-        .catch(function () { showAlert('Server connection error', 'error'); })
+        .catch(function () { toast('Server connection error', false); })
         .finally(function () {
             btn.disabled    = false;
             btn.textContent = 'Change Password';
@@ -379,6 +379,7 @@
             })
             .catch(function () {
                 container.innerHTML = '<div style="padding:20px;text-align:center;color:#ef4444;">Failed to load webhooks</div>';
+                toast('Failed to load webhooks', false);
             });
     }
 
@@ -481,7 +482,7 @@
         var events     = [];
         for (var i = 0; i < checkboxes.length; i++) events.push(checkboxes[i].value);
 
-        if (events.length === 0) { showAlert('Please select at least one event', 'error'); return; }
+        if (events.length === 0) { toast('Please select at least one event', false); return; }
 
         fetch(API + '/admin/customers/' + currentUser.id + '/webhooks', {
             method:  'POST',
@@ -491,15 +492,15 @@
         .then(function (r) { return r.json(); })
         .then(function (data) {
             if (data.success) {
-                showAlert('Webhook added successfully', 'success');
+                toast('Webhook added successfully', true);
                 document.getElementById('webhookModal').classList.remove('show');
                 document.getElementById('webhookForm').reset();
                 loadWebhooks();
             } else {
-                showAlert(data.message || 'Failed to add webhook', 'error');
+                toast(data.message || 'Failed to add webhook', false);
             }
         })
-        .catch(function () { showAlert('Server error', 'error'); });
+        .catch(function () { toast('Server error', false); });
     }
 
     function testWebhook(webhookId, event) {
@@ -517,12 +518,12 @@
         .then(function (data) {
             if (!data.success) throw new Error(data.message || 'Request failed');
             if (data.data && data.data.success) {
-                showAlert('Test [' + event + '] sent! HTTP ' + data.data.httpStatus, 'success');
+                toast('Test [' + event + '] sent! HTTP ' + data.data.httpStatus, true);
             } else {
-                showAlert('Test [' + event + '] failed: ' + (data.data && data.data.error ? data.data.error : 'Unknown error'), 'error');
+                toast('Test [' + event + '] failed: ' + (data.data && data.data.error ? data.data.error : 'Unknown error'), false);
             }
         })
-        .catch(function (e) { showAlert(e.message || 'Server error', 'error'); })
+        .catch(function (e) { toast(e.message || 'Server error', false); })
         .finally(function () {
             if (testBtn) { testBtn.disabled = false; testBtn.textContent = 'Test'; }
         });
@@ -536,13 +537,13 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data.success) {
-                    showAlert('Webhook deleted', 'success');
+                    toast('Webhook deleted', true);
                     loadWebhooks();
                 } else {
-                    showAlert(data.message || 'Failed to delete', 'error');
+                    toast(data.message || 'Failed to delete', false);
                 }
             })
-            .catch(function () { showAlert('Server error', 'error'); });
+            .catch(function () { toast('Server error', false); });
     }
 
     // ════════════════════════════════════════

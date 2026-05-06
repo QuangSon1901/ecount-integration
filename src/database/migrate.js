@@ -1403,6 +1403,53 @@ const migrations = [
                 DROP COLUMN packaging_material_fee_cost,
                 DROP COLUMN packaging_material_fee_cost_detail;
         `
+    },
+
+    {
+        version: 57,
+        name: 'create_oms_warehouse_billing_slips',
+        up: `
+            CREATE TABLE IF NOT EXISTS oms_warehouse_billing_slips (
+                id            INT AUTO_INCREMENT PRIMARY KEY,
+                customer_id   INT NOT NULL,
+                slip_date     DATE NOT NULL,
+                note          TEXT DEFAULT NULL,
+                total_revenue DECIMAL(10,4) NOT NULL DEFAULT 0,
+                total_cost    DECIMAL(10,4) NOT NULL DEFAULT 0,
+                total_profit  DECIMAL(10,4) NOT NULL DEFAULT 0,
+                created_by    VARCHAR(100) DEFAULT NULL,
+                created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (customer_id) REFERENCES api_customers(id),
+                INDEX idx_customer_id (customer_id),
+                INDEX idx_slip_date (slip_date)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        `
+    },
+
+    {
+        version: 58,
+        name: 'create_oms_warehouse_billing_rows',
+        up: `
+            CREATE TABLE IF NOT EXISTS oms_warehouse_billing_rows (
+                id            INT AUTO_INCREMENT PRIMARY KEY,
+                slip_id       INT NOT NULL,
+                section_id    INT NOT NULL,
+                section_label VARCHAR(100) NOT NULL,
+                item_id       VARCHAR(50) DEFAULT NULL,
+                name          VARCHAR(255) NOT NULL,
+                unit          VARCHAR(100) DEFAULT NULL,
+                is_free       TINYINT(1) NOT NULL DEFAULT 0,
+                selling_price DECIMAL(10,4) DEFAULT NULL,
+                cost_price    DECIMAL(10,4) DEFAULT NULL,
+                quantity      DECIMAL(10,4) NOT NULL DEFAULT 1,
+                note          TEXT DEFAULT NULL,
+                sort_order    INT NOT NULL DEFAULT 0,
+                FOREIGN KEY (slip_id) REFERENCES oms_warehouse_billing_slips(id) ON DELETE CASCADE,
+                INDEX idx_slip_id (slip_id),
+                INDEX idx_section_id (section_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        `
     }
 
 ];

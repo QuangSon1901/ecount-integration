@@ -18,6 +18,7 @@ const omsOrderRoutes = require('./oms-order.routes');
 const { materialsRouter: omsPackagingMaterialsRoutes,
         mappingsRouter:  omsSkuPackagingMappingsRoutes } = require('./oms-packaging.routes');
 const systemConfigRoutes = require('./system-config.routes');
+const omsWarehouseBillingRoutes = require('./oms-warehouse-billing.routes');
 
 /**
  * Apply audit middleware to all API routes
@@ -139,6 +140,7 @@ router.use('/admin/oms-orders', omsOrderRoutes);
 router.use('/admin/oms-packaging-materials', omsPackagingMaterialsRoutes);
 router.use('/admin/oms-sku-packaging-mappings', omsSkuPackagingMappingsRoutes);
 router.use('/admin/system-configs', systemConfigRoutes);
+router.use('/admin/oms-warehouse-billing', omsWarehouseBillingRoutes);
 
 router.use('/webhooks', apiWebhookRoutes);
 

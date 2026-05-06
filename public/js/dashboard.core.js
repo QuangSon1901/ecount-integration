@@ -154,7 +154,8 @@ var pageTitles = {
     'admin-oms-orders':      { t: 'OMS Orders',           s: 'Outbound request management' },
     'admin-oms-packaging':   { t: 'OMS Packaging & SKU',  s: 'Vật liệu đóng gói & mapping SKU' },
     'admin-tools':           { t: 'Internal Tools',       s: 'Admin-only tools and extensions' },
-    'admin-system-config':   { t: 'System Config',        s: 'Seller profiles & system configuration' },
+    'admin-system-config':      { t: 'System Config',        s: 'Seller profiles & system configuration' },
+    'admin-warehouse-billing':  { t: 'Warehouse Billing',    s: 'Phiếu phí kho US — kiểm toán cuối tháng' },
     'client-overview':       { t: 'Account Overview',     s: 'Your account information' },
     'client-credentials':    { t: 'API Credentials',      s: 'Your Client ID and Secret Key' },
     'client-webhooks':       { t: 'Webhooks',             s: 'Manage webhook registrations' },
@@ -187,7 +188,8 @@ function navigateToSection(sectionId, options) {
         }
         if (sectionId === 'client-credentials'   && window.ClientPortal) ClientPortal.loadCredentials();
         if (sectionId === 'client-webhooks'      && window.ClientPortal) ClientPortal.loadWebhooks();
-        if (sectionId === 'admin-system-config'  && window.SystemConfig) SystemConfig.onActivate();
+        if (sectionId === 'admin-system-config'     && window.SystemConfig)      SystemConfig.onActivate();
+        if (sectionId === 'admin-warehouse-billing' && window.WarehouseBilling) WarehouseBilling.onActivate();
     }
 
     var navLink = document.querySelector('.nav-link[data-section="' + sectionId + '"]');
@@ -254,6 +256,18 @@ function showAlert(msg, type) {
         div.classList.remove('show');
         setTimeout(function () { div.remove(); }, 300);
     }, 5000);
+}
+
+function toast(msg, ok) {
+    if (ok === undefined) ok = true;
+    const el = document.getElementById('alertToast');
+    const txt = document.getElementById('alertText');
+    el.classList.remove('success', 'error');
+    el.classList.add(ok ? 'success' : 'error');
+    txt.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => el.classList.remove('show'), 3500);
 }
 
 function esc(text) {

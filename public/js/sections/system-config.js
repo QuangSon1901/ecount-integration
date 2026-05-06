@@ -184,7 +184,7 @@
                 }
             })
             .catch(function (err) {
-                showAlert('Không thể tải seller profiles: ' + err.message, 'error');
+                toast('Không thể tải seller profiles: ' + err.message, 'error');
             });
     }
 
@@ -225,16 +225,16 @@
             .then(function (data) {
                 submitBtn.disabled = false;
                 if (data && data.success) {
-                    showAlert(_editingId ? 'Đã cập nhật seller profile.' : 'Đã tạo seller profile.', 'success');
+                    toast(_editingId ? 'Đã cập nhật seller profile.' : 'Đã tạo seller profile.', true);
                     closeModal();
                     loadProfiles();
                 } else {
-                    showAlert((data && data.message) || 'Lỗi lưu seller profile', 'error');
+                    toast((data && data.message) || 'Lỗi lưu seller profile', false);
                 }
             })
             .catch(function (err) {
                 submitBtn.disabled = false;
-                showAlert('Lỗi: ' + err.message, 'error');
+                toast('Lỗi: ' + err.message, false);
             });
     }
 
@@ -246,13 +246,13 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data && data.success) {
-                    showAlert('Đã đặt default seller profile.', 'success');
+                    toast('Đã đặt default seller profile.', true);
                     loadProfiles();
                 } else {
-                    showAlert((data && data.message) || 'Lỗi', 'error');
+                    toast((data && data.message) || 'Lỗi', false);
                 }
             })
-            .catch(function (err) { showAlert('Lỗi: ' + err.message, 'error'); });
+            .catch(function (err) { toast('Lỗi: ' + err.message, false); });
     }
 
     function deleteProfile(id) {
@@ -264,13 +264,13 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data && data.success) {
-                    showAlert('Đã xoá seller profile.', 'success');
+                    toast('Đã xoá seller profile.', true);
                     loadProfiles();
                 } else {
-                    showAlert((data && data.message) || 'Lỗi', 'error');
+                    toast((data && data.message) || 'Lỗi', false);
                 }
             })
-            .catch(function (err) { showAlert('Lỗi: ' + err.message, 'error'); });
+            .catch(function (err) { toast('Lỗi: ' + err.message, false); });
     }
 
     // ════════════════════════════════════════

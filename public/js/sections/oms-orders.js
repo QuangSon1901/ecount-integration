@@ -314,7 +314,7 @@
                 var emptyState = document.getElementById('emptyState');
                 if (emptyState) emptyState.style.display = omsLastRows.length ? 'none' : 'block';
             })
-            .catch(function (e) { showAlert('Failed to load orders: ' + e.message, 'error'); });
+            .catch(function (e) { toast('Failed to load orders: ' + e.message, false); });
     }
 
     // Cập nhật badge số lượng trên mỗi tab (chỉ khi không đang filter theo status cụ thể,
@@ -545,7 +545,7 @@
         var skipped   = rows.length - eligible.length;
 
         if (!eligible.length) {
-            showAlert('Không có đơn nào đủ điều kiện tạo label (cần pending/selected/error/failed).', 'error');
+            toast('Không có đơn nào đủ điều kiện tạo label (cần pending/selected/error/failed).', false);
             return;
         }
 
@@ -616,12 +616,12 @@
             if (failed > 0)         line += ' • ' + failed + ' lỗi enqueue';
             line += '. Worker đang xử lý nền — refresh để xem trạng thái.';
 
-            showAlert(line, failed > 0 ? 'error' : 'success');
-            if (failDetails) alert('Lỗi enqueue:\n' + failDetails);
-            else if (skipDetails && skippedCount === eligible.length) alert('Tất cả đơn đã được queue trước đó:\n' + skipDetails);
+            toast(line, failed > 0 ? false : true);
+            if (failDetails) toast('Lỗi enqueue:\n' + failDetails, false);
+            else if (skipDetails && skippedCount === eligible.length) toast('Tất cả đơn đã được queue trước đó:\n' + skipDetails, false);
             loadOmsOrders();
         })
-        .catch(function (e) { showAlert('Bulk queue failed: ' + e.message, 'error'); })
+        .catch(function (e) { toast('Bulk queue failed: ' + e.message, false); })
         .finally(function () {
             if (btn) { btn.disabled = false; btn.textContent = '🏷 Tạo label'; }
             updateSelCount();
@@ -636,7 +636,7 @@
         var skipped  = rows.length - eligible.length;
 
         if (!eligible.length) {
-            showAlert('Không có đơn nào có tracking + label để tải.', 'error'); return;
+            toast('Không có đơn nào có tracking + label để tải.', false); return;
         }
 
         var msg = 'Tải xuống ' + eligible.length + ' label (gộp thành 1 file PDF)?';
@@ -658,13 +658,13 @@
                 triggerPdfDownload(result.bytes, 'oms-labels-' + Date.now() + '.pdf');
                 var line = 'Đã gộp ' + result.merged + '/' + eligible.length + ' label';
                 if (result.failed.length) line += ' • Lỗi ' + result.failed.length + ' đơn';
-                showAlert(line, result.failed.length ? 'error' : 'success');
+                toast(line, result.failed.length ? false : true);
                 if (result.failed.length) {
-                    alert('Các đơn không tải được:\n' +
-                        result.failed.map(function (f) { return '#' + f.id + ' (' + f.orderNumber + '): ' + f.error; }).join('\n'));
+                    toast('Các đơn không tải được:\n' +
+                        result.failed.map(function (f) { return '#' + f.id + ' (' + f.orderNumber + '): ' + f.error; }).join('\n'), false);
                 }
             })
-            .catch(function (e) { showAlert('Bulk download failed: ' + e.message, 'error'); })
+            .catch(function (e) { toast('Bulk download failed: ' + e.message, false); })
             .finally(function () {
                 if (btn) { btn.disabled = false; btn.textContent = originalText || '⬇ Tải xuống label'; }
             });

@@ -85,6 +85,13 @@ router.get('/oms-orders', requireAdmin, serveView('oms-orders.html'));
  */
 router.get('/oms-orders/:id', requireAdmin, serveView('oms-order-detail.html'));
 
+/**
+ * @route   GET /extensions/warehouse-billing
+ * @desc    Warehouse Billing — quản lý phiếu phí kho US
+ * @access  Private (Admin only)
+ */
+router.get('/warehouse-billing', requireAdmin, serveView('warehouse-billing.html'));
+
 // ─── Public Pages ────────────────────────────────────────────────
 
 /**
