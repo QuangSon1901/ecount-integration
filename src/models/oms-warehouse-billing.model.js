@@ -200,6 +200,57 @@ class OmsWarehouseBillingModel {
         }
     }
 
+    static async monthlyAggregate(yearMonth, customerId) {
+        const conn = await db.getConnection();
+        try {
+            const params = [yearMonth];
+            let customerFilter = '';
+            if (customerId) { customerFilter = 'AND s.customer_id = ?'; params.push(customerId); }
+            const [rows] = await conn.query(
+                `SELECT s.customer_id, c.customer_code, c.customer_name,
+                        COUNT(DISTINCT s.id) AS slip_count,
+                        SUM(s.total_revenue) AS total_revenue,
+                        SUM(s.total_cost)    AS total_cost,
+                        SUM(s.total_profit)  AS total_profit
+                 FROM oms_warehouse_billing_slips s
+                 LEFT JOIN api_customers c ON c.id = s.customer_id
+                 WHERE DATE_FORMAT(s.slip_date, '%Y-%m') = ?
+                 ${customerFilter}
+                 GROUP BY s.customer_id, c.customer_code, c.customer_name`,
+                params
+            );
+            return rows;
+        } finally {
+            conn.release();
+        }
+    }
+
+    static async monthlyBillingSectionBreakdown(yearMonth, customerId) {
+        const conn = await db.getConnection();
+        try {
+            const params = [yearMonth];
+            let customerFilter = '';
+            if (customerId) { customerFilter = 'AND s.customer_id = ?'; params.push(customerId); }
+            const [rows] = await conn.query(
+                `SELECT s.customer_id,
+                        r.section_id,
+                        r.section_label,
+                        SUM(CASE WHEN r.is_free = 0 THEN r.selling_price * r.quantity ELSE 0 END) AS total_revenue,
+                        SUM(CASE WHEN r.is_free = 0 THEN r.cost_price    * r.quantity ELSE 0 END) AS total_cost
+                 FROM oms_warehouse_billing_slips s
+                 JOIN oms_warehouse_billing_rows r ON r.slip_id = s.id
+                 WHERE DATE_FORMAT(s.slip_date, '%Y-%m') = ?
+                 ${customerFilter}
+                 GROUP BY s.customer_id, r.section_id, r.section_label
+                 ORDER BY s.customer_id, r.section_id`,
+                params
+            );
+            return rows;
+        } finally {
+            conn.release();
+        }
+    }
+
     static async deleteById(id) {
         const conn = await db.getConnection();
         try {

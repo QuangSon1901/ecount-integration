@@ -230,10 +230,32 @@ function computeFulfillmentFeeCostFromTier(items, tierResult, orderYearMonth) {
     };
 }
 
+/**
+ * Xác định tier từ monthly_total (sync, không đọc DB).
+ * @param {number} monthlyTotal
+ * @returns {number} 1..4
+ */
+function getTier(monthlyTotal) {
+    const n = Number(monthlyTotal || 0);
+    if (n <= 1000) return 1;
+    if (n <= 3000) return 2;
+    if (n <= 5000) return 3;
+    return 4;
+}
+
+const TIER_LABELS = [
+    '0–1000 đơn/tháng',
+    '1001–3000 đơn/tháng',
+    '3001–5000 đơn/tháng',
+    '>5000 đơn/tháng',
+];
+
 module.exports = {
     computeFulfillmentFeeCost,
     computeFulfillmentFeeCostFromTier,
     getMonthlyTier,
+    getTier,
+    TIER_LABELS,
     COST_BRACKETS,
     COST_RATES,
     EXTRA_ITEM_FEE_COST,

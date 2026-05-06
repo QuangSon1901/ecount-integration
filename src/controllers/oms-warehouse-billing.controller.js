@@ -1,9 +1,54 @@
 // src/controllers/oms-warehouse-billing.controller.js
 
-const OmsWarehouseBillingModel = require('../models/oms-warehouse-billing.model');
-const { VALID_SECTION_IDS } = require('../constants/warehouse-billing-sections');
+const OmsWarehouseBillingModel  = require('../models/oms-warehouse-billing.model');
+const OmsOrderModel              = require('../models/oms-order.model');
+const OmsPackagingMaterialModel  = require('../models/oms-packaging-material.model');
+const { VALID_SECTION_IDS }      = require('../constants/warehouse-billing-sections');
 const { successResponse, errorResponse } = require('../utils/response');
 const db = require('../database/connection');
+const {
+    getMonthlyTier,
+    computeFulfillmentFeeCostFromTier,
+    TIER_LABELS,
+} = require('../services/pricing/fulfillment-cost-calculator.service');
+
+function _r4(n) { return Math.round(Number(n || 0) * 10000) / 10000; }
+
+function _parseItems(raw) {
+    if (!raw) return [];
+    if (typeof raw === 'string') {
+        try { return JSON.parse(raw); } catch { return []; }
+    }
+    return Array.isArray(raw) ? raw : [];
+}
+
+function _emptyCustomerAgg() {
+    return {
+        order_count:    0,
+        has_incomplete: false,
+        revenue: { shipping: 0, fulfillment: 0, packaging: 0, additional: 0 },
+        cost:    { shipping: 0, fulfillment: 0, packaging: 0 },
+    };
+}
+
+const USPS_SERVICES = new Set(['standard usps', 'priority usps']);
+
+async function _fetchCustomerInfo(customerIds) {
+    if (!customerIds.length) return new Map();
+    const conn = await db.getConnection();
+    try {
+        const ph = customerIds.map(() => '?').join(',');
+        const [rows] = await conn.query(
+            `SELECT id, customer_code, customer_name FROM api_customers WHERE id IN (${ph})`,
+            customerIds
+        );
+        const map = new Map();
+        for (const r of rows) map.set(r.id, { customer_code: r.customer_code, customer_name: r.customer_name });
+        return map;
+    } finally {
+        conn.release();
+    }
+}
 
 function computeTotals(rows) {
     let revenue = 0, cost = 0;
@@ -184,42 +229,243 @@ class OmsWarehouseBillingController {
 
     async monthlySummary(req, res, next) {
         try {
-            const { year_month } = req.query;
+            const { year_month, customer_id } = req.query;
             if (!year_month || !/^\d{4}-\d{2}$/.test(year_month)) {
                 return errorResponse(res, 'year_month bắt buộc, định dạng YYYY-MM', 400);
             }
+            const custIdFilter = customer_id ? parseInt(customer_id) : undefined;
 
-            const rows = await OmsWarehouseBillingModel.monthlySummary(year_month);
+            // 1. Tier
+            const { monthly_total, tier } = await getMonthlyTier(year_month);
+            const tierResult = { tier, monthly_total: monthly_total ?? 0 };
 
-            let grandRevenue = 0, grandCost = 0, grandProfit = 0, grandCount = 0;
-            const byCustomer = rows.map(r => {
-                const rev  = Number(r.total_revenue) || 0;
-                const cost = Number(r.total_cost)    || 0;
-                const prof = Number(r.total_profit)  || 0;
-                const cnt  = Number(r.slip_count)    || 0;
-                grandRevenue += rev;
-                grandCost    += cost;
-                grandProfit  += prof;
-                grandCount   += cnt;
-                return {
-                    customer_id:    r.customer_id,
-                    customer_code:  r.customer_code,
-                    customer_name:  r.customer_name,
-                    slip_count:     cnt,
-                    total_revenue:  Math.round(rev  * 10000) / 10000,
-                    total_cost:     Math.round(cost * 10000) / 10000,
-                    total_profit:   Math.round(prof * 10000) / 10000,
-                    margin_percent: rev > 0 ? Math.round((prof / rev) * 10000) / 100 : 0,
-                };
+            // 2. OMS orders
+            const orders = await OmsOrderModel.listForSummary({ yearMonth: year_month, customerId: custIdFilter });
+
+            // 3. Bulk SKU lookup
+            const allSkus = [...new Set(
+                orders.flatMap(o => _parseItems(o.items).map(it => (it.sku || it.skuNumber || '').trim()).filter(Boolean))
+            )];
+            const materialMappings = await OmsPackagingMaterialModel.findMappingsBySkus(allSkus);
+
+            // 4. Aggregate per customer
+            const customerMap = {};
+            let incompleteCount = 0;
+
+            for (const order of orders) {
+                const items  = _parseItems(order.items);
+                const custId = order.customer_id;
+                if (!custId) continue;
+                if (!customerMap[custId]) customerMap[custId] = _emptyCustomerAgg();
+
+                const svcName = (order.shipping_service_name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+                const shippingCost = USPS_SERVICES.has(svcName)
+                    ? _r4(order.shipping_fee_purchase || 0) : 0;
+
+                const fulfillResult = computeFulfillmentFeeCostFromTier(items, tierResult, year_month);
+                const fulfillmentCost = fulfillResult.fee_purchase ?? 0;
+
+                let packagingCost = 0;
+                for (const item of items) {
+                    const sku = (item.sku || item.skuNumber || '').trim();
+                    if (!sku) continue;
+                    const mapping = materialMappings.get(sku);
+                    if (mapping?.cost_price != null) {
+                        packagingCost += Number(mapping.cost_price) * Number(item.quantity || 1);
+                    }
+                }
+
+                const isIncomplete = order.fulfillment_fee_selling === null || order.shipping_fee_selling === null;
+                if (isIncomplete) incompleteCount++;
+
+                customerMap[custId].revenue.shipping    += _r4(order.shipping_fee_selling || 0);
+                customerMap[custId].revenue.fulfillment += _r4(order.fulfillment_fee_selling || 0);
+                customerMap[custId].revenue.packaging   += _r4(order.packaging_material_fee_selling || 0);
+                customerMap[custId].revenue.additional  += _r4(order.additional_fee || 0);
+
+                customerMap[custId].cost.shipping    += shippingCost;
+                customerMap[custId].cost.fulfillment += fulfillmentCost;
+                customerMap[custId].cost.packaging   += _r4(packagingCost);
+
+                customerMap[custId].order_count++;
+                if (isIncomplete) customerMap[custId].has_incomplete = true;
+            }
+
+            // 5. Customer info for OMS order customers
+            const custIds = Object.keys(customerMap).map(Number).filter(n => Number.isFinite(n) && n > 0);
+            const customerInfo = await _fetchCustomerInfo(custIds);
+
+            // 6. Billing
+            const [billingAgg, billingSection] = await Promise.all([
+                OmsWarehouseBillingModel.monthlyAggregate(year_month, custIdFilter),
+                OmsWarehouseBillingModel.monthlyBillingSectionBreakdown(year_month, custIdFilter),
+            ]);
+
+            const billingByCustomer = new Map();
+            for (const r of billingAgg) {
+                billingByCustomer.set(r.customer_id, {
+                    customer_code: r.customer_code,
+                    customer_name: r.customer_name,
+                    slip_count:    Number(r.slip_count) || 0,
+                    total_revenue: _r4(r.total_revenue),
+                    total_cost:    _r4(r.total_cost),
+                    total_profit:  _r4(r.total_profit),
+                });
+            }
+
+            const billingSectionByCustomer = new Map();
+            for (const r of billingSection) {
+                if (!billingSectionByCustomer.has(r.customer_id)) billingSectionByCustomer.set(r.customer_id, []);
+                billingSectionByCustomer.get(r.customer_id).push({
+                    section_id:    r.section_id,
+                    section_label: r.section_label,
+                    total_revenue: _r4(r.total_revenue),
+                    total_cost:    _r4(r.total_cost),
+                });
+            }
+
+            // 7. Merge all customer_ids
+            const allCustIds = new Set([...custIds, ...billingByCustomer.keys()]);
+
+            let grandOmsOrderCount = 0;
+            let grandOmsRev = { shipping: 0, fulfillment: 0, packaging: 0, additional: 0 };
+            let grandOmsCost = { shipping: 0, fulfillment: 0, packaging: 0 };
+            let grandWhSlip = 0, grandWhRev = 0, grandWhCost = 0, grandWhProfit = 0;
+
+            const byCustomer = [];
+            for (const cid of allCustIds) {
+                const oms     = customerMap[cid] || null;
+                const billing = billingByCustomer.get(cid) || null;
+                const info    = customerInfo.get(cid)
+                             || (billing ? { customer_code: billing.customer_code, customer_name: billing.customer_name } : null)
+                             || {};
+
+                let omsRevTotal = 0, omsCostTotal = 0;
+                let omsBlock = null;
+                if (oms) {
+                    omsRevTotal  = _r4(oms.revenue.shipping + oms.revenue.fulfillment + oms.revenue.packaging + oms.revenue.additional);
+                    omsCostTotal = _r4(oms.cost.shipping + oms.cost.fulfillment + oms.cost.packaging);
+                    omsBlock = {
+                        order_count:          oms.order_count,
+                        has_incomplete_pricing: oms.has_incomplete,
+                        revenue: {
+                            shipping:            _r4(oms.revenue.shipping),
+                            fulfillment:         _r4(oms.revenue.fulfillment),
+                            packaging_material:  _r4(oms.revenue.packaging),
+                            additional:          _r4(oms.revenue.additional),
+                            total:               omsRevTotal,
+                        },
+                        cost: {
+                            shipping:           _r4(oms.cost.shipping),
+                            fulfillment:        _r4(oms.cost.fulfillment),
+                            packaging_material: _r4(oms.cost.packaging),
+                            total:              omsCostTotal,
+                        },
+                        profit: _r4(omsRevTotal - omsCostTotal),
+                    };
+
+                    grandOmsOrderCount += oms.order_count;
+                    grandOmsRev.shipping    += oms.revenue.shipping;
+                    grandOmsRev.fulfillment += oms.revenue.fulfillment;
+                    grandOmsRev.packaging   += oms.revenue.packaging;
+                    grandOmsRev.additional  += oms.revenue.additional;
+                    grandOmsCost.shipping    += oms.cost.shipping;
+                    grandOmsCost.fulfillment += oms.cost.fulfillment;
+                    grandOmsCost.packaging   += oms.cost.packaging;
+                }
+
+                let whRevTotal = 0, whCostTotal = 0, whProfitTotal = 0;
+                let whBlock = null;
+                if (billing) {
+                    whRevTotal    = billing.total_revenue;
+                    whCostTotal   = billing.total_cost;
+                    whProfitTotal = billing.total_profit;
+                    whBlock = {
+                        slip_count:           billing.slip_count,
+                        total_revenue:        whRevTotal,
+                        total_cost:           whCostTotal,
+                        total_profit:         whProfitTotal,
+                        breakdown_by_section: billingSectionByCustomer.get(cid) || [],
+                    };
+
+                    grandWhSlip   += billing.slip_count;
+                    grandWhRev    += whRevTotal;
+                    grandWhCost   += whCostTotal;
+                    grandWhProfit += whProfitTotal;
+                }
+
+                const combinedRev    = _r4(omsRevTotal + whRevTotal);
+                const combinedCost   = _r4(omsCostTotal + whCostTotal);
+                const combinedProfit = _r4(combinedRev - combinedCost);
+
+                byCustomer.push({
+                    customer_id:   cid,
+                    customer_code: info.customer_code || null,
+                    customer_name: info.customer_name || null,
+                    oms_orders:    omsBlock,
+                    warehouse_billing: whBlock,
+                    combined: {
+                        total_revenue:  combinedRev,
+                        total_cost:     combinedCost,
+                        total_profit:   combinedProfit,
+                        margin_percent: combinedRev > 0 ? Math.round((combinedProfit / combinedRev) * 10000) / 100 : 0,
+                    },
+                });
+            }
+
+            byCustomer.sort((a, b) => {
+                const ra = (a.combined?.total_revenue || 0);
+                const rb = (b.combined?.total_revenue || 0);
+                return rb - ra;
             });
+
+            const grandOmsRevTotal  = _r4(grandOmsRev.shipping + grandOmsRev.fulfillment + grandOmsRev.packaging + grandOmsRev.additional);
+            const grandOmsCostTotal = _r4(grandOmsCost.shipping + grandOmsCost.fulfillment + grandOmsCost.packaging);
+            const grandWhRevR4      = _r4(grandWhRev);
+            const grandWhCostR4     = _r4(grandWhCost);
+            const grandCombRev      = _r4(grandOmsRevTotal + grandWhRevR4);
+            const grandCombCost     = _r4(grandOmsCostTotal + grandWhCostR4);
+            const grandCombProfit   = _r4(grandCombRev - grandCombCost);
 
             return successResponse(res, {
                 year_month,
+                oms_context: {
+                    monthly_total:           monthly_total ?? null,
+                    tier,
+                    tier_label:              TIER_LABELS[tier - 1],
+                    has_incomplete_pricing:  incompleteCount > 0,
+                    incomplete_order_count:  incompleteCount,
+                },
                 grand_total: {
-                    total_revenue: Math.round(grandRevenue * 10000) / 10000,
-                    total_cost:    Math.round(grandCost    * 10000) / 10000,
-                    total_profit:  Math.round(grandProfit  * 10000) / 10000,
-                    slip_count:    grandCount,
+                    oms_orders: {
+                        order_count: grandOmsOrderCount,
+                        revenue: {
+                            shipping:           _r4(grandOmsRev.shipping),
+                            fulfillment:        _r4(grandOmsRev.fulfillment),
+                            packaging_material: _r4(grandOmsRev.packaging),
+                            additional:         _r4(grandOmsRev.additional),
+                            total:              grandOmsRevTotal,
+                        },
+                        cost: {
+                            shipping:           _r4(grandOmsCost.shipping),
+                            fulfillment:        _r4(grandOmsCost.fulfillment),
+                            packaging_material: _r4(grandOmsCost.packaging),
+                            total:              grandOmsCostTotal,
+                        },
+                        profit: _r4(grandOmsRevTotal - grandOmsCostTotal),
+                    },
+                    warehouse_billing: {
+                        slip_count:    grandWhSlip,
+                        total_revenue: grandWhRevR4,
+                        total_cost:    grandWhCostR4,
+                        total_profit:  _r4(grandWhProfit),
+                    },
+                    combined: {
+                        total_revenue:  grandCombRev,
+                        total_cost:     grandCombCost,
+                        total_profit:   grandCombProfit,
+                        margin_percent: grandCombRev > 0 ? Math.round((grandCombProfit / grandCombRev) * 10000) / 100 : 0,
+                    },
                 },
                 by_customer: byCustomer,
             }, 'OK');

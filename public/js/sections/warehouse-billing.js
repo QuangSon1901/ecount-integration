@@ -131,10 +131,28 @@
         /* Free badge */
         '.wb-free-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:var(--success-light);color:#065f46;margin-left:4px;}',
         /* Stats row */
-        '.wb-stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:18px;}',
+        '.wb-stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:12px;}',
         '.wb-stat{padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg-primary);}',
         '.wb-stat-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:4px;}',
         '.wb-stat-val{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;}',
+        /* Context bar */
+        '.wb-ctx-bar{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:8px;background:var(--primary-light);border:1px solid var(--primary);color:var(--primary);font-size:12px;font-weight:500;margin-bottom:10px;}',
+        '.wb-ctx-warn{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:8px;background:#fef9c3;border:1px solid #ca8a04;color:#854d0e;font-size:12px;font-weight:500;margin-bottom:10px;}',
+        /* Summary customer table */
+        '.wb-sum-tbl{width:100%;border-collapse:collapse;}',
+        '.wb-sum-tbl th{text-align:left;padding:9px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);background:var(--bg-secondary);border-bottom:1px solid var(--border);}',
+        '.wb-sum-tbl td{padding:10px 12px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle;}',
+        '.wb-sum-tbl tr.wb-sum-main:hover td{background:var(--bg-secondary);cursor:pointer;}',
+        '.wb-sum-tbl tr.wb-sum-main td{border-bottom:none;}',
+        '.wb-sum-tbl tr.wb-sum-detail td{background:var(--bg-secondary);border-bottom:1px solid var(--border);padding:0;}',
+        '.wb-sum-detail-inner{padding:12px 16px 14px 28px;display:grid;grid-template-columns:1fr 1fr;gap:16px;}',
+        '.wb-sum-detail-sec{font-size:12px;}',
+        '.wb-sum-detail-hd{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:6px;}',
+        '.wb-sum-detail-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed var(--border);}',
+        '.wb-sum-detail-row:last-child{border-bottom:none;}',
+        '.wb-sum-detail-lbl{color:var(--text-secondary);}',
+        '.wb-expand-btn{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:5px;background:none;cursor:pointer;color:var(--text-secondary);transition:all .14s;}',
+        '.wb-expand-btn:hover{border-color:var(--primary);color:var(--primary);}',
         /* Misc */
         '.wb-money{font-variant-numeric:tabular-nums;}',
     ].join('');
@@ -261,25 +279,50 @@
         '  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">',
         '    <div class="filter-group"><span class="filter-label">Tháng</span>',
         '      <input type="month" class="form-input" id="wbSummaryMonth" style="font-size:13px;width:148px;"></div>',
+        '    <div class="filter-group"><span class="filter-label">Khách hàng</span>',
+        '      <select class="form-select" id="wbSummaryCustomer" style="font-size:13px;"><option value="">Tất cả</option></select></div>',
         '    <button class="btn btn-primary btn-sm" id="wbBtnLoadSummary" style="gap:5px;">' + IC.chart + ' Xem</button>',
         '  </div>',
-        '  <div class="wb-stat-row" id="wbSummaryStats" style="display:none;">',
-        '    <div class="wb-stat"><div class="wb-stat-lbl">Revenue</div><div class="wb-stat-val wb-money" style="color:var(--primary);" id="wbSumRevenue">—</div></div>',
-        '    <div class="wb-stat"><div class="wb-stat-lbl">Cost</div><div class="wb-stat-val wb-money" style="color:var(--danger);" id="wbSumCost">—</div></div>',
-        '    <div class="wb-stat"><div class="wb-stat-lbl">Profit</div><div class="wb-stat-val wb-money" style="color:var(--success);" id="wbSumProfit">—</div></div>',
-        '    <div class="wb-stat"><div class="wb-stat-lbl">Số phiếu</div><div class="wb-stat-val" style="color:var(--warning);" id="wbSumCount">—</div></div>',
-        '  </div>',
-        '  <div id="wbSummaryTableWrap" style="display:none;">',
-        '    <div class="content-card" style="padding:0;overflow:hidden;">',
-        '      <table class="wb-ltbl">',
+
+        '  <div id="wbSummaryBody2" style="display:none;">',
+
+        // Context bar
+        '    <div id="wbSumCtxBar" class="wb-ctx-bar"></div>',
+        '    <div id="wbSumWarnBar" class="wb-ctx-warn" style="display:none;"></div>',
+
+        // Row 1 — OMS Orders
+        '    <div class="wb-stat-row" id="wbSumRow1">',
+        '      <div class="wb-stat"><div class="wb-stat-lbl">OMS Revenue</div><div class="wb-stat-val wb-money" style="color:var(--primary);" id="wbSumOmsRev">—</div></div>',
+        '      <div class="wb-stat"><div class="wb-stat-lbl">OMS Cost</div><div class="wb-stat-val wb-money" style="color:var(--danger);" id="wbSumOmsCost">—</div></div>',
+        '      <div class="wb-stat"><div class="wb-stat-lbl">OMS Profit</div><div class="wb-stat-val wb-money" style="color:var(--success);" id="wbSumOmsProfit">—</div></div>',
+        '      <div class="wb-stat"><div class="wb-stat-lbl">Đơn hàng</div><div class="wb-stat-val" style="color:var(--warning);" id="wbSumOmsCount">—</div></div>',
+        '    </div>',
+
+        // Row 2 — WH + Combined
+        '    <div class="wb-stat-row" id="wbSumRow2">',
+        '      <div class="wb-stat"><div class="wb-stat-lbl">WH Revenue</div><div class="wb-stat-val wb-money" style="color:var(--primary);" id="wbSumWhRev">—</div></div>',
+        '      <div class="wb-stat"><div class="wb-stat-lbl">WH Cost</div><div class="wb-stat-val wb-money" style="color:var(--danger);" id="wbSumWhCost">—</div></div>',
+        '      <div class="wb-stat"><div class="wb-stat-lbl">Total Revenue</div><div class="wb-stat-val wb-money" style="color:var(--primary);" id="wbSumCombRev">—</div></div>',
+        '      <div class="wb-stat" style="background:var(--primary-light);border-color:var(--primary);"><div class="wb-stat-lbl" style="color:var(--primary);">Total Profit</div><div class="wb-stat-val wb-money" style="color:var(--primary);" id="wbSumCombProfit">—</div></div>',
+        '    </div>',
+
+        // Customer table
+        '    <div class="content-card" style="padding:0;overflow:hidden;margin-top:4px;">',
+        '      <table class="wb-sum-tbl">',
         '        <thead><tr>',
-        '          <th>Khách hàng</th><th style="text-align:right;">Phiếu</th>',
-        '          <th style="text-align:right;">Revenue ($)</th><th style="text-align:right;">Cost ($)</th>',
-        '          <th style="text-align:right;">Profit ($)</th><th style="text-align:right;">Margin %</th>',
+        '          <th style="width:32px;"></th>',
+        '          <th>Khách hàng</th>',
+        '          <th style="text-align:right;">OMS (đơn)</th>',
+        '          <th style="text-align:right;">Phiếu kho</th>',
+        '          <th style="text-align:right;">Total Rev</th>',
+        '          <th style="text-align:right;">Total Cost</th>',
+        '          <th style="text-align:right;">Profit</th>',
+        '          <th style="text-align:right;">Margin</th>',
         '        </tr></thead>',
-        '        <tbody id="wbSummaryBody"></tbody>',
+        '        <tbody id="wbSummaryTbody"></tbody>',
         '      </table>',
         '    </div>',
+
         '  </div>',
         '  <div id="wbSummaryEmpty" style="display:none;text-align:center;padding:48px;color:var(--text-secondary);font-size:13px;">Không có dữ liệu tháng này</div>',
         '</div>',
@@ -387,7 +430,11 @@
     }
 
     function _populateSelects() {
-        [['wbCreateCustomer','— Chọn khách hàng —'],['wbListCustomer','Tất cả']].forEach(function(pair){
+        [
+            ['wbCreateCustomer','— Chọn khách hàng —'],
+            ['wbListCustomer','Tất cả'],
+            ['wbSummaryCustomer','Tất cả'],
+        ].forEach(function(pair){
             var el = document.getElementById(pair[0]);
             if (!el) return;
             el.innerHTML = '<option value="">' + pair[1] + '</option>';
@@ -908,40 +955,171 @@
     // ════════════════════════════════════════════════════════════════════════
     // SUMMARY
     // ════════════════════════════════════════════════════════════════════════
+    var _expandedCustomers = new Set();
+
     function _bindSummaryTab() { addClick('wbBtnLoadSummary', _loadSummary); }
 
     function _loadSummary() {
-        var month=val('wbSummaryMonth');
-        if(!month){ toast('Vui lòng chọn tháng', false); return; }
-        var se=document.getElementById('wbSummaryStats'),te=document.getElementById('wbSummaryTableWrap'),ee=document.getElementById('wbSummaryEmpty');
-        if(se) se.style.display='none'; if(te) te.style.display='none'; if(ee) ee.style.display='none';
-        _apiFetch(WB_API+'/summary/monthly?year_month='+month)
-            .then(function(data){
-                var d=data.data;
-                if(!d.by_customer||!d.by_customer.length){ if(ee) ee.style.display='block'; return; }
-                var g=d.grand_total;
-                var sx=function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
-                sx('wbSumRevenue','$'+_fmt(g.total_revenue)); sx('wbSumCost','$'+_fmt(g.total_cost));
-                sx('wbSumProfit','$'+_fmt(g.total_profit)); sx('wbSumCount',g.slip_count);
-                if(se) se.style.display='grid';
-                var tbody=document.getElementById('wbSummaryBody');
-                if(tbody){
-                    tbody.innerHTML='';
-                    d.by_customer.forEach(function(c){
-                        var tr=document.createElement('tr');
-                        tr.innerHTML='<td><span style="font-weight:500;">'+esc(c.customer_code)+'</span>'
-                            +'<span style="color:var(--text-secondary);font-size:12px;"> — '+esc(c.customer_name)+'</span></td>'
-                            +'<td style="text-align:right;">'+c.slip_count+'</td>'
-                            +'<td class="wb-money" style="text-align:right;color:var(--primary);">'+_fmt(c.total_revenue)+'</td>'
-                            +'<td class="wb-money" style="text-align:right;color:var(--danger);">'+_fmt(c.total_cost)+'</td>'
-                            +'<td class="wb-money" style="text-align:right;font-weight:600;color:var(--success);">'+_fmt(c.total_profit)+'</td>'
-                            +'<td style="text-align:right;">'+c.margin_percent+'%</td>';
-                        tbody.appendChild(tr);
-                    });
-                }
-                if(te) te.style.display='block';
-            })
-            .catch(function(err){ toast('Lỗi tải tổng hợp: '+err.message, false); });
+        var month  = val('wbSummaryMonth');
+        var custId = val('wbSummaryCustomer');
+        if (!month) { toast('Vui lòng chọn tháng', false); return; }
+        var body = document.getElementById('wbSummaryBody2');
+        var ee   = document.getElementById('wbSummaryEmpty');
+        if (body) body.style.display = 'none';
+        if (ee)   ee.style.display   = 'none';
+        _expandedCustomers.clear();
+        var params = 'year_month=' + month;
+        if (custId) params += '&customer_id=' + custId;
+        _apiFetch(WB_API + '/summary/monthly?' + params)
+            .then(function(data) { _renderSummary(data.data); })
+            .catch(function(err) { toast('Lỗi tải tổng hợp: ' + err.message, false); });
+    }
+
+    function _renderSummary(d) {
+        var body = document.getElementById('wbSummaryBody2');
+        var ee   = document.getElementById('wbSummaryEmpty');
+        if (!d.by_customer || !d.by_customer.length) {
+            if (ee) ee.style.display = 'block';
+            return;
+        }
+
+        // Context bar
+        var ctx = document.getElementById('wbSumCtxBar');
+        var warn = document.getElementById('wbSumWarnBar');
+        var oc = d.oms_context || {};
+        if (ctx) ctx.textContent = 'Tháng ' + (d.year_month || '').replace('-', '/') + ': '
+            + (oc.monthly_total != null ? oc.monthly_total : '?') + ' đơn toàn hệ thống'
+            + ' → Tier ' + (oc.tier || 1) + ' (' + (oc.tier_label || '') + ')  ·  Cost tính realtime';
+        if (warn) {
+            if (oc.has_incomplete_pricing && oc.incomplete_order_count > 0) {
+                warn.textContent = oc.incomplete_order_count + ' đơn chưa có đủ thông tin giá (fulfillment hoặc shipping chưa tính)';
+                warn.style.display = 'flex';
+            } else {
+                warn.style.display = 'none';
+            }
+        }
+
+        // Grand total cards
+        var g = d.grand_total || {};
+        var go = g.oms_orders || {};
+        var gw = g.warehouse_billing || {};
+        var gc = g.combined || {};
+        var sx = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+        sx('wbSumOmsRev',    '$' + _fmt(go.revenue && go.revenue.total));
+        sx('wbSumOmsCost',   '$' + _fmt(go.cost && go.cost.total));
+        sx('wbSumOmsProfit', '$' + _fmt(go.profit));
+        sx('wbSumOmsCount',  (go.order_count || 0) + ' đơn');
+        sx('wbSumWhRev',    '$' + _fmt(gw.total_revenue));
+        sx('wbSumWhCost',   '$' + _fmt(gw.total_cost));
+        sx('wbSumCombRev',  '$' + _fmt(gc.total_revenue));
+        sx('wbSumCombProfit', '$' + _fmt(gc.total_profit) + ' (' + (gc.margin_percent || 0) + '%)');
+
+        // Customer table
+        var tbody = document.getElementById('wbSummaryTbody');
+        if (!tbody) { if (body) body.style.display = 'block'; return; }
+        tbody.innerHTML = '';
+
+        d.by_customer.forEach(function(c) {
+            var cid = c.customer_id;
+            var comb = c.combined || {};
+            var oms  = c.oms_orders || null;
+            var wh   = c.warehouse_billing || null;
+            var profit = Number(comb.total_profit) || 0;
+            var pc = profit >= 0 ? 'var(--success)' : 'var(--danger)';
+
+            // Main row
+            var tr = document.createElement('tr');
+            tr.className = 'wb-sum-main';
+            tr.setAttribute('data-cid', cid);
+            tr.innerHTML = ''
+                + '<td style="text-align:center;">'
+                + '<button class="wb-expand-btn" data-expand="' + cid + '">'
+                + '<span data-expand-arrow="' + cid + '">▶</span>'
+                + '</button></td>'
+                + '<td><span style="font-weight:600;">' + esc(c.customer_code || '') + '</span>'
+                + ' <span style="color:var(--text-secondary);font-size:12px;">' + esc(c.customer_name || '') + '</span></td>'
+                + '<td style="text-align:right;">' + (oms ? oms.order_count : '—') + '</td>'
+                + '<td style="text-align:right;">' + (wh ? wh.slip_count : '—') + '</td>'
+                + '<td class="wb-money" style="text-align:right;color:var(--primary);">$' + _fmt(comb.total_revenue) + '</td>'
+                + '<td class="wb-money" style="text-align:right;color:var(--danger);">$' + _fmt(comb.total_cost) + '</td>'
+                + '<td class="wb-money" style="text-align:right;font-weight:600;color:' + pc + ';">$' + _fmt(comb.total_profit) + '</td>'
+                + '<td style="text-align:right;">' + (comb.margin_percent || 0) + '%</td>';
+            tbody.appendChild(tr);
+
+            // Detail row (hidden by default)
+            var trd = document.createElement('tr');
+            trd.className = 'wb-sum-detail';
+            trd.setAttribute('data-detail', cid);
+            trd.style.display = 'none';
+            var td = document.createElement('td');
+            td.colSpan = 8;
+            td.innerHTML = _buildDetailHtml(oms, wh);
+            trd.appendChild(td);
+            tbody.appendChild(trd);
+
+            // Expand toggle
+            tr.querySelector('[data-expand]').addEventListener('click', function(e) {
+                e.stopPropagation();
+                _toggleExpand(cid);
+            });
+            tr.addEventListener('click', function() { _toggleExpand(cid); });
+        });
+
+        if (body) body.style.display = 'block';
+    }
+
+    function _buildDetailHtml(oms, wh) {
+        var html = '<div class="wb-sum-detail-inner">';
+
+        // OMS section
+        html += '<div class="wb-sum-detail-sec">';
+        html += '<div class="wb-sum-detail-hd">OMS Orders</div>';
+        if (oms) {
+            var r = oms.revenue || {}, co = oms.cost || {};
+            html += '<div class="wb-sum-detail-row"><span class="wb-sum-detail-lbl">Shipping</span>'
+                + '<span>Rev $' + _fmt(r.shipping) + ' · Cost $' + _fmt(co.shipping) + '</span></div>';
+            html += '<div class="wb-sum-detail-row"><span class="wb-sum-detail-lbl">Fulfillment</span>'
+                + '<span>Rev $' + _fmt(r.fulfillment) + ' · Cost $' + _fmt(co.fulfillment) + '</span></div>';
+            html += '<div class="wb-sum-detail-row"><span class="wb-sum-detail-lbl">Packaging Material</span>'
+                + '<span>Rev $' + _fmt(r.packaging_material) + ' · Cost $' + _fmt(co.packaging_material) + '</span></div>';
+            html += '<div class="wb-sum-detail-row"><span class="wb-sum-detail-lbl">Additional</span>'
+                + '<span>$' + _fmt(r.additional) + '</span></div>';
+        } else {
+            html += '<div style="color:var(--text-secondary);font-size:12px;padding:6px 0;">Không có đơn OMS tháng này</div>';
+        }
+        html += '</div>';
+
+        // WH section
+        html += '<div class="wb-sum-detail-sec">';
+        html += '<div class="wb-sum-detail-hd">Warehouse Billing</div>';
+        if (wh && wh.breakdown_by_section && wh.breakdown_by_section.length) {
+            wh.breakdown_by_section.forEach(function(sec) {
+                html += '<div class="wb-sum-detail-row"><span class="wb-sum-detail-lbl">' + esc(sec.section_label) + '</span>'
+                    + '<span>Rev $' + _fmt(sec.total_revenue) + ' · Cost $' + _fmt(sec.total_cost) + '</span></div>';
+            });
+        } else {
+            html += '<div style="color:var(--text-secondary);font-size:12px;padding:6px 0;">Không có phiếu kho tháng này</div>';
+        }
+        html += '</div>';
+
+        html += '</div>';
+        return html;
+    }
+
+    function _toggleExpand(cid) {
+        var detailRow = document.querySelector('[data-detail="' + cid + '"]');
+        var arrow     = document.querySelector('[data-expand-arrow="' + cid + '"]');
+        if (!detailRow) return;
+        var expanded = _expandedCustomers.has(cid);
+        if (expanded) {
+            _expandedCustomers.delete(cid);
+            detailRow.style.display = 'none';
+            if (arrow) arrow.textContent = '▶';
+        } else {
+            _expandedCustomers.add(cid);
+            detailRow.style.display = '';
+            if (arrow) arrow.textContent = '▼';
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════════

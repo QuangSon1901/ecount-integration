@@ -833,6 +833,27 @@ class OmsOrderModel {
     /**
      * Tìm order theo label access key
      */
+    static async listForSummary({ yearMonth, customerId } = {}) {
+        const conn = await db.getConnection();
+        try {
+            let sql = `
+                SELECT id, customer_id, items, oms_shipping_service_name AS shipping_service_name,
+                       shipping_fee_purchase, shipping_fee_selling,
+                       fulfillment_fee_selling, packaging_material_fee_selling,
+                       additional_fee, internal_status
+                FROM oms_orders
+                WHERE DATE_FORMAT(created_at, '%Y-%m') = ?
+                  AND internal_status NOT IN ('cancelled', 'failed')
+            `;
+            const params = [yearMonth];
+            if (customerId) { sql += ' AND customer_id = ?'; params.push(customerId); }
+            const [rows] = await conn.query(sql, params);
+            return rows;
+        } finally {
+            conn.release();
+        }
+    }
+
     static async findByLabelAccessKey(accessKey) {
         const conn = await db.getConnection();
         try {

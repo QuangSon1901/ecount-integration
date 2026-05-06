@@ -82,6 +82,41 @@ class OmsPackagingMaterialModel {
         }
     }
 
+    /**
+     * Bulk lookup SKU → material cost/sell price. Ưu tiên default (customer_id NULL).
+     * @param {string[]} skus
+     * @returns {Promise<Map<string, { cost_price: number|null, sell_price: number, material_name: string }>>}
+     */
+    static async findMappingsBySkus(skus) {
+        if (!Array.isArray(skus) || skus.length === 0) return new Map();
+        const conn = await db.getConnection();
+        try {
+            const placeholders = skus.map(() => '?').join(', ');
+            const [rows] = await conn.query(
+                `SELECT m.sku, mat.cost_price, mat.sell_price, mat.name AS material_name,
+                        m.customer_id
+                 FROM oms_sku_packaging_mapping m
+                 INNER JOIN oms_packaging_materials mat ON mat.id = m.material_id
+                 WHERE m.sku IN (${placeholders}) AND mat.is_active = 1
+                 ORDER BY (m.customer_id IS NULL) DESC`,
+                skus
+            );
+            const out = new Map();
+            for (const row of rows) {
+                if (!out.has(row.sku)) {
+                    out.set(row.sku, {
+                        cost_price:    row.cost_price != null ? Number(row.cost_price) : null,
+                        sell_price:    Number(row.sell_price),
+                        material_name: row.material_name,
+                    });
+                }
+            }
+            return out;
+        } finally {
+            conn.release();
+        }
+    }
+
     static async delete(id) {
         const conn = await db.getConnection();
         try {

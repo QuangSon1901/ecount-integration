@@ -1,296 +1,146 @@
 ```markdown
-# OMS Warehouse Billing — Implementation Spec
+# OMS Warehouse Billing — Monthly Summary Tổng Quan Spec
 
 ## Context
-Đây là tính năng quản lý phiếu phí kho US (warehouse billing slips) phục vụ kiểm toán
-cuối tháng. Hiện tại có 1 prototype React dùng `window.storage` (localStorage artifact),
-cần chuyển thành backend thật với DB + API + UI tích hợp vào hệ thống THG.
-
-Hệ thống đã có sẵn:
-- Bảng `api_customers` — danh sách khách hàng (dùng `id`, `customer_code`, `customer_name`)
-- Pattern controller/model/router đã có, theo đúng chuẩn hiện tại của dự án
-- Auth session middleware đã có
-
----
-
-## 1. Cấu trúc nghiệp vụ
-
-### Khái niệm "Phiếu phí" (Billing Slip)
-Mỗi phiếu ghi nhận các khoản phí phát sinh tại kho US cho 1 khách hàng trong 1 ngày.
-1 khách có thể có nhiều phiếu trong tháng (mỗi lần nhập hàng, kiểm kho,... là 1 phiếu).
-
-### Các mục phí (Sections) — cố định, hardcode
-| Section ID | Tên | Ghi chú |
-|-----------|-----|---------|
-| 1 | Inbound Receiving | Luôn Free |
-| 2 | Inspection Fee | Nhiều loại, có thể thêm dòng |
-| 3 | Storage Fee | Nhập tay sp/cost |
-| 6 | Return Handling | Luôn Free |
-| 8 | Return Export Fee | |
-| 9 | Phí Khác | Tự do nhập tên + giá |
-
-### Các item mặc định trong mỗi section
-Hardcode ở tầng service/constant, không lưu vào DB.
-Khi tạo phiếu, chỉ lưu các dòng user đã chọn/nhập.
-
-```javascript
-// src/constants/warehouse-billing-sections.js
-const SECTIONS = [
-  { id: 1, label: "Inbound Receiving", items: [
-    { id: "inb_01", name: "Inbound Receiving", unit: "/shipment", default_sp: 0, default_cost: 0, free: true },
-  ]},
-  { id: 2, label: "Inspection Fee", items: [
-    { id: "ins_01", name: "Small parcels (<20 items/carton)", unit: "/carton", default_sp: 0,    default_cost: 0,    free: true },
-    { id: "ins_02", name: "Single product type, quick check",  unit: "/carton", default_sp: 2.5,  default_cost: 2.0,  free: false },
-    { id: "ins_03", name: "Mixed carton, multiple product types", unit: "/carton", default_sp: 6.25, default_cost: 5.0,  free: false },
-    { id: "ins_04", name: "Large items packed by CBM",          unit: "/CBM",    default_sp: 38,   default_cost: 30,   free: false },
-    { id: "ins_05", name: "Periodic inventory check (on request)", unit: "/hr or /1500pcs", default_sp: 30, default_cost: 20, free: false, note: "Cost $20–$25 tuỳ hàng" },
-    { id: "ins_06", name: "Other cases", unit: "", default_sp: null, default_cost: null, free: false, note: "Quoted per specific case" },
-  ]},
-  { id: 3, label: "Storage Fee", items: [
-    { id: "sto_01", name: "Storage Fee", unit: "/pc/month or /CBM", default_sp: null, default_cost: null, free: false,
-      note: "Selling: $0.1/pc/month hoặc $20/CBM | Cost: $600/tháng cố định" },
-  ]},
-  { id: 6, label: "Return Handling", items: [
-    { id: "ret_01", name: "Return Handling", unit: "/shipment", default_sp: 0, default_cost: 0, free: true, note: "Merchandise only" },
-  ]},
-  { id: 8, label: "Return Export Fee", items: [
-    { id: "rex_01", name: "Return Export Fee", unit: "/carton", default_sp: 2.5, default_cost: 2.0, free: false, note: "Quoted trước khi xử lý" },
-  ]},
-  { id: 9, label: "Phí Khác", items: [] }, // user tự nhập tên + giá
-];
-module.exports = SECTIONS;
-```
+Đã có sẵn:
+- `oms_warehouse_billing_slips` + `oms_warehouse_billing_rows` — phiếu phí kho
+- `oms_orders` — đơn hàng OMS:
+  - **Selling**: đã tính và lưu vào DB (`shipping_fee_selling`, `fulfillment_fee_selling`,
+    `packaging_material_fee_selling`, `additional_fee`)
+  - **Cost**: tính realtime khi có yêu cầu, không lưu DB, vì `fulfillment_fee_purchase`
+    phụ thuộc vào `monthly_total` từ `system_configs.oms_monthly_order_totals`
+- `system_configs` key `oms_monthly_order_totals`:
+  ```json
+  {
+    "2026-04": { "total": 1230, "updatedAt": "2026-04-30T18:05:00Z" },
+    "2026-05": { "total": 87,   "updatedAt": "2026-05-06T10:30:00Z" }
+  }
+  ```
+- `fulfillment-cost-calculator.service.js` — đã có, nhận `items` + `tier` → trả về cost
 
 ---
 
-## 2. Database
+## Luồng tính cost cho Summary tháng
 
-### Bảng `oms_warehouse_billing_slips` — phiếu phí
+Vì cost không lưu DB, khi render Summary cần:
 
-```sql
-CREATE TABLE oms_warehouse_billing_slips (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
-    customer_id     INT NOT NULL,
-    slip_date       DATE NOT NULL,
-    note            TEXT DEFAULT NULL,
-    total_revenue   DECIMAL(10,4) NOT NULL DEFAULT 0,
-    total_cost      DECIMAL(10,4) NOT NULL DEFAULT 0,
-    total_profit    DECIMAL(10,4) NOT NULL DEFAULT 0,
-    created_by      VARCHAR(100) DEFAULT NULL,
-    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES api_customers(id)
-);
+```
+1. Đọc year_month từ query param
+2. Đọc system_configs → lấy monthly_total của year_month đó → xác định tier
+3. Query tất cả oms_orders của tháng đó (kèm items JSON)
+4. Với mỗi order: gọi fulfillmentCostCalculator.compute(order.items, tier)
+   → ra fulfillment_fee_purchase realtime
+5. shipping_fee_purchase đã có sẵn trên order (từ ITC)
+6. packaging_material_fee_cost: tính realtime từ items × cost_price của mapping
+7. Aggregate tất cả theo customer_id
 ```
 
-### Bảng `oms_warehouse_billing_rows` — từng dòng phí trong phiếu
-
-```sql
-CREATE TABLE oms_warehouse_billing_rows (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
-    slip_id         INT NOT NULL,
-    section_id      INT NOT NULL,
-    section_label   VARCHAR(100) NOT NULL,
-    item_id         VARCHAR(50) DEFAULT NULL,   -- NULL nếu là dòng custom (section 9)
-    name            VARCHAR(255) NOT NULL,
-    unit            VARCHAR(100) DEFAULT NULL,
-    is_free         TINYINT(1) NOT NULL DEFAULT 0,
-    selling_price   DECIMAL(10,4) DEFAULT NULL, -- NULL nếu is_free hoặc quoted
-    cost_price      DECIMAL(10,4) DEFAULT NULL,
-    quantity        DECIMAL(10,4) NOT NULL DEFAULT 1,
-    note            TEXT DEFAULT NULL,
-    sort_order      INT NOT NULL DEFAULT 0,
-    FOREIGN KEY (slip_id) REFERENCES oms_warehouse_billing_slips(id) ON DELETE CASCADE
-);
-```
-
-> **Lý do tách 2 bảng:** 1 phiếu có nhiều dòng phí, mỗi dòng cần lưu riêng để
-> query aggregate theo section, theo tháng, theo khách hàng. Không dùng JSON column
-> vì cần GROUP BY / SUM trực tiếp trên DB.
+> **Lưu ý hiệu năng:** nếu tháng có nhiều đơn (vài nghìn), bước 4-6 chạy in-memory
+> trên Node sau khi đã query DB 1 lần. Không gọi DB per-order.
+> Tier là hằng số cho cả tháng nên chỉ lookup 1 lần.
 
 ---
 
-## 3. Model
+## API
 
-### `src/models/oms-warehouse-billing.model.js`
+### `GET /api/v1/admin/oms-warehouse-billing/summary/monthly`
 
-Methods cần có:
+Query params:
+- `year_month`: bắt buộc, định dạng `YYYY-MM`
+- `customer_id`: tùy chọn
 
-```javascript
-// Tạo phiếu + các dòng trong 1 transaction
-static async create(payload, rows, createdBy)
-// payload: { customer_id, slip_date, note, total_revenue, total_cost, total_profit }
-// rows: [{ section_id, section_label, item_id, name, unit, is_free,
-//           selling_price, cost_price, quantity, note, sort_order }]
-
-// Lấy 1 phiếu kèm rows + thông tin customer
-static async findById(id)
-
-// List phiếu với filter
-// filters: { customer_id, year_month (YYYY-MM), date_from, date_to, limit, offset }
-static async list(filters)
-static async count(filters)
-
-// Tổng hợp theo tháng, group by customer
-// Trả về: [{ customer_id, customer_name, slip_count, total_revenue, total_cost, total_profit }]
-static async monthlySummary(yearMonth)
-
-// Tổng hợp theo tháng + section (để biết mục nào phát sinh nhiều nhất)
-// Trả về: [{ section_id, section_label, total_revenue, total_cost, row_count }]
-static async monthlySummaryBySection(yearMonth, customerId?)
-
-// Xoá phiếu (cascade xoá rows)
-static async deleteById(id)
-```
-
----
-
-## 4. Controller
-
-### `src/controllers/oms-warehouse-billing.controller.js`
-
-```
-POST   /api/v1/admin/oms-warehouse-billing          — tạo phiếu mới
-GET    /api/v1/admin/oms-warehouse-billing           — list phiếu (filter: customer_id, year_month, limit, offset)
-GET    /api/v1/admin/oms-warehouse-billing/:id       — chi tiết 1 phiếu
-DELETE /api/v1/admin/oms-warehouse-billing/:id       — xoá phiếu
-
-GET    /api/v1/admin/oms-warehouse-billing/summary/monthly          — tổng hợp tháng theo customer
-GET    /api/v1/admin/oms-warehouse-billing/summary/monthly-by-section — tổng hợp tháng theo section
-```
-
-### Request body — Tạo phiếu (POST)
-
-```json
-{
-  "customer_id": 12,
-  "slip_date": "2026-05-06",
-  "note": "Nhập hàng đợt 3",
-  "rows": [
-    {
-      "section_id": 1,
-      "section_label": "Inbound Receiving",
-      "item_id": "inb_01",
-      "name": "Inbound Receiving",
-      "unit": "/shipment",
-      "is_free": true,
-      "selling_price": null,
-      "cost_price": null,
-      "quantity": 1,
-      "note": null,
-      "sort_order": 0
-    },
-    {
-      "section_id": 2,
-      "section_label": "Inspection Fee",
-      "item_id": "ins_02",
-      "name": "Single product type, quick check",
-      "unit": "/carton",
-      "is_free": false,
-      "selling_price": 2.5,
-      "cost_price": 2.0,
-      "quantity": 3,
-      "note": null,
-      "sort_order": 1
-    },
-    {
-      "section_id": 9,
-      "section_label": "Phí Khác",
-      "item_id": null,
-      "name": "Phí dán nhãn đặc biệt",
-      "unit": "/carton",
-      "is_free": false,
-      "selling_price": 5.0,
-      "cost_price": 3.5,
-      "quantity": 2,
-      "note": "Hàng fragile",
-      "sort_order": 2
-    }
-  ]
-}
-```
-
-Controller tự tính `total_revenue`, `total_cost`, `total_profit` từ rows trước khi lưu:
-
-```javascript
-// Tính totals từ rows — không tin client gửi lên
-function computeTotals(rows) {
-    let revenue = 0, cost = 0;
-    for (const r of rows) {
-        if (r.is_free) continue;
-        const qty = Number(r.quantity) || 1;
-        revenue += (Number(r.selling_price) || 0) * qty;
-        cost    += (Number(r.cost_price)    || 0) * qty;
-    }
-    return {
-        total_revenue: Math.round(revenue * 10000) / 10000,
-        total_cost:    Math.round(cost    * 10000) / 10000,
-        total_profit:  Math.round((revenue - cost) * 10000) / 10000,
-    };
-}
-```
-
-### Response — chi tiết 1 phiếu (GET /:id)
-
-```json
-{
-  "id": 42,
-  "customer_id": 12,
-  "customer_code": "lup",
-  "customer_name": "Levelup",
-  "slip_date": "2026-05-06",
-  "note": "Nhập hàng đợt 3",
-  "total_revenue": 12.50,
-  "total_cost": 9.00,
-  "total_profit": 3.50,
-  "created_by": "admin",
-  "created_at": "2026-05-06T10:30:00Z",
-  "rows": [
-    {
-      "id": 101,
-      "section_id": 2,
-      "section_label": "Inspection Fee",
-      "item_id": "ins_02",
-      "name": "Single product type, quick check",
-      "unit": "/carton",
-      "is_free": false,
-      "selling_price": 2.5,
-      "cost_price": 2.0,
-      "quantity": 3,
-      "subtotal_revenue": 7.5,
-      "subtotal_cost": 6.0,
-      "subtotal_profit": 1.5,
-      "note": null,
-      "sort_order": 0
-    }
-  ]
-}
-```
-
-> `subtotal_revenue/cost/profit` tính runtime trong `_formatSlip()`, không lưu DB.
-
-### Response — monthly summary (GET /summary/monthly?year_month=2026-05)
+### Response shape
 
 ```json
 {
   "year_month": "2026-05",
+  "oms_context": {
+    "monthly_total": 87,
+    "tier": 1,
+    "tier_label": "0–1000 đơn/tháng",
+    "has_incomplete_pricing": true,
+    "incomplete_order_count": 3
+  },
   "grand_total": {
-    "total_revenue": 850.00,
-    "total_cost": 620.00,
-    "total_profit": 230.00,
-    "slip_count": 34
+    "oms_orders": {
+      "order_count": 320,
+      "revenue": {
+        "shipping": 1800.00,
+        "fulfillment": 1500.00,
+        "packaging_material": 400.00,
+        "additional": -100.00,
+        "total": 3600.00
+      },
+      "cost": {
+        "shipping": 1400.00,
+        "fulfillment": 980.00,
+        "packaging_material": 200.00,
+        "total": 2580.00
+      },
+      "profit": 1020.00
+    },
+    "warehouse_billing": {
+      "slip_count": 34,
+      "total_revenue": 850.00,
+      "total_cost": 620.00,
+      "total_profit": 230.00
+    },
+    "combined": {
+      "total_revenue": 4450.00,
+      "total_cost": 3200.00,
+      "total_profit": 1250.00,
+      "margin_percent": 28.1
+    }
   },
   "by_customer": [
     {
       "customer_id": 12,
       "customer_code": "lup",
       "customer_name": "Levelup",
-      "slip_count": 5,
-      "total_revenue": 120.00,
-      "total_cost": 90.00,
-      "total_profit": 30.00,
-      "margin_percent": 25.0
+      "oms_orders": {
+        "order_count": 45,
+        "has_incomplete_pricing": false,
+        "revenue": {
+          "shipping": 310.00,
+          "fulfillment": 250.00,
+          "packaging_material": 40.00,
+          "additional": 20.00,
+          "total": 620.00
+        },
+        "cost": {
+          "shipping": 260.00,
+          "fulfillment": 180.00,
+          "packaging_material": 0.00,
+          "total": 440.00
+        },
+        "profit": 180.00
+      },
+      "warehouse_billing": {
+        "slip_count": 5,
+        "total_revenue": 120.00,
+        "total_cost": 90.00,
+        "total_profit": 30.00,
+        "breakdown_by_section": [
+          {
+            "section_id": 2,
+            "section_label": "Inspection Fee",
+            "total_revenue": 75.00,
+            "total_cost": 60.00
+          },
+          {
+            "section_id": 3,
+            "section_label": "Storage Fee",
+            "total_revenue": 45.00,
+            "total_cost": 30.00
+          }
+        ]
+      },
+      "combined": {
+        "total_revenue": 740.00,
+        "total_cost": 530.00,
+        "total_profit": 210.00,
+        "margin_percent": 28.4
+      }
     }
   ]
 }
@@ -298,63 +148,228 @@ function computeTotals(rows) {
 
 ---
 
-## 5. Validation
+## Logic trong Controller / Model
 
-Controller validate trước khi lưu:
+### Bước 1 — Lấy tier từ system_configs
 
-- `customer_id`: bắt buộc, phải tồn tại trong `api_customers`
-- `slip_date`: bắt buộc, định dạng DATE hợp lệ
-- `rows`: array, tối thiểu 1 phần tử
-- Mỗi row:
-  - `section_id`: bắt buộc, phải thuộc `[1, 2, 3, 6, 8, 9]`
-  - `name`: bắt buộc, không được rỗng
-  - `quantity`: số dương, mặc định 1 nếu không truyền
-  - `selling_price` / `cost_price`: cho phép NULL (quoted case), nếu có thì phải là số >= 0
+```javascript
+// src/controllers/oms-warehouse-billing.controller.js
+
+async monthlySummary(req, res, next) {
+    const { year_month, customer_id } = req.query;
+
+    // 1. Đọc monthly_total từ system_configs
+    const configRow = await SystemConfigModel.get('oms_monthly_order_totals');
+    const monthlyTotals = configRow ? JSON.parse(configRow.config_value) : {};
+    const monthlyEntry  = monthlyTotals[year_month] || null;
+    const monthlyTotal  = monthlyEntry?.total ?? 0;
+    const tier          = fulfillmentCostCalculator.getTier(monthlyTotal);
+    // getTier: ≤1000→1, ≤3000→2, ≤5000→3, >5000→4
+
+    // 2. Query OMS orders
+    const orders = await OmsOrderModel.listForSummary({ yearMonth: year_month, customerId: customer_id });
+    // listForSummary: SELECT id, customer_id, items, shipping_fee_purchase,
+    //   shipping_service_name, shipping_fee_selling, fulfillment_fee_selling,
+    //   packaging_material_fee_selling, additional_fee, internal_status
+    // WHERE DATE_FORMAT(created_at, '%Y-%m') = ? AND internal_status NOT IN ('cancelled','failed')
+
+    // 3. Query packaging material mappings 1 lần cho tất cả SKUs có trong orders
+    const allSkus = [...new Set(orders.flatMap(o => this._parseItems(o.items).map(it => it.sku).filter(Boolean)))];
+    const materialMappings = await PackagingMaterialModel.findMappingsBySkus(allSkus);
+    // trả về Map<sku, { cost_price, sell_price, material_name }>
+
+    // 4. Tính cost realtime per order, aggregate theo customer
+    const customerMap = {};
+    let incompleteCount = 0;
+
+    for (const order of orders) {
+        const items = this._parseItems(order.items);
+        const custId = order.customer_id;
+        if (!customerMap[custId]) customerMap[custId] = this._emptyCustomerAgg();
+
+        // Shipping cost
+        const shippingCost = ['Standard USPS', 'Priority USPS'].includes(order.shipping_service_name)
+            ? Number(order.shipping_fee_purchase || 0)
+            : 0;
+
+        // Fulfillment cost (realtime)
+        const fulfillResult = fulfillmentCostCalculator.compute(items, tier);
+        const fulfillmentCost = fulfillResult.fee_purchase ?? 0;
+
+        // Packaging material cost (realtime)
+        let packagingCost = 0;
+        for (const item of items) {
+            const mapping = materialMappings.get(item.sku);
+            if (mapping?.cost_price != null) {
+                packagingCost += Number(mapping.cost_price) * Number(item.quantity || 1);
+            }
+        }
+
+        // Check incomplete: selling fields có NULL không
+        const isIncomplete = order.fulfillment_fee_selling === null
+            || order.shipping_fee_selling === null;
+        if (isIncomplete) incompleteCount++;
+
+        // Aggregate revenue (từ DB)
+        customerMap[custId].revenue.shipping        += Number(order.shipping_fee_selling || 0);
+        customerMap[custId].revenue.fulfillment      += Number(order.fulfillment_fee_selling || 0);
+        customerMap[custId].revenue.packaging        += Number(order.packaging_material_fee_selling || 0);
+        customerMap[custId].revenue.additional       += Number(order.additional_fee || 0);
+
+        // Aggregate cost (realtime)
+        customerMap[custId].cost.shipping            += shippingCost;
+        customerMap[custId].cost.fulfillment         += fulfillmentCost;
+        customerMap[custId].cost.packaging           += packagingCost;
+
+        customerMap[custId].order_count++;
+        if (isIncomplete) customerMap[custId].has_incomplete = true;
+    }
+
+    // 5. Query billing slips
+    const billingAgg     = await OmsWarehouseBillingModel.monthlyAggregate(year_month, customer_id);
+    const billingSection = await OmsWarehouseBillingModel.monthlyBillingSectionBreakdown(year_month, customer_id);
+
+    // 6. Merge + build response
+    // ...
+}
+```
+
+### `OmsOrderModel.listForSummary()`
+
+Chỉ SELECT các cột cần thiết, không SELECT raw_data để tránh payload nặng:
+
+```javascript
+static async listForSummary({ yearMonth, customerId }) {
+    let sql = `
+        SELECT id, customer_id, items, shipping_service_name,
+               shipping_fee_purchase, shipping_fee_selling,
+               fulfillment_fee_selling, packaging_material_fee_selling,
+               additional_fee, internal_status
+        FROM oms_orders
+        WHERE DATE_FORMAT(created_at, '%Y-%m') = ?
+          AND internal_status NOT IN ('cancelled', 'failed')
+    `;
+    const params = [yearMonth];
+    if (customerId) { sql += ' AND customer_id = ?'; params.push(customerId); }
+    const conn = await db.getConnection();
+    try {
+        const [rows] = await conn.query(sql, params);
+        return rows;
+    } finally { conn.release(); }
+}
+```
 
 ---
 
-## 6. Frontend
+## Queries Billing (không thay đổi so với spec trước)
 
-### Trang mới: `/extensions/warehouse-billing`
+```sql
+-- Aggregate billing theo customer
+SELECT
+    s.customer_id,
+    COUNT(DISTINCT s.id)  AS slip_count,
+    SUM(s.total_revenue)  AS total_revenue,
+    SUM(s.total_cost)     AS total_cost,
+    SUM(s.total_profit)   AS total_profit
+FROM oms_warehouse_billing_slips s
+WHERE DATE_FORMAT(s.slip_date, '%Y-%m') = ?
+GROUP BY s.customer_id;
 
-Gồm 3 tab giống prototype React:
-
-**Tab 1 — Tạo phiếu mới:**
-- Chọn khách hàng (dropdown từ `api_customers`)
-- Chọn ngày phát sinh
-- Ghi chú phiếu
-- Chip picker chọn sections
-- Bảng nhập liệu từng section (giống prototype)
-- Totals + nút Submit gọi `POST /api/v1/admin/oms-warehouse-billing`
-
-**Tab 2 — Danh sách phiếu:**
-- Filter: tháng + khách hàng
-- Table list, click vào xem detail modal
-- Nút xoá trong modal
-
-**Tab 3 — Tổng hợp tháng:**
-- Filter: tháng
-- Stats cards: Total Revenue / Cost / Profit / Margin
-- Table by customer (gọi `GET /summary/monthly`)
-
-### File cần tạo:
-- `public/views/warehouse-billing.html` — page layout
-- `public/js/warehouse-billing.js` — logic tương tự `oms-order-detail.js`
+-- Breakdown theo section
+SELECT
+    s.customer_id,
+    r.section_id,
+    r.section_label,
+    SUM(CASE WHEN r.is_free = 0 THEN r.selling_price * r.quantity ELSE 0 END) AS total_revenue,
+    SUM(CASE WHEN r.is_free = 0 THEN r.cost_price    * r.quantity ELSE 0 END) AS total_cost
+FROM oms_warehouse_billing_slips s
+JOIN oms_warehouse_billing_rows r ON r.slip_id = s.id
+WHERE DATE_FORMAT(s.slip_date, '%Y-%m') = ?
+GROUP BY s.customer_id, r.section_id, r.section_label;
+```
 
 ---
 
-## 7. Files cần tạo / cập nhật
+## Frontend — Tab Tổng hợp tháng
 
-### Tạo mới
-- `src/constants/warehouse-billing-sections.js` — hardcode sections + default items
+### Grand total cards (2 hàng)
+
+```
+Hàng 1 — OMS Orders:
+┌────────────────┬────────────────┬────────────────┬────────────────┐
+│ OMS Revenue    │ OMS Cost       │ OMS Profit     │ Đơn hàng       │
+│ $3,600         │ $2,580         │ $1,020         │ 320 đơn        │
+└────────────────┴────────────────┴────────────────┴────────────────┘
+
+Hàng 2 — Warehouse + Combined:
+┌────────────────┬────────────────┬────────────────┬────────────────┐
+│ WH Revenue     │ WH Cost        │ Total Revenue  │ Total Profit   │
+│ $850           │ $620           │ $4,450         │ $1,250 (28.1%) │
+└────────────────┴────────────────┴────────────────┴────────────────┘
+```
+
+### Context bar — hiển thị tier đang dùng
+
+```
+ℹ️ Tháng 05/2026: 87 đơn toàn hệ thống → Tier 1 (0–1000 đơn) · Cost tính realtime
+⚠️ 3 đơn chưa có đủ thông tin giá → [Xem danh sách]
+```
+
+### Table per customer — expandable
+
+```
+┌──────────────┬─────────┬─────────┬──────────────┬──────────────┬──────────┬────────┐
+│ Khách hàng   │ OMS     │ Phiếu   │ Total Rev    │ Total Cost   │ Profit   │ Margin │
+│              │ (đơn)   │ Kho     │              │              │          │        │
+├──────────────┼─────────┼─────────┼──────────────┼──────────────┼──────────┼────────┤
+│ [+] Levelup  │ 45      │ 5       │ $740.00      │ $530.00      │ $210.00  │ 28.4%  │
+├──────────────┴─────────┴─────────┴──────────────┴──────────────┴──────────┴────────┤
+│ [expand]                                                                            │
+│  OMS Orders                   Revenue          Cost                                │
+│  ├─ Shipping                  $310.00          $260.00                             │
+│  ├─ Fulfillment               $250.00          $180.00  (Tier 1, bracket ≤4 lbs)  │
+│  ├─ Packaging Material        $40.00           $0.00                               │
+│  └─ Additional                $20.00           —                                   │
+│                                                                                    │
+│  Warehouse Billing            Revenue          Cost                                │
+│  ├─ Inspection Fee            $75.00           $60.00                              │
+│  └─ Storage Fee               $45.00           $30.00                              │
+└────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+> Trong expand row của Fulfillment cost, hiển thị thêm "Tier X, bracket Y lbs"
+> để admin biết cost đang tính theo thông số nào.
+
+---
+
+## Files cần cập nhật
+
+### Backend
+- `src/models/oms-order.model.js`
+  - Thêm `listForSummary({ yearMonth, customerId })` — query nhẹ chỉ lấy cột cần thiết
+
 - `src/models/oms-warehouse-billing.model.js`
-- `src/controllers/oms-warehouse-billing.controller.js`
-- `src/routes/oms-warehouse-billing.routes.js`
-- Migration file: tạo 2 bảng `oms_warehouse_billing_slips` + `oms_warehouse_billing_rows`
-- `public/views/warehouse-billing.html`
-- `public/js/warehouse-billing.js`
+  - Không đổi query billing, chỉ tách thành 2 methods riêng:
+    `monthlyAggregate()` và `monthlyBillingSectionBreakdown()`
 
-### Cập nhật
-- `src/routes/index.js` — đăng ký router mới
-- Navigation / sidebar — thêm link đến trang warehouse billing
+- `src/controllers/oms-warehouse-billing.controller.js`
+  - Cập nhật `monthlySummary()` theo luồng mới:
+    đọc tier → query orders → tính cost realtime in-memory → merge billing → build response
+
+- `src/services/pricing/fulfillment-cost-calculator.service.js`
+  - Đảm bảo export thêm `getTier(monthlyTotal)` — dùng trong controller
+
+- `src/models/oms-packaging-material.model.js`
+  - Thêm `findMappingsBySkus(skus)` — bulk lookup, trả về `Map<sku, { cost_price, ... }>`
+    để controller dùng mà không query per-order
+
+### Frontend
+- `public/js/sections/warehouse-billing.js`
+  - Cập nhật render tab Summary theo layout mới
+  - Thêm grand total 2 hàng (OMS row + WH/Combined row)
+  - Thêm context bar hiển thị tier + warning incomplete
+  - Expandable row per customer với breakdown OMS và WH riêng
+
+- `public/views/dashboard.html`
+  - Không được viết js inline vào html
 ```

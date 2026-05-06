@@ -219,13 +219,27 @@ class ItcClient {
      */
     _normalizeCreateResponse(data) {
         const d = data || {};
+        const barcode = this._extractTrackingNumber(d.barcode || d.tracking_number || d.trackingNumber);
+
         return {
-            barcode: d.barcode || d.tracking_number || d.trackingNumber || null,
+            barcode: barcode,
             usd: Number(d.usd ?? d.cost ?? d.shipping_cost ?? d.shippingCost ?? 0),
             sid: d.sid || d.shipment_id || d.shipmentId || null,
             labelUrl: d.labelUrl || d.label_url || d.labelPdfUrl || d.label_pdf_url || null,
             raw: d,
         };
+    }
+
+    _extractTrackingNumber(barcode) {
+        if (!barcode) return null;
+        const s = String(barcode).trim();
+
+        // Tìm tracking number USPS: 22 ký tự bắt đầu bằng 92, 93, 94, 95, 96
+        const match = s.match(/(9[2-6]\d{20})/);
+        if (match) return match[1];
+
+        // Không match pattern USPS → trả về nguyên bản
+        return s;
     }
 
     /**
