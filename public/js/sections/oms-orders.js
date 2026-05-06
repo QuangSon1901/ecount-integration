@@ -36,6 +36,17 @@
     // ════════════════════════════════════════
     // HTML TEMPLATE
     // ════════════════════════════════════════
+    // SVG icons
+    var IC = {
+        plus:    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+        save:    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>',
+        trash:   '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>',
+        close:   '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+        refresh: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>',
+        reset:   '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>',
+        download: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
+    };
+
     var OMS_HTML = [
         '<div class="content-card">',
         '  <!-- Filter bar -->',
@@ -46,6 +57,14 @@
         '        <option value="">All</option>',
         '      </select>',
         '    </div>',
+        '    <div class="filter-group">',
+        '      <span class="filter-label">Từ ngày</span>',
+        '      <input type="text" class="form-input oms-date-input" id="filterDateFrom" placeholder="DD/MM/YYYY" autocomplete="off" readonly>',
+        '    </div>',
+        '    <div class="filter-group">',
+        '      <span class="filter-label">Đến ngày</span>',
+        '      <input type="text" class="form-input oms-date-input" id="filterDateTo" placeholder="DD/MM/YYYY" autocomplete="off" readonly>',
+        '    </div>',
         '    <div class="filter-group oms-search-group">',
         '      <span class="filter-label">Search</span>',
         '      <div class="oms-search-wrap">',
@@ -55,7 +74,13 @@
         '        <button class="oms-search-clear" id="omsSearchClear" title="Clear search" style="display:none;">&#x2715;</button>',
         '      </div>',
         '    </div>',
-        '    <button class="btn btn-sm" id="refreshBtn">&#x21BB; Refresh</button>',
+        '    <div class="oms-action-btns">',
+        '      <button class="btn btn-sm" id="refreshBtn" title="Làm mới danh sách">' + IC.refresh + 'Refresh</button>',
+        '      <button class="btn btn-sm btn-success" id="bulkCreateLabelBtn" disabled',
+        '              title="Tạo label cho các đơn đã chọn (chỉ áp dụng đơn đủ điều kiện)">' + IC.plus + 'Tạo label</button>',
+        '      <button class="btn btn-sm btn-primary" id="bulkDownloadLabelBtn" disabled',
+        '              title="Tải label dạng PDF gộp (chỉ đơn có tracking + label)">' + IC.download + 'Tải label</button>',
+        '    </div>',
         '  </div>',
 
         '  <!-- Status tabs -->',
@@ -63,12 +88,9 @@
         '    <!-- tabs rendered by JS -->',
         '  </div>',
 
-        '  <!-- Bulk action bar -->',
+        '  <!-- Selected count bar -->',
         '  <div id="bulkBar" class="bulk-bar">',
         '    <span class="bulk-bar-count"><span id="selCount">0</span> orders selected</span>',
-        '    <span class="bulk-bar-sep"></span>',
-        '    <button class="btn btn-success btn-sm" id="bulkCreateLabelBtn" title="Tạo label cho các đơn đã chọn (chỉ áp dụng đơn đủ điều kiện)">&#x1F3F7; Tạo label</button>',
-        '    <button class="btn btn-primary btn-sm" id="bulkDownloadLabelBtn" title="Tải label dạng PDF gộp (chỉ đơn có tracking + label)">&#x2B07; Tải xuống label</button>',
         '  </div>',
 
         '  <!-- Orders table -->',
@@ -117,7 +139,48 @@
 
         _renderStatusTabs('');
         _bindEventListeners();
+        _initDatePickers();
         _loadCustomersDropdown();
+    }
+
+    function _initDatePickers() {
+        if (typeof flatpickr === 'undefined') return;
+
+        var FP_OPTS = {
+            dateFormat:  'Y-m-d',
+            altInput:    true,
+            altFormat:   'd/m/Y',
+            allowInput:  false,
+            disableMobile: true
+        };
+
+        function _applyAltInputStyle(instance) {
+            instance.altInput.className    = 'form-input oms-date-input';
+            instance.altInput.placeholder  = 'DD/MM/YYYY';
+            instance.altInput.style.cursor = 'pointer';
+        }
+
+        var initialFrom = _readDateFromFromUrl();
+        flatpickr(document.getElementById('filterDateFrom'), Object.assign({}, FP_OPTS, {
+            defaultDate: initialFrom || undefined,
+            onReady: function (d, s, fp) { _applyAltInputStyle(fp); },
+            onChange: function (selectedDates, dateStr) {
+                omsPage = 0;
+                setUrlParams({ page: null, date_from: dateStr || null }, { replace: true });
+                loadOmsOrders();
+            }
+        }));
+
+        var initialTo = _readDateToFromUrl();
+        flatpickr(document.getElementById('filterDateTo'), Object.assign({}, FP_OPTS, {
+            defaultDate: initialTo || undefined,
+            onReady: function (d, s, fp) { _applyAltInputStyle(fp); },
+            onChange: function (selectedDates, dateStr) {
+                omsPage = 0;
+                setUrlParams({ page: null, date_to: dateStr || null }, { replace: true });
+                loadOmsOrders();
+            }
+        }));
     }
 
     // ── Render tab bar ────────────────────────────────────────────────────────
@@ -252,6 +315,14 @@
         return parseHash().params.get('q') || '';
     }
 
+    function _readDateFromFromUrl() {
+        return parseHash().params.get('date_from') || '';
+    }
+
+    function _readDateToFromUrl() {
+        return parseHash().params.get('date_to') || '';
+    }
+
     // ════════════════════════════════════════
     // LOAD ORDERS
     // ════════════════════════════════════════
@@ -260,11 +331,15 @@
         var status   = _getActiveTabValue();
         var search   = (document.getElementById('omsSearch') || {}).value;
         search = (search || '').trim();
+        var dateFrom = (document.getElementById('filterDateFrom') || {}).value || '';
+        var dateTo   = (document.getElementById('filterDateTo')   || {}).value || '';
 
         var params = new URLSearchParams({ limit: OMS_PAGE_SIZE, offset: omsPage * OMS_PAGE_SIZE });
         if (customer) params.set('customer_id', customer);
         if (status)   params.set('internal_status', status);
         if (search)   params.set('q', search);
+        if (dateFrom) params.set('date_from', dateFrom);
+        if (dateTo)   params.set('date_to',   dateTo);
 
         var paginationInfo = document.getElementById('paginationInfo');
         if (paginationInfo) paginationInfo.textContent = 'Loading...';
@@ -507,6 +582,10 @@
         setText('selCount', ids.length);
         var bulkBar = document.getElementById('bulkBar');
         if (bulkBar) bulkBar.classList.toggle('show', ids.length > 0);
+        var createBtn   = document.getElementById('bulkCreateLabelBtn');
+        var downloadBtn = document.getElementById('bulkDownloadLabelBtn');
+        if (createBtn)   createBtn.disabled   = ids.length === 0;
+        if (downloadBtn) downloadBtn.disabled = ids.length === 0;
     }
 
     function getSelectedRows() {
@@ -616,7 +695,7 @@
         })
         .catch(function (e) { toast('Bulk queue failed: ' + e.message, false); })
         .finally(function () {
-            if (btn) { btn.disabled = false; btn.textContent = '🏷 Tạo label'; }
+            if (btn) { btn.disabled = false; btn.innerHTML = SVG_TAG + 'Tạo label'; }
             updateSelCount();
         });
     }
@@ -637,7 +716,6 @@
         if (!confirm(msg)) return;
 
         var btn = document.getElementById('bulkDownloadLabelBtn');
-        var originalText = btn ? btn.textContent : '';
         if (btn) { btn.disabled = true; btn.textContent = 'Loading PDF lib...'; }
 
         loadPdfLib()
@@ -659,7 +737,7 @@
             })
             .catch(function (e) { toast('Bulk download failed: ' + e.message, false); })
             .finally(function () {
-                if (btn) { btn.disabled = false; btn.textContent = originalText || '⬇ Tải xuống label'; }
+                if (btn) { btn.disabled = false; btn.innerHTML = SVG_DOWNLOAD + 'Tải label'; }
             });
     }
 

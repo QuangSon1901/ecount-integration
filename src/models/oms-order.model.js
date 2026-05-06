@@ -82,6 +82,14 @@ function _buildWhere(filters = {}) {
         clauses.push('(o.order_number LIKE ? OR o.oms_order_id LIKE ? OR o.oms_order_number LIKE ?)');
         params.push(like, like, like);
     }
+    if (filters.dateFrom) {
+        clauses.push('DATE(o.created_at) >= ?');
+        params.push(filters.dateFrom);
+    }
+    if (filters.dateTo) {
+        clauses.push('DATE(o.created_at) <= ?');
+        params.push(filters.dateTo);
+    }
 
     return { clauses, params };
 }

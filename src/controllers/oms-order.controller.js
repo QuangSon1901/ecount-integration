@@ -39,7 +39,7 @@ class OmsOrderController {
         try {
             const {
                 customer_id, internal_status, oms_status,
-                q,
+                q, date_from, date_to,
                 limit = 50, offset = 0,
             } = req.query;
 
@@ -48,9 +48,16 @@ class OmsOrderController {
                 internalStatus: internal_status,
                 omsStatus:      oms_status,
                 search:         q ? String(q).trim() : undefined,
+                dateFrom:       date_from || undefined,
+                dateTo:         date_to   || undefined,
             };
 
-            const baseFilters = { customerId: filters.customerId, search: filters.search };
+            const baseFilters = {
+                customerId: filters.customerId,
+                search:     filters.search,
+                dateFrom:   filters.dateFrom,
+                dateTo:     filters.dateTo,
+            };
 
             const [rows, total, statusCounts] = await Promise.all([
                 OmsOrderModel.list({

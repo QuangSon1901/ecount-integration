@@ -670,3 +670,45 @@ transform: translateX(120%); transition: transform .3s ease;
     background: #fef3c7;
     color: #b45309;
 }
+/* ── OMS date filter inputs ────────────────────────────────────────────── */
+.oms-date-input {
+    width: auto;
+    font-size: 13px;
+    min-width: 130px;
+}
+
+/* ── OMS action buttons group (Refresh + label buttons) ────────────────── */
+.oms-action-btns {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+@media (max-width: 768px) {
+    .oms-action-btns { margin-left: 0; width: 100%; }
+}
+
+/* ── Flatpickr calendar theme overrides ─────────────────────────────────── */
+.flatpickr-calendar {
+    font-family: inherit;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.12);
+}
+.flatpickr-day.selected,
+.flatpickr-day.selected:hover {
+    background: var(--primary, #3b82f6);
+    border-color: var(--primary, #3b82f6);
+}
+.flatpickr-day:hover {
+    background: var(--bg-secondary, #f3f4f6);
+}
+.flatpickr-months .flatpickr-month,
+.flatpickr-current-month,
+.flatpickr-monthDropdown-months {
+    color: var(--text-primary, #111);
+}
+/* Hide original (hidden) flatpickr input — altInput is the visible one */
+input.flatpickr-input[readonly]:not(.form-input) {
+    display: none !important;
+}
