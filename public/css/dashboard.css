@@ -753,3 +753,29 @@ input.flatpickr-input[readonly]:not(.form-input) {
 }
 .oms-export-item:last-child { border-bottom: none; }
 .oms-export-item:hover { background: var(--bg-secondary, #f3f4f6); }
+
+/* ── OMS Export — status checkbox list ─────────────────────────────────── */
+.export-status-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 16px;
+    padding: 10px 12px;
+    background: var(--bg-secondary, #f9fafb);
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 8px;
+    margin-bottom: 4px;
+}
+.export-status-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 3px 0;
+}
+.export-status-item input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+    accent-color: var(--primary, #3b82f6);
+}

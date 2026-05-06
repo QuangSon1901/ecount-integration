@@ -149,6 +149,7 @@
         _renderStatusTabs('');
         _bindEventListeners();
         _initDatePickers();
+        _bindExportModalEvents();
         _loadCustomersDropdown();
     }
 
@@ -849,7 +850,73 @@
     // ════════════════════════════════════════
     // EXPORT EXCEL
     // ════════════════════════════════════════
+
+    var _exportPendingMode = null;  // lưu mode khi đang mở modal
+
+    var EXPORT_STATUSES = [
+        { value: 'pending',          label: 'Pending',              defaultOn: false },
+        { value: 'selected',         label: 'Selected',                 defaultOn: false  },
+        { value: 'label_purchasing', label: 'Purchasing Label',          defaultOn: false  },
+        { value: 'label_purchased',  label: 'Purchased Label',            defaultOn: true  },
+        { value: 'oms_updated',      label: 'OMS Updated',             defaultOn: true  },
+        { value: 'shipped',          label: 'Shipped',             defaultOn: true  },
+        { value: 'delivered',        label: 'Delivered',            defaultOn: true  },
+        { value: 'error',            label: 'Error',                     defaultOn: false  },
+        { value: 'failed',           label: 'Failed',                defaultOn: false },
+        { value: 'cancelled',        label: 'Cancelled',                  defaultOn: false },
+    ];
+
     function _doExportExcel(mode) {
+        _exportPendingMode = mode;
+
+        // Điền tên mode vào modal title
+        var titleEl = document.getElementById('omsExportModalTitle');
+        if (titleEl) titleEl.textContent = mode === 'full' ? 'Kế toán (Full)' : 'Báo giá (Selling)';
+
+        // Render danh sách checkbox status
+        var listEl = document.getElementById('omsExportStatusList');
+        if (listEl) {
+            listEl.innerHTML = EXPORT_STATUSES.map(function (s) {
+                var checked = s.defaultOn ? ' checked' : '';
+                return '<label class="export-status-item">' +
+                       '<input type="checkbox" name="exportStatus" value="' + s.value + '"' + checked + '>' +
+                       s.label +
+                       '</label>';
+            }).join('');
+        }
+
+        document.getElementById('omsExportModal').style.display = 'flex';
+    }
+
+    function _bindExportModalEvents() {
+        var modal = document.getElementById('omsExportModal');
+        if (!modal) return;
+
+        document.getElementById('omsExportCancel').addEventListener('click', function () {
+            modal.style.display = 'none';
+        });
+
+        document.getElementById('omsExportSelectAll').addEventListener('click', function () {
+            modal.querySelectorAll('input[name="exportStatus"]').forEach(function (cb) { cb.checked = true; });
+        });
+
+        document.getElementById('omsExportDeselectAll').addEventListener('click', function () {
+            modal.querySelectorAll('input[name="exportStatus"]').forEach(function (cb) { cb.checked = false; });
+        });
+
+        document.getElementById('omsExportConfirm').addEventListener('click', function () {
+            var selected = Array.from(modal.querySelectorAll('input[name="exportStatus"]:checked'))
+                               .map(function (cb) { return cb.value; });
+            if (!selected.length) {
+                toast('Vui lòng chọn ít nhất một trạng thái để xuất.', false);
+                return;
+            }
+            modal.style.display = 'none';
+            _runExportDownload(_exportPendingMode, selected);
+        });
+    }
+
+    function _runExportDownload(mode, selectedStatuses) {
         var customer = val('filterCustomer');
         var dateFrom = (document.getElementById('filterDateFrom') || {}).value || '';
         var dateTo   = (document.getElementById('filterDateTo')   || {}).value || '';
@@ -858,12 +925,14 @@
         if (customer) params.set('customer_id', customer);
         if (dateFrom) params.set('date_from', dateFrom);
         if (dateTo)   params.set('date_to',   dateTo);
+        if (selectedStatuses && selectedStatuses.length) {
+            params.set('include_statuses', selectedStatuses.join(','));
+        }
 
         var btn = document.getElementById('exportExcelBtn');
         var origHTML = btn ? btn.innerHTML : '';
         if (btn) { btn.disabled = true; btn.textContent = 'Đang xuất...'; }
 
-        // Tải file bằng cách tạo thẻ <a> và trigger click
         var url = API + '/admin/oms-orders/export?' + params.toString();
         fetch(url, { credentials: 'include' })
             .then(function (r) {
@@ -871,7 +940,6 @@
                 return r.blob();
             })
             .then(function (blob) {
-                var disposition = '';
                 var a = document.createElement('a');
                 a.href     = URL.createObjectURL(blob);
                 a.download = 'OMS_export_' + mode + '.xlsx';

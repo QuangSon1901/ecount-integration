@@ -35,8 +35,7 @@ const COLOR = {
     PROFIT_NEG: 'FFFEE2E2',
     PROFIT_POS_FG: '16A34A',
     PROFIT_NEG_FG: 'DC2626',
-    LINK_FG:    '2563EB',
-    SUMMARY_HDR:'2563EB',
+    SUMMARY_HDR:  '2563EB',
 };
 
 const NUM_FMT = '"$"#,##0.00';
@@ -334,12 +333,12 @@ function _applyFeeFormatting(ws, dataRow, isFirst, isFull, profit, labelUrl) {
         }
     }
 
-    // Hyperlink cho Label URL (chỉ dòng đầu)
+    // Label URL — gắn thẳng URL text (hyperlink object không tương thích tốt)
     if (isFirst && labelUrl) {
         const labelCol  = isFull ? COL.LABEL_F : COL.LABEL_S;
         const labelCell = dataRow.getCell(labelCol);
-        labelCell.value = { text: 'Xem label', hyperlink: labelUrl };
-        labelCell.font  = { name: 'Arial', size: 10, color: { argb: COLOR.LINK_FG }, underline: true };
+        labelCell.value = labelUrl;
+        labelCell.font  = { name: 'Arial', size: 10 };
     }
 }
 

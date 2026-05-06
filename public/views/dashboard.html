@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>THG-FULFILL Dashboard</title>
     <link rel="icon" type="image/png" href="/uploads/logo.png">
-    <link rel="stylesheet" href="/css/dashboard.css?1240">
+    <link rel="stylesheet" href="/css/dashboard.css?1241">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </head>
@@ -452,6 +452,23 @@
         </div>
     </div>
 
+    <!-- OMS Export Excel Modal — chọn status -->
+    <div class="modal-overlay" id="omsExportModal" style="display:none;">
+        <div class="modal" style="max-width:440px;">
+            <h3>Xuất Excel — <span id="omsExportModalTitle">Báo giá</span></h3>
+            <p style="font-size:13px;color:var(--text-secondary);margin:8px 0 14px;">Chọn các trạng thái đơn cần xuất:</p>
+            <div style="display:flex;gap:8px;margin-bottom:10px;">
+                <button class="btn btn-sm" id="omsExportSelectAll">Chọn tất cả</button>
+                <button class="btn btn-sm" id="omsExportDeselectAll">Bỏ chọn tất cả</button>
+            </div>
+            <div id="omsExportStatusList" class="export-status-list"></div>
+            <div class="modal-actions">
+                <button class="btn" id="omsExportCancel">Huỷ</button>
+                <button class="btn btn-primary" id="omsExportConfirm">Xuất Excel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Test Event Picker Modal -->
     <div class="modal-overlay" id="testEventPickerModal" data-wh-id="">
         <div class="modal" style="max-width:420px;">
@@ -468,13 +485,13 @@
     </div>
 
     <!-- Scripts — core first, then section modules -->
-    <script src="/js/dashboard.core.js?v=2064"></script>
-    <script src="/js/sections/customers.js?v=2064"></script>
-    <script src="/js/sections/oms-orders.js?v=2064"></script>
-    <script src="/js/sections/oms-packaging.js?v=2064"></script>
-    <script src="/js/sections/client-portal.js?v=2064"></script>
-    <script src="/js/sections/system-config.js?v=2064"></script>
-    <script src="/js/sections/warehouse-billing.js?v=2064"></script>
-    <script src="/js/dashboard.init.js?v=2064"></script>
+    <script src="/js/dashboard.core.js?v=2066"></script>
+    <script src="/js/sections/customers.js?v=2066"></script>
+    <script src="/js/sections/oms-orders.js?v=2066"></script>
+    <script src="/js/sections/oms-packaging.js?v=2066"></script>
+    <script src="/js/sections/client-portal.js?v=2066"></script>
+    <script src="/js/sections/system-config.js?v=2066"></script>
+    <script src="/js/sections/warehouse-billing.js?v=2066"></script>
+    <script src="/js/dashboard.init.js?v=2066"></script>
 </body>
 </html>
