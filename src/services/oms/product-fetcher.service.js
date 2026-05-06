@@ -148,7 +148,7 @@ class OmsProductFetcherService {
      *   weight → sum of (item.weight × item.quantity) for items that have weight
      *   length → max across all items (longest side)
      *   width  → max across all items
-     *   height → sum across all items × quantity (stacked)
+     *   height → max across all items
      *
      * Returns null for any field where no item has a value.
      *
@@ -159,7 +159,7 @@ class OmsProductFetcherService {
         let totalWeight = null;
         let maxLength   = null;
         let maxWidth    = null;
-        let totalHeight = null;
+        let maxHeight   = null;
 
         for (const item of items) {
             if (item.weight == null && item.length == null
@@ -179,7 +179,7 @@ class OmsProductFetcherService {
                 maxWidth = Math.max(maxWidth ?? 0, item.width);
             }
             if (item.height != null) {
-                totalHeight = (totalHeight ?? 0) + item.height * qty;
+                maxHeight = Math.max(maxHeight ?? 0, item.height);
             }
         }
 
@@ -187,7 +187,7 @@ class OmsProductFetcherService {
             weight:     totalWeight,
             length:     maxLength,
             width:      maxWidth,
-            height:     totalHeight,
+            height:     maxHeight,
             weightUnit: 'G',
             sizeUnit:   'CM',
         };

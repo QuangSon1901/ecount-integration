@@ -62,7 +62,7 @@ class OmsOrderStorageService {
             package_length: normalized.length ?? null,
             package_width: normalized.width ?? null,
             package_height: normalized.height ?? null,
-            weight_unit: normalized.weightUnit || 'KG',
+            weight_unit: normalized.weightUnit || 'G',
             size_unit: normalized.sizeUnit || 'CM',
 
             declared_value: normalized.declaredValue ?? null,
