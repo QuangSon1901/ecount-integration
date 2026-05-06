@@ -14,6 +14,8 @@
 //   - list()         : hỗ trợ filter `search` (LIKE trên order_number, oms_order_id, oms_order_number)
 //   - count()        : hỗ trợ filter `search` tương tự
 //   - countByStatus(): method mới — trả về { pending: N, …, __total__: N }
+//   - computeGrossProfit(): guard rõ ràng — trả null khi thiếu shipping_fee_purchase
+//     hoặc shipping_fee_selling (đơn chưa mua label không được hiển thị gross_profit)
 
 const db = require('../database/connection');
 
@@ -494,6 +496,17 @@ class OmsOrderModel {
         }
     }
 
+    /**
+     * Tính gross profit từ các fee thành phần.
+     *
+     * GUARD: trả về null khi thiếu bất kỳ điều kiện nào dưới đây:
+     *   - shipping_fee_purchase null  → label chưa được mua
+     *   - shipping_fee_selling  null  → giá bán shipping chưa được thiết lập
+     *   - fulfillment_fee_purchase null → cost không tính được (weight ngoài bảng / chưa có)
+     *   - fulfillment_fee_selling  null → selling fee chưa tính được
+     *
+     * packaging + additional được coi là 0 khi null (optional fees).
+     */
     static computeGrossProfit({
         shippingFeePurchase, shippingFeeSelling,
         fulfillmentFeePurchase, fulfillmentFeeSelling,
@@ -501,9 +514,12 @@ class OmsOrderModel {
         packagingMaterialFeeCost,
         additionalFee,
     }) {
-        // Các field bắt buộc — nếu NULL thì chưa đủ dữ liệu tính
+        // Shipping phải có đủ cả hai phía — purchase = chưa mua label,
+        // selling = chưa thiết lập giá bán.
         if (shippingFeePurchase == null) return null;
         if (shippingFeeSelling  == null) return null;
+
+        // Fulfillment cũng phải có đủ (weight hợp lệ + tier tra được)
         if (fulfillmentFeePurchase == null) return null;
         if (fulfillmentFeeSelling  == null) return null;
 

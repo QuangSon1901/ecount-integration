@@ -10,6 +10,9 @@
 // Changes:
 //   - listOrders: nhận thêm query param `q` (search by order_number / oms_order_id / oms_order_number)
 //   - listOrders: trả thêm `statusCounts` (map status → count) để UI tab bar hiển thị số lượng
+//   - gross_profit: chỉ tính khi đã có shipping_fee_purchase + shipping_fee_selling;
+//     _formatOrder luôn emit null cho gross_profit (tránh stale DB value);
+//     editOrder + setInternalStatus giờ cũng chạy _computeCostForOrder.
 
 const OmsOrderModel = require('../models/oms-order.model');
 const labelPurchase = require('../services/itc/label-purchase.service');
@@ -94,6 +97,7 @@ class OmsOrderController {
                             packagingCalc.computePackagingFeeCost(items, r.customer_id),
                         ]);
 
+                        // Only compute gross profit when shipping is fully settled
                         const grossProfit = OmsOrderModel.computeGrossProfit({
                             shippingFeePurchase:         r.shipping_fee_purchase   == null ? null : Number(r.shipping_fee_purchase),
                             shippingFeeSelling:          r.shipping_fee_selling    == null ? null : Number(r.shipping_fee_selling),
@@ -210,6 +214,8 @@ class OmsOrderController {
      * Stamps admin_edited_at so future syncs preserve these columns.
      *
      * Khi `items` được chỉnh sửa → trigger tính lại selling fees (spec §7).
+     *
+     * Cost + gross_profit luôn được tính động sau khi lưu (không lưu DB).
      */
     async editOrder(req, res, next) {
         try {
@@ -260,13 +266,16 @@ class OmsOrderController {
             // bấm nút "Recompute pricing" trên UI để chạy lại thủ công.
             const updated = await OmsOrderModel.findById(id);
 
+            // Always compute cost dynamically so gross_profit reflects current shipping state
+            const costData = await this._computeCostForOrder(updated);
+
             logger.info('[OMS-ORDER] admin edit applied', {
                 omsOrderId: id,
                 editor,
                 fields: Object.keys(edits),
             });
 
-            return successResponse(res, this._formatOrder(updated), 'OMS order updated');
+            return successResponse(res, { ...this._formatOrder(updated), ...costData }, 'OMS order updated');
         } catch (err) {
             return this._handleError(res, err, next);
         }
@@ -296,13 +305,16 @@ class OmsOrderController {
             await OmsOrderModel.setInternalStatus(id, status, note || null);
             const updated = await OmsOrderModel.findById(id);
 
+            // Always compute cost dynamically so gross_profit reflects current shipping state
+            const costData = await this._computeCostForOrder(updated);
+
             logger.info('[OMS-ORDER] admin set internal status', {
                 omsOrderId: id,
                 from: row.internal_status,
                 to: status,
             });
 
-            return successResponse(res, this._formatOrder(updated), 'Internal status updated');
+            return successResponse(res, { ...this._formatOrder(updated), ...costData }, 'Internal status updated');
         } catch (err) {
             return this._handleError(res, err, next);
         }
@@ -465,6 +477,11 @@ class OmsOrderController {
      * Tính cost fields động dựa theo tháng tạo đơn.
      * Kết quả không lưu DB — trả về để merge vào response.
      * Fail-safe: lỗi → trả null fields, không block response chính.
+     *
+     * gross_profit chỉ được tính khi cả shipping_fee_purchase lẫn
+     * shipping_fee_selling đều có giá trị (không null). Điều này đảm bảo
+     * đơn chưa mua label, hoặc đơn chưa có giá bán shipping, không hiển thị
+     * gross_profit sai lệch.
      */
     async _computeCostForOrder(row) {
         const nullResult = {
@@ -494,9 +511,18 @@ class OmsOrderController {
             const fulfillmentFeePurchase = fulfillmentCostRes.fee_purchase;
             const packagingCostTotal     = packagingCostRes.total;
 
+            // Guard: gross_profit requires both shipping fields to be present.
+            // An order without a purchased label (shipping_fee_purchase = null) or
+            // without a selling price (shipping_fee_selling = null) must not show
+            // a gross_profit — it would be misleading.
+            const shippingFeePurchase = row.shipping_fee_purchase == null
+                ? null : Number(row.shipping_fee_purchase);
+            const shippingFeeSelling  = row.shipping_fee_selling  == null
+                ? null : Number(row.shipping_fee_selling);
+
             const grossProfit = OmsOrderModel.computeGrossProfit({
-                shippingFeePurchase:         row.shipping_fee_purchase   == null ? null : Number(row.shipping_fee_purchase),
-                shippingFeeSelling:          row.shipping_fee_selling    == null ? null : Number(row.shipping_fee_selling),
+                shippingFeePurchase,
+                shippingFeeSelling,
                 fulfillmentFeePurchase,
                 fulfillmentFeeSelling:       row.fulfillment_fee_selling == null ? null : Number(row.fulfillment_fee_selling),
                 packagingMaterialFeeSelling: row.packaging_material_fee_selling == null ? null : Number(row.packaging_material_fee_selling),
@@ -566,7 +592,12 @@ class OmsOrderController {
             shipping_fee_purchase:           row.shipping_fee_purchase,
             shipping_markup_percent:         row.shipping_markup_percent,
             shipping_fee_selling:            row.shipping_fee_selling,
-            gross_profit:                    row.gross_profit,
+
+            // gross_profit is ALWAYS null here — it is overwritten by _computeCostForOrder
+            // in every response path. Emitting the raw DB value risks surfacing a stale
+            // figure (e.g. from before shipping was cleared or repriced).
+            gross_profit:                    null,
+
             fulfillment_fee_purchase:             row.fulfillment_fee_purchase,
             fulfillment_fee_cost_detail:          null,
             fulfillment_fee_selling:              row.fulfillment_fee_selling,
