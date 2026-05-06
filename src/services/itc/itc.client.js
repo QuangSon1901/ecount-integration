@@ -234,11 +234,11 @@ class ItcClient {
         if (!barcode) return null;
         const s = String(barcode).trim();
 
-        // Tìm tracking number USPS: 22 ký tự bắt đầu bằng 92, 93, 94, 95, 96
-        const match = s.match(/(9[2-6]\d{20})/);
-        if (match) return match[1];
+        // Lấy 22 ký tự cuối nếu bắt đầu bằng 9
+        const last22 = s.slice(-22);
+        if (/^9\d{21}$/.test(last22)) return last22;
 
-        // Không match pattern USPS → trả về nguyên bản
+        // Không match → trả về nguyên bản
         return s;
     }
 

@@ -28,7 +28,32 @@ if (process.env.NODE_ENV === 'production') {
 
     // Security middleware
     app.use(helmet({
-        crossOriginResourcePolicy: { policy: "cross-origin" }
+        crossOriginResourcePolicy: { policy: "cross-origin" },
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: [
+                    "'self'",
+                    "https://cdn.jsdelivr.net",
+                    "https://cdnjs.cloudflare.com",
+                    "https://unpkg.com",
+                ],
+                styleSrc: [
+                    "'self'",
+                    "'unsafe-inline'",          // cần cho một số lib inject style
+                    "https://cdn.jsdelivr.net",
+                    "https://cdnjs.cloudflare.com",
+                    "https://fonts.googleapis.com",
+                ],
+                fontSrc: [
+                    "'self'",
+                    "https://fonts.gstatic.com",
+                    "https://cdn.jsdelivr.net",
+                ],
+                imgSrc: ["'self'", "data:", "blob:"],
+                connectSrc: ["'self'"],
+            },
+        },
     }));
 
     app.use(cors({
