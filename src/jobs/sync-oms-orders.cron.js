@@ -17,7 +17,10 @@ const { chromium } = require('playwright');
 const CronLogModel = require('../models/cron-log.model');
 const omsOrderFetcher = require('../services/oms/order-fetcher.service');
 const omsOrderStorage = require('../services/oms/order-storage.service');
+const SystemConfigModel = require('../models/system-config.model');
 const logger = require('../utils/logger');
+
+const MONTHLY_TOTALS_KEY = 'oms_monthly_order_totals';
 
 // ─── Hardcoded config (move to config/env later) ──────────────────────────────
 const ADMIN_PORTAL_URL = 'https://admin.thgfulfill.com/';
@@ -40,7 +43,6 @@ class SyncOmsOrdersCron {
     }
 
     start() {
-        this.run();
         cron.schedule(this.schedule, async () => {
             if (this.isRunning) {
                 logger.warn('[OMS-SYNC] previous run still in progress, skipping');
@@ -109,6 +111,14 @@ class SyncOmsOrdersCron {
             stats.ordersPreserved = persistStats.preserved;
             stats.ordersErrored   = persistStats.errors;
 
+            // ─── Step 4: cập nhật tổng đơn tháng hiện tại ───────────────────
+            // Non-fatal: lỗi ở đây không được làm fail cả cron run.
+            try {
+                await this.syncMonthlyTotal(token);
+            } catch (err) {
+                logger.warn('[OMS-SYNC] syncMonthlyTotal failed (non-fatal)', { error: err.message });
+            }
+
             const executionTime = Date.now() - startTime;
             await CronLogModel.update(cronLogId, {
                 status: 'completed',
@@ -136,6 +146,40 @@ class SyncOmsOrdersCron {
         } finally {
             this.isRunning = false;
         }
+    }
+
+    // ─── Monthly total sync ───────────────────────────────────────────────────
+
+    /**
+     * Gọi OMS API (tất cả statuses, từ đầu đến cuối tháng hiện tại)
+     * để lấy tổng số đơn, rồi lưu/cập nhật vào system_configs.
+     *
+     * Config key: 'oms_monthly_order_totals'
+     * Value shape: { "2026-05": { total: 150, updatedAt: "..." }, ... }
+     */
+    async syncMonthlyTotal(token) {
+        const { total, monthKey } = await omsOrderFetcher.fetchMonthlyOrderCount({
+            accessToken:  token.accessToken,
+            tokenType:    token.tokenType,
+        });
+
+        // Đọc record hiện tại (hoặc {} nếu chưa có)
+        const current = await SystemConfigModel.getValue(MONTHLY_TOTALS_KEY, {});
+        const updated = {
+            ...(typeof current === 'object' && current !== null ? current : {}),
+            [monthKey]: {
+                total,
+                updatedAt: new Date().toISOString(),
+            },
+        };
+
+        await SystemConfigModel.set(
+            MONTHLY_TOTALS_KEY,
+            updated,
+            'Tổng số đơn OMS theo tháng (tất cả trạng thái) — dùng để tính cost'
+        );
+
+        logger.info('[OMS-SYNC] monthly total updated', { monthKey, total });
     }
 
     // ─── Token management ─────────────────────────────────────────────────────

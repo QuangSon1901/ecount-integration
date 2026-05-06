@@ -531,6 +531,80 @@ class OmsOrderFetcherService {
         return { items: [], hasNext: false };
     }
 
+    /**
+     * Đếm tổng số đơn hàng trong tháng hiện tại (tất cả statuses).
+     * Dùng PageSize=1 và đọc totalPages/total từ response → chỉ tốn 1 HTTP call.
+     *
+     * @param {object} options
+     * @param {string} options.accessToken
+     * @param {string} [options.tokenType]
+     * @param {number} [options.utcOffsetMinutes]
+     * @returns {Promise<{ total: number, monthKey: string, fromSec: number, toSec: number }>}
+     */
+    async fetchMonthlyOrderCount(options = {}) {
+        const accessToken  = options.accessToken;
+        const tokenType    = options.tokenType        || 'Bearer';
+        const utcOffsetMin = options.utcOffsetMinutes || DEFAULT_UTC_OFFSET_MIN;
+
+        // Timezone đã pin Asia/Ho_Chi_Minh trên server → new Date() là giờ địa phương
+        const now   = new Date();
+        const year  = now.getFullYear();
+        const month = now.getMonth(); // 0-indexed
+
+        const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+        const firstDay = new Date(year, month, 1, 0, 0, 0);
+        const lastDay  = new Date(year, month + 1, 0, 23, 59, 59);
+        const fromSec  = Math.floor(firstDay.getTime() / 1000);
+        const toSec    = Math.floor(lastDay.getTime() / 1000);
+
+        const headers = this._buildHeaders(tokenType, accessToken);
+        const params  = {
+            PageSize:       1,
+            PageIndex:      0,
+            UtcOffsetValue: utcOffsetMin,
+            FromDate:       fromSec,
+            ToDate:         toSec,
+            // Không truyền Statuses → lấy tất cả trạng thái
+        };
+
+        const response = await axios.get(ORDERS_ENDPOINT, {
+            headers,
+            params,
+            timeout: FETCH_TIMEOUT_MS,
+        });
+
+        const total = this._extractTotalFromResponse(response.data);
+        return { total, monthKey, fromSec, toSec };
+    }
+
+    /**
+     * Trích xuất tổng số item từ các shape response khác nhau.
+     * Với PageSize=1: totalPages === total items (nếu có trường totalPages).
+     */
+    _extractTotalFromResponse(payload) {
+        if (!payload || typeof payload !== 'object') return 0;
+
+        // Shape A: { data: [...], pagination: { total, totalPages, ... } }
+        if (payload.pagination) {
+            const pag = payload.pagination;
+            if (pag.total != null)      return Number(pag.total);
+            if (pag.totalPages != null) return Number(pag.totalPages); // PageSize=1 → totalPages = total items
+        }
+
+        // Shape B: { items: [...], totalPages, hasNextPage }
+        if (payload.totalPages != null) return Number(payload.totalPages); // PageSize=1
+
+        // Shape C: { items: [...], total }
+        if (payload.total != null) return Number(payload.total);
+
+        // Fallback: đếm items hiện tại (chỉ page 0)
+        const items = Array.isArray(payload.items) ? payload.items
+                    : Array.isArray(payload.data)  ? payload.data
+                    : Array.isArray(payload)        ? payload
+                    : [];
+        return items.length;
+    }
+
     _mapShippingPartner(serviceName) {
         if (!serviceName) return null;
         const lower = serviceName.toLowerCase().trim();
