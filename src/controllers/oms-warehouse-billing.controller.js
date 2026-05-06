@@ -258,9 +258,19 @@ class OmsWarehouseBillingController {
                 if (!custId) continue;
                 if (!customerMap[custId]) customerMap[custId] = _emptyCustomerAgg();
 
+                customerMap[custId].order_count++;
+
+                // Chỉ tính revenue/cost khi đơn đã có cả shipping purchase lẫn selling > 0
+                const shippingPurchase = Number(order.shipping_fee_purchase) || 0;
+                const shippingSelling  = Number(order.shipping_fee_selling)  || 0;
+                if (shippingPurchase <= 0 || shippingSelling <= 0) {
+                    incompleteCount++;
+                    customerMap[custId].has_incomplete = true;
+                    continue;
+                }
+
                 const svcName = (order.shipping_service_name || '').trim().toLowerCase().replace(/\s+/g, ' ');
-                const shippingCost = USPS_SERVICES.has(svcName)
-                    ? _r4(order.shipping_fee_purchase || 0) : 0;
+                const shippingCost = USPS_SERVICES.has(svcName) ? _r4(shippingPurchase) : 0;
 
                 const fulfillResult = computeFulfillmentFeeCostFromTier(items, tierResult, year_month);
                 const fulfillmentCost = fulfillResult.fee_purchase ?? 0;
@@ -275,10 +285,10 @@ class OmsWarehouseBillingController {
                     }
                 }
 
-                const isIncomplete = order.fulfillment_fee_selling === null || order.shipping_fee_selling === null;
-                if (isIncomplete) incompleteCount++;
+                const isIncomplete = order.fulfillment_fee_selling === null;
+                if (isIncomplete) { incompleteCount++; customerMap[custId].has_incomplete = true; }
 
-                customerMap[custId].revenue.shipping    += _r4(order.shipping_fee_selling || 0);
+                customerMap[custId].revenue.shipping    += _r4(shippingSelling);
                 customerMap[custId].revenue.fulfillment += _r4(order.fulfillment_fee_selling || 0);
                 customerMap[custId].revenue.packaging   += _r4(order.packaging_material_fee_selling || 0);
                 customerMap[custId].revenue.additional  += _r4(order.additional_fee || 0);
@@ -286,9 +296,6 @@ class OmsWarehouseBillingController {
                 customerMap[custId].cost.shipping    += shippingCost;
                 customerMap[custId].cost.fulfillment += fulfillmentCost;
                 customerMap[custId].cost.packaging   += _r4(packagingCost);
-
-                customerMap[custId].order_count++;
-                if (isIncomplete) customerMap[custId].has_incomplete = true;
             }
 
             // 5. Customer info for OMS order customers

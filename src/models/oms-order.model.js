@@ -586,6 +586,26 @@ class OmsOrderModel {
             }
             const row = rows[0];
 
+            // Guard: đơn chưa có shipping purchase + selling (hoặc = 0)
+            // → chưa đi qua đơn vị vận chuyển, reset fulfillment/packaging selling về 0.
+            const sfp = row.shipping_fee_purchase == null ? null : Number(row.shipping_fee_purchase);
+            const sfs = row.shipping_fee_selling  == null ? null : Number(row.shipping_fee_selling);
+            if (!sfp || !sfs) {
+                await conn.query(
+                    `UPDATE oms_orders SET
+                        fulfillment_fee_selling = 0,
+                        fulfillment_fee_detail = NULL,
+                        packaging_material_fee_selling = 0,
+                        packaging_material_fee_detail = NULL,
+                        needs_manual_pricing = 0
+                     WHERE id = ?`,
+                    [orderId]
+                );
+                await conn.commit();
+                const [zeroed] = await conn.query('SELECT * FROM oms_orders WHERE id = ?', [orderId]);
+                return zeroed[0];
+            }
+
             // Items có thể là JSON string hoặc đã parsed (mysql2 decodes JSON cols)
             let items = row.items;
             if (typeof items === 'string') {
@@ -854,6 +874,9 @@ class OmsOrderModel {
         }
     }
 
+    /**
+     * Tìm order theo label access key
+     */
     static async findByLabelAccessKey(accessKey) {
         const conn = await db.getConnection();
         try {

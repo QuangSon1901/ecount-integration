@@ -90,6 +90,17 @@ class OmsOrderController {
                         const ym = getYearMonth(r);
                         const tierResult = tierCache.get(ym);
 
+                        // Guard: no shipping → skip all fee computation
+                        const sfp = r.shipping_fee_purchase == null ? null : Number(r.shipping_fee_purchase);
+                        const sfs = r.shipping_fee_selling  == null ? null : Number(r.shipping_fee_selling);
+                        if (!sfp || !sfs) {
+                            return {
+                                fulfillment_fee_purchase: null, fulfillment_fee_cost_detail: null,
+                                packaging_material_fee_cost: null, packaging_material_fee_cost_detail: null,
+                                gross_profit: null,
+                            };
+                        }
+
                         const [fulfillmentCostRes, packagingCostRes] = await Promise.all([
                             Promise.resolve(
                                 fulfillmentCostCalc.computeFulfillmentFeeCostFromTier(items, tierResult, ym)
@@ -97,10 +108,9 @@ class OmsOrderController {
                             packagingCalc.computePackagingFeeCost(items, r.customer_id),
                         ]);
 
-                        // Only compute gross profit when shipping is fully settled
                         const grossProfit = OmsOrderModel.computeGrossProfit({
-                            shippingFeePurchase:         r.shipping_fee_purchase   == null ? null : Number(r.shipping_fee_purchase),
-                            shippingFeeSelling:          r.shipping_fee_selling    == null ? null : Number(r.shipping_fee_selling),
+                            shippingFeePurchase:         sfp,
+                            shippingFeeSelling:          sfs,
                             fulfillmentFeePurchase:      fulfillmentCostRes.fee_purchase,
                             fulfillmentFeeSelling:       r.fulfillment_fee_selling == null ? null : Number(r.fulfillment_fee_selling),
                             packagingMaterialFeeSelling: r.packaging_material_fee_selling == null ? null : Number(r.packaging_material_fee_selling),
@@ -492,6 +502,12 @@ class OmsOrderController {
             gross_profit:                       null,
         };
         try {
+            // Guard: nếu chưa có shipping purchase + selling (hoặc = 0)
+            // → đơn chưa đi qua đơn vị vận chuyển, không tính bất kỳ phí nào.
+            const sfp = row.shipping_fee_purchase == null ? null : Number(row.shipping_fee_purchase);
+            const sfs = row.shipping_fee_selling  == null ? null : Number(row.shipping_fee_selling);
+            if (!sfp || !sfs) return nullResult;
+
             let items = row.items;
             if (typeof items === 'string') {
                 try { items = JSON.parse(items); } catch { items = []; }
@@ -511,18 +527,9 @@ class OmsOrderController {
             const fulfillmentFeePurchase = fulfillmentCostRes.fee_purchase;
             const packagingCostTotal     = packagingCostRes.total;
 
-            // Guard: gross_profit requires both shipping fields to be present.
-            // An order without a purchased label (shipping_fee_purchase = null) or
-            // without a selling price (shipping_fee_selling = null) must not show
-            // a gross_profit — it would be misleading.
-            const shippingFeePurchase = row.shipping_fee_purchase == null
-                ? null : Number(row.shipping_fee_purchase);
-            const shippingFeeSelling  = row.shipping_fee_selling  == null
-                ? null : Number(row.shipping_fee_selling);
-
             const grossProfit = OmsOrderModel.computeGrossProfit({
-                shippingFeePurchase,
-                shippingFeeSelling,
+                shippingFeePurchase: sfp,
+                shippingFeeSelling:  sfs,
                 fulfillmentFeePurchase,
                 fulfillmentFeeSelling:       row.fulfillment_fee_selling == null ? null : Number(row.fulfillment_fee_selling),
                 packagingMaterialFeeSelling: row.packaging_material_fee_selling == null ? null : Number(row.packaging_material_fee_selling),
