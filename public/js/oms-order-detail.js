@@ -690,6 +690,8 @@ async function confirmBuyLabel() {
         if (buyingEl) buyingEl.classList.add('hidden');
         if (emptyEl && !(currentRow && currentRow.tracking_number)) emptyEl.classList.remove('hidden');
         toast(e.message, false);
+    } finally {
+        if (buyBtn) { buyBtn.disabled = false; buyBtn.innerHTML = buyBtnOrigHTML; }
     }
 }
 
