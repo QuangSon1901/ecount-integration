@@ -19,9 +19,12 @@ const itcClient = require('./itc.client');
 const OmsOrderModel = require('../../models/oms-order.model');
 const ApiCustomerModel = require('../../models/api-customer.model');
 const UrlProxyModel = require('../../models/url-proxy.model');
+const SystemConfigModel = require('../../models/system-config.model');
 const jobService = require('../queue/job.service');
 const logger = require('../../utils/logger');
 const KeyGenerator = require('../../utils/key-generator');
+
+const SELLER_PROFILES_KEY = 'seller_profiles';
 
 const VALID_PRE_STATES = ['pending', 'selected'];
 
@@ -36,12 +39,43 @@ class LabelPurchaseError extends Error {
 
 class LabelPurchaseService {
     /**
+     * Resolve seller profile từ system_configs.
+     * Nếu sellerProfileId được chỉ định → tìm profile đó.
+     * Nếu không → dùng profile có isDefault = true.
+     * Trả về object ITC-compatible { name, address1, ... } hoặc null.
+     */
+    async _resolveSellerProfile(sellerProfileId) {
+        const profiles = await SystemConfigModel.getValue(SELLER_PROFILES_KEY, []);
+        if (!Array.isArray(profiles) || profiles.length === 0) return null;
+
+        let profile;
+        if (sellerProfileId) {
+            profile = profiles.find(p => p.id === sellerProfileId);
+        } else {
+            profile = profiles.find(p => p.isDefault) || profiles[0];
+        }
+        if (!profile) return null;
+
+        return {
+            name:       profile.name,
+            address1:   profile.address1,
+            address2:   profile.address2 || '',
+            city:       profile.city,
+            state:      profile.state || '',
+            postalCode: profile.postalCode || '',
+            country:    profile.country,
+            phone:      profile.phone || '',
+        };
+    }
+
+    /**
      * Buy a label for one OMS order.
      *
      * @param {number} omsOrderId
      * @param {object} [options]
-     * @param {string} [options.productCode] — overrides config.itc.defaultService
-     * @param {boolean} [options.skipClaim] — caller (bulk controller) đã transition
+     * @param {string} [options.productCode]      — overrides config.itc.defaultService
+     * @param {string} [options.sellerProfileId]  — ID seller profile; nếu bỏ qua thì dùng default
+     * @param {boolean} [options.skipClaim]       — caller (bulk controller) đã transition
      *        sang 'label_purchasing' lúc enqueue để chặn duplicate; service không
      *        cần claim lại, chỉ verify state hiện tại đúng là 'label_purchasing'.
      * @returns {Promise<object>} updated oms_orders row
@@ -93,7 +127,8 @@ class LabelPurchaseService {
 
         // 3. Build ITC body and call the API (no DB lock held)
         const customer = await ApiCustomerModel.findById(row.customer_id);
-        const body = itcClient.buildOrderBody(row, options);
+        const sellerInformation = await this._resolveSellerProfile(options.sellerProfileId);
+        const body = itcClient.buildOrderBody(row, { ...options, sellerInformation });
 
         let itcResponse;
         try {

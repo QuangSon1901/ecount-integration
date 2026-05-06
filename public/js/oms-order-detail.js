@@ -610,17 +610,55 @@ async function recomputePricing() {
     }
 }
 
+// ─── Buy Label với seller profile selection ──────────────────────────
+var _sellerProfiles = [];
+
+async function loadSellerProfiles() {
+    try {
+        const r = await fetchJson('/api/v1/admin/system-configs/seller-profiles');
+        _sellerProfiles = (r && r.data) ? r.data : [];
+    } catch (_) {
+        _sellerProfiles = [];
+    }
+}
+
+function openBuyLabelModal() {
+    const select = document.getElementById('buyLabelSellerSelect');
+    select.innerHTML = '<option value="">-- Dùng default --</option>';
+    _sellerProfiles.forEach(function (p) {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.profileName + (p.isDefault ? ' (default)' : '');
+        if (p.isDefault) opt.selected = true;
+        select.appendChild(opt);
+    });
+    const modal = document.getElementById('buyLabelModal');
+    modal.style.display = 'flex';
+}
+
 async function buyLabel() {
-    if (!confirm('Buy ITC label for this order? This calls ITC and is not reversible.')) return;
+    await loadSellerProfiles();
+    openBuyLabelModal();
+}
+
+async function confirmBuyLabel() {
+    const sellerProfileId = document.getElementById('buyLabelSellerSelect').value || null;
+    document.getElementById('buyLabelModal').style.display = 'none';
+
+    const confirmBtn = document.getElementById('buyLabelModalConfirm');
+    confirmBtn.disabled = true;
     try {
         const r = await fetchJson('/api/v1/admin/oms-orders/' + ID + '/buy-label', {
-            method: 'POST', body: JSON.stringify({}),
+            method: 'POST',
+            body: JSON.stringify({ sellerProfileId }),
         });
         currentRow = r.data;
         render(r.data);
         toast('Label purchased successfully');
     } catch (e) {
         toast(e.message, false);
+    } finally {
+        confirmBtn.disabled = false;
     }
 }
 
@@ -692,6 +730,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnRecompute) btnRecompute.addEventListener('click', recomputePricing);
 
     document.getElementById('btnBuyLabel').addEventListener('click', buyLabel);
+    document.getElementById('buyLabelModalConfirm').addEventListener('click', confirmBuyLabel);
+    document.getElementById('buyLabelModalCancel').addEventListener('click', function () {
+        document.getElementById('buyLabelModal').style.display = 'none';
+    });
     document.getElementById('btnSetStatus').addEventListener('click', setStatus);
     document.getElementById('btnCopyOrderNum').addEventListener('click', copyOrderNum);
     document.getElementById('btnTogglePreview').addEventListener('click', togglePreview);

@@ -537,18 +537,55 @@
             return;
         }
 
-        var msg = 'Đẩy ' + eligible.length + ' đơn vào queue mua label?';
-        if (skipped > 0) msg += '\n(' + skipped + ' đơn không đủ điều kiện sẽ bị bỏ qua)';
-        if (!confirm(msg)) return;
+        // Load seller profiles rồi mở modal xác nhận
+        fetch(API + '/admin/system-configs/seller-profiles', { credentials: 'include' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                var profiles = (data && data.success && data.data) ? data.data : [];
+                var select = document.getElementById('bulkBuySellerSelect');
+                select.innerHTML = '<option value="">-- Dùng default --</option>';
+                profiles.forEach(function (p) {
+                    var opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.textContent = p.profileName + (p.isDefault ? ' (default)' : '');
+                    if (p.isDefault) opt.selected = true;
+                    select.appendChild(opt);
+                });
+                var msg = 'Đẩy ' + eligible.length + ' đơn vào queue mua label?';
+                if (skipped > 0) msg += ' (' + skipped + ' đơn không đủ điều kiện sẽ bỏ qua)';
+                document.getElementById('bulkBuyLabelMsg').textContent = msg;
+                document.getElementById('bulkBuyLabelModal').style.display = 'flex';
+            })
+            .catch(function () {
+                // Nếu lỗi load profiles thì vẫn mở modal với dropdown trống
+                var msg = 'Đẩy ' + eligible.length + ' đơn vào queue mua label?';
+                document.getElementById('bulkBuyLabelMsg').textContent = msg;
+                document.getElementById('bulkBuyLabelModal').style.display = 'flex';
+            });
 
+        document.getElementById('bulkBuyLabelCancel').onclick = function () {
+            document.getElementById('bulkBuyLabelModal').style.display = 'none';
+        };
+
+        document.getElementById('bulkBuyLabelConfirm').onclick = function () {
+            var sellerProfileId = document.getElementById('bulkBuySellerSelect').value || null;
+            document.getElementById('bulkBuyLabelModal').style.display = 'none';
+            _doBulkBuyLabels(eligible, skipped, sellerProfileId);
+        };
+    }
+
+    function _doBulkBuyLabels(eligible, skipped, sellerProfileId) {
         var btn = document.getElementById('bulkCreateLabelBtn');
         if (btn) { btn.disabled = true; btn.textContent = 'Queueing...'; }
+
+        var payload = { ids: eligible.map(function (r) { return r.id; }) };
+        if (sellerProfileId) payload.sellerProfileId = sellerProfileId;
 
         fetch(API + '/admin/oms-orders/buy-labels-bulk', {
             method:      'POST',
             credentials: 'include',
             headers:     { 'Content-Type': 'application/json' },
-            body:        JSON.stringify({ ids: eligible.map(function (r) { return r.id; }) })
+            body:        JSON.stringify(payload)
         })
         .then(function (r) { return r.json(); })
         .then(function (r) {

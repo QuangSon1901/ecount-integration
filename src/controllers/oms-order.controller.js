@@ -95,9 +95,9 @@ class OmsOrderController {
         try {
             const id = parseInt(req.params.id);
             if (!Number.isFinite(id)) return errorResponse(res, 'Invalid id', 400);
-            const { productCode } = req.body || {};
+            const { productCode, sellerProfileId } = req.body || {};
 
-            const updated = await labelPurchase.purchaseFor(id, { productCode });
+            const updated = await labelPurchase.purchaseFor(id, { productCode, sellerProfileId });
             return successResponse(res, this._formatOrder(updated), 'Label purchased successfully');
         } catch (err) {
             return this._handleError(res, err, next);
@@ -306,7 +306,7 @@ class OmsOrderController {
 
     async bulkBuyLabels(req, res, next) {
         try {
-            const { ids, productCode } = req.body || {};
+            const { ids, productCode, sellerProfileId } = req.body || {};
             if (!Array.isArray(ids) || ids.length === 0) {
                 return errorResponse(res, 'ids must be a non-empty array', 400);
             }
@@ -346,7 +346,7 @@ class OmsOrderController {
 
                 try {
                     const delaySeconds = Math.min(i, 30);
-                    const jobId = await jobService.addOmsBuyLabelJob(id, { productCode }, delaySeconds);
+                    const jobId = await jobService.addOmsBuyLabelJob(id, { productCode, sellerProfileId }, delaySeconds);
                     queued.push({ id, jobId, delaySeconds });
                 } catch (err) {
                     logger.error('[OMS-ORDER] enqueue buy-label job failed after claim', {

@@ -26,7 +26,7 @@ class OmsBuyLabelWorker extends BaseWorker {
     }
 
     async processJob(job) {
-        const { omsOrderId, productCode } = job.payload || {};
+        const { omsOrderId, productCode, sellerProfileId } = job.payload || {};
         if (!omsOrderId) {
             throw new Error('oms_buy_label job missing omsOrderId');
         }
@@ -34,7 +34,7 @@ class OmsBuyLabelWorker extends BaseWorker {
         // Bulk controller đã transition pending|selected → label_purchasing tại enqueue
         // để chặn duplicate. Truyền skipClaim để service không tự claim lại (sẽ fail
         // vì state hiện tại đã là label_purchasing, không nằm trong VALID_PRE_STATES).
-        const updated = await labelPurchase.purchaseFor(omsOrderId, { productCode, skipClaim: true });
+        const updated = await labelPurchase.purchaseFor(omsOrderId, { productCode, sellerProfileId, skipClaim: true });
         return {
             success: true,
             omsOrderId,

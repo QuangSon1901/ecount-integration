@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>THG-FULFILL Dashboard</title>
     <link rel="icon" type="image/png" href="/uploads/logo.png">
-    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/dashboard.css?123">
 </head>
 <body>
     <div class="app-container">
@@ -63,6 +63,17 @@
                             <li class="nav-item">
                                 <div class="nav-link" data-section="admin-oms-packaging">
                                     <span class="nav-icon">&#x1F4E6;</span> Packaging &amp; SKU
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="nav-section">
+                        <div class="nav-section-title">Settings</div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <div class="nav-link" data-section="admin-system-config">
+                                    <span class="nav-icon">&#x2699;&#xFE0F;</span> System Config
                                 </div>
                             </li>
                         </ul>
@@ -315,6 +326,11 @@
                 </div>
             </section>
 
+            <!-- Admin: System Config -->
+            <section id="admin-system-config" class="content-section" data-role="admin">
+                <div id="section-admin-system-config-mount"></div>
+            </section>
+
             <!-- ─────────────────────────────────────── -->
             <!-- CLIENT SECTIONS                        -->
             <!-- ─────────────────────────────────────── -->
@@ -405,6 +421,25 @@
         </div>
     </div>
 
+    <!-- Bulk Buy Label Modal — chọn seller profile -->
+    <div class="modal-overlay" id="bulkBuyLabelModal" style="display:none;">
+        <div class="modal" style="max-width:420px;">
+            <h3>Xác nhận mua label hàng loạt</h3>
+            <p id="bulkBuyLabelMsg" style="font-size:14px;margin:12px 0;"></p>
+            <div class="form-group">
+                <label class="form-label">Seller Profile</label>
+                <select class="form-input" id="bulkBuySellerSelect">
+                    <option value="">-- Dùng default --</option>
+                </select>
+                <p style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Nếu không chọn, hệ thống sẽ dùng seller profile mặc định.</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn" id="bulkBuyLabelCancel">Huỷ</button>
+                <button class="btn btn-primary" id="bulkBuyLabelConfirm">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Test Event Picker Modal -->
     <div class="modal-overlay" id="testEventPickerModal" data-wh-id="">
         <div class="modal" style="max-width:420px;">
@@ -417,11 +452,12 @@
     </div>
 
     <!-- Scripts — core first, then section modules -->
-    <script src="/js/dashboard.core.js?v=2037"></script>
-    <script src="/js/sections/customers.js?v=2037"></script>
-    <script src="/js/sections/oms-orders.js?v=2037"></script>
-    <script src="/js/sections/oms-packaging.js?v=2037"></script>
-    <script src="/js/sections/client-portal.js?v=2037"></script>
-    <script src="/js/dashboard.init.js?v=2037"></script>
+    <script src="/js/dashboard.core.js?v=2039"></script>
+    <script src="/js/sections/customers.js?v=2039"></script>
+    <script src="/js/sections/oms-orders.js?v=2039"></script>
+    <script src="/js/sections/oms-packaging.js?v=2039"></script>
+    <script src="/js/sections/client-portal.js?v=2039"></script>
+    <script src="/js/sections/system-config.js?v=2039"></script>
+    <script src="/js/dashboard.init.js?v=2039"></script>
 </body>
 </html>

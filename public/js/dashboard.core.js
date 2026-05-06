@@ -154,6 +154,7 @@ var pageTitles = {
     'admin-oms-orders':      { t: 'OMS Orders',           s: 'Outbound request management' },
     'admin-oms-packaging':   { t: 'OMS Packaging & SKU',  s: 'Vật liệu đóng gói & mapping SKU' },
     'admin-tools':           { t: 'Internal Tools',       s: 'Admin-only tools and extensions' },
+    'admin-system-config':   { t: 'System Config',        s: 'Seller profiles & system configuration' },
     'client-overview':       { t: 'Account Overview',     s: 'Your account information' },
     'client-credentials':    { t: 'API Credentials',      s: 'Your Client ID and Secret Key' },
     'client-webhooks':       { t: 'Webhooks',             s: 'Manage webhook registrations' },
@@ -184,8 +185,9 @@ function navigateToSection(sectionId, options) {
             if (OmsPackaging.getActiveView() === 'mappings') OmsPackaging.loadMappings();
             else                                              OmsPackaging.loadMaterials();
         }
-        if (sectionId === 'client-credentials' && window.ClientPortal) ClientPortal.loadCredentials();
-        if (sectionId === 'client-webhooks'    && window.ClientPortal) ClientPortal.loadWebhooks();
+        if (sectionId === 'client-credentials'   && window.ClientPortal) ClientPortal.loadCredentials();
+        if (sectionId === 'client-webhooks'      && window.ClientPortal) ClientPortal.loadWebhooks();
+        if (sectionId === 'admin-system-config'  && window.SystemConfig) SystemConfig.onActivate();
     }
 
     var navLink = document.querySelector('.nav-link[data-section="' + sectionId + '"]');

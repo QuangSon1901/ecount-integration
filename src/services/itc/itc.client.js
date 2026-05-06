@@ -235,11 +235,13 @@ class ItcClient {
      *
      * @param {object} row — oms_orders row
      * @param {object} [options]
-     * @param {string} [options.productCode] — overrides ITC_DEFAULT_SERVICE
+     * @param {string} [options.productCode]       — overrides ITC_DEFAULT_SERVICE
+     * @param {object} [options.sellerInformation] — seller profile từ system_configs
      */
     buildOrderBody(row, options = {}) {
         const items = this._parseItems(row.items);
-        
+        const sellerInformation = options.sellerInformation || null;
+
         return {
             orderNumber: row.order_number,
             name: row.receiver_name,
@@ -251,25 +253,12 @@ class ItcClient {
             country: row.receiver_country || "",
             state: row.receiver_state || "",
             postalCode: row.receiver_postal_code || "",
-            // weight: Number(row.package_weight || 0),
             weight: 0,
-            // order_height: Number(row.package_height || 0),
-            // order_length: Number(row.package_length || 0),
-            // order_width: Number(row.package_width || 0),
             route_shipping_partner: row.oms_shipping_partner || "",
             taxNumber: row.tax_number || "",
             addressIndex: 0,
-            sellerInformation: {
-                name: "min min",
-                address1: "4136 sunflower cir",
-                address2: "",
-                city: "Winston Salem",
-                state: "NC",
-                postalCode: "18337-7525",
-                country: "US",
-                phone: "+84-900-123-4567"
-            },
-            items: items.map((it, idx) => ({
+            ...(sellerInformation ? { sellerInformation } : {}),
+            items: items.map((it) => ({
                 skuNumber: it.sku || '',
                 productName: it.productName || '',
                 itemDescription: it.itemDescription || '',

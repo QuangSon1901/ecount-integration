@@ -250,7 +250,8 @@ class JobService {
             'oms_buy_label',
             {
                 omsOrderId,
-                productCode: options.productCode || null,
+                productCode:      options.productCode      || null,
+                sellerProfileId:  options.sellerProfileId  || null,
             },
             delaySeconds,
             1 // max attempts — backoff: 5s, 10s, 20s

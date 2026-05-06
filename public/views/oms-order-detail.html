@@ -919,6 +919,24 @@
     </div>
 </div>
 
-<script src="/js/oms-order-detail.js?v=2167"></script>
+<!-- Modal chọn seller profile khi mua label -->
+<div id="buyLabelModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:420px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+        <h3 style="margin:0 0 16px;font-size:17px;">Mua ITC Label</h3>
+        <div style="margin-bottom:16px;">
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Seller Profile</label>
+            <select id="buyLabelSellerSelect" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">
+                <option value="">-- Dùng default --</option>
+            </select>
+            <p style="font-size:12px;color:#6b7280;margin-top:4px;">Nếu không chọn, hệ thống sẽ dùng seller profile mặc định.</p>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button class="btn" id="buyLabelModalCancel">Huỷ</button>
+            <button class="btn btn-success" id="buyLabelModalConfirm">Mua Label</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/oms-order-detail.js?v=2169"></script>
 </body>
 </html>

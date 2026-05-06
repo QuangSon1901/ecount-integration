@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (window.OmsOrders)    OmsOrders.init();
     if (window.OmsPackaging) OmsPackaging.init();
     if (window.ClientPortal) ClientPortal.init();
+    if (window.SystemConfig) SystemConfig.init();
 
     // 2. Init navigation (requires section mounts to already be in the DOM).
     initNavigation();

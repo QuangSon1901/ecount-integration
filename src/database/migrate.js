@@ -1352,6 +1352,20 @@ const migrations = [
                     COMMENT 'TRUE khi không tự động tính được fulfillment (>10 lbs hoặc weight thiếu)'
                     AFTER additional_fee_note;
         `
+    },
+    {
+        version: 53,
+        name: 'create_system_configs_table',
+        up: `
+            CREATE TABLE IF NOT EXISTS system_configs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                config_key VARCHAR(100) NOT NULL UNIQUE COMMENT 'Khóa cấu hình duy nhất',
+                config_value JSON DEFAULT NULL COMMENT 'Giá trị JSON của cấu hình',
+                description VARCHAR(500) DEFAULT NULL COMMENT 'Mô tả cấu hình',
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ) COMMENT 'Bảng lưu cấu hình hệ thống dạng JSON (seller profiles, audit config, ...)';
+        `
     }
 
 ];
