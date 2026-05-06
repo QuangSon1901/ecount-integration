@@ -519,8 +519,9 @@ class OmsOrderModel {
         packagingMaterialFeeSelling,
         additionalFee,
     }) {
+        const sp = shippingFeePurchase;
         const ss = shippingFeeSelling;
-        if (ss === null || ss === undefined) return null;
+        if (sp === null || sp === undefined || ss === null || ss === undefined) return null;
 
         const fp  = Number(fulfillmentFeePurchase ?? 0);
         const fs  = Number(fulfillmentFeeSelling  ?? 0);
@@ -528,7 +529,7 @@ class OmsOrderModel {
         const ad  = Number(additionalFee ?? 0);
 
         const totalSelling  = Number(ss) + fs + pm + ad;
-        const totalPurchase = fp;  // chỉ trừ fulfillment purchase, không trừ shipping purchase
+        const totalPurchase = Number(sp) + fp;
         return _round4(totalSelling - totalPurchase);
     }
 
