@@ -21,6 +21,7 @@ const { successResponse, errorResponse } = require('../utils/response');
 const logger = require('../utils/logger');
 const fulfillmentCostCalc = require('../services/pricing/fulfillment-cost-calculator.service');
 const packagingCalc = require('../services/pricing/packaging-material.service');
+const omsExcelService = require('../services/export/oms-order-excel.service');
 
 const STATUS_TO_HTTP = {
     NOT_FOUND: 404,
@@ -594,6 +595,7 @@ class OmsOrderController {
             id:                   row.id,
             order_number:         row.order_number,
             oms_order_number:     row.oms_order_number,
+            customer_order_number: row.customer_order_number,
             oms_order_id:         row.oms_order_id,
 
             // ─── Status ─────────────────────────────────────────────
@@ -684,6 +686,115 @@ class OmsOrderController {
         if (v === null || v === undefined) return null;
         if (typeof v !== 'string') return v;
         try { return JSON.parse(v); } catch { return v; }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // GET /export — tải xuống file Excel theo bộ lọc
+    // Query: customer_id, date_from, date_to, mode (selling|full),
+    //        include_statuses (csv, default bỏ cancelled+failed)
+    // ─────────────────────────────────────────────────────────────────────
+    async exportOrders(req, res, next) {
+        try {
+            const {
+                customer_id,
+                date_from,
+                date_to,
+                mode = 'selling',
+                include_statuses,
+            } = req.query;
+
+            // Build status filter
+            let statusList = null;
+            if (include_statuses) {
+                statusList = String(include_statuses).split(',').map(s => s.trim()).filter(Boolean);
+            }
+
+            const filters = {
+                customerId: customer_id,
+                dateFrom:   date_from || undefined,
+                dateTo:     date_to   || undefined,
+                // không filter internalStatus ở đây — lọc sau khi lấy về
+            };
+
+            // Lấy toàn bộ rows (không phân trang) cho khoảng ngày đã chọn
+            const rows = await OmsOrderModel.list({ ...filters, limit: 5000, offset: 0 });
+
+            // Lọc status phía app (tránh thêm param phức tạp vào model)
+            const DEFAULT_EXCLUDE = new Set(['cancelled', 'failed']);
+            const filtered = rows.filter(r => {
+                const s = r.internal_status || '';
+                if (statusList) return statusList.includes(s);
+                return !DEFAULT_EXCLUDE.has(s);
+            });
+
+            if (!filtered.length) {
+                return res.status(404).json({ success: false, message: 'Không có đơn nào phù hợp bộ lọc' });
+            }
+
+            // Tính cost song song (tương tự listOrders)
+            const getYearMonth = (row) => {
+                const d = new Date(row.oms_created_at || row.created_at || Date.now());
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            };
+            const tierCache    = new Map();
+            const uniqueMonths = [...new Set(filtered.map(getYearMonth))];
+            await Promise.all(uniqueMonths.map(async ym => {
+                tierCache.set(ym, await fulfillmentCostCalc.getMonthlyTier(ym));
+            }));
+
+            const withCost = await Promise.all(filtered.map(async (r) => {
+                const formatted = this._formatOrder(r);
+                try {
+                    const sfp = r.shipping_fee_purchase == null ? null : Number(r.shipping_fee_purchase);
+                    const sfs = r.shipping_fee_selling  == null ? null : Number(r.shipping_fee_selling);
+                    if (!sfp || !sfs) return formatted;
+
+                    let items = r.items;
+                    if (typeof items === 'string') { try { items = JSON.parse(items); } catch { items = []; } }
+                    if (!Array.isArray(items)) items = [];
+
+                    const ym           = getYearMonth(r);
+                    const tierResult   = tierCache.get(ym);
+                    const [fCost, pCost] = await Promise.all([
+                        Promise.resolve(fulfillmentCostCalc.computeFulfillmentFeeCostFromTier(items, tierResult, ym)),
+                        packagingCalc.computePackagingFeeCost(items, r.customer_id),
+                    ]);
+
+                    return {
+                        ...formatted,
+                        fulfillment_fee_purchase:  fCost.fee_purchase,
+                        packaging_material_fee_cost: pCost.total,
+                        gross_profit: OmsOrderModel.computeGrossProfit({
+                            shippingFeePurchase:         sfp,
+                            shippingFeeSelling:          sfs,
+                            fulfillmentFeePurchase:      fCost.fee_purchase,
+                            fulfillmentFeeSelling:       r.fulfillment_fee_selling == null ? null : Number(r.fulfillment_fee_selling),
+                            packagingMaterialFeeSelling: r.packaging_material_fee_selling == null ? null : Number(r.packaging_material_fee_selling),
+                            packagingMaterialFeeCost:    pCost.total,
+                            additionalFee:               r.additional_fee == null ? null : Number(r.additional_fee),
+                        }),
+                    };
+                } catch {
+                    return formatted;
+                }
+            }));
+
+            const modeClean    = mode === 'full' ? 'full' : 'selling';
+            const baseUrl      = process.env.BASE_URL || '';
+            const buffer       = await omsExcelService.generateExcel(withCost, modeClean, baseUrl);
+
+            // Tên file: OMS_{customer_code}_{date_from}_{date_to}_{mode}.xlsx
+            const custCode  = withCost[0]?.customer_code || (customer_id || 'ALL');
+            const dfStr     = (date_from || 'start').replace(/-/g, '');
+            const dtStr     = (date_to   || 'end').replace(/-/g, '');
+            const filename  = `OMS_${custCode}_${dfStr}_${dtStr}_${modeClean}.xlsx`;
+
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            res.end(buffer);
+        } catch (err) {
+            next(err);
+        }
     }
 }
 

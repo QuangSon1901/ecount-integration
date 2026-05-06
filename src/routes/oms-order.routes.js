@@ -14,10 +14,15 @@ router.get('/',
     ctrl.listOrders.bind(ctrl)
 );
 
-// Bulk buy must be declared BEFORE /:id/buy-label so :id doesn't match the literal segment
+// Static routes BEFORE /:id to prevent :id swallowing literal segments
 router.post('/buy-labels-bulk',
     requireRole('admin'),
     ctrl.bulkBuyLabels.bind(ctrl)
+);
+
+router.get('/export',
+    requireRole('admin'),
+    ctrl.exportOrders.bind(ctrl)
 );
 
 router.get('/:id',

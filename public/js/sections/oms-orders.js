@@ -44,7 +44,9 @@
         close:   '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
         refresh: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>',
         reset:   '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>',
-        download: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
+        download: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+        excel:    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/><path d="M7 13l2 4 2-4"/><path d="M15 13v4"/><path d="M13 15h4"/></svg>',
+        chevron:  '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>'
     };
 
     var OMS_HTML = [
@@ -80,6 +82,13 @@
         '              title="Tạo label cho các đơn đã chọn (chỉ áp dụng đơn đủ điều kiện)">' + IC.plus + 'Tạo label</button>',
         '      <button class="btn btn-sm btn-primary" id="bulkDownloadLabelBtn" disabled',
         '              title="Tải label dạng PDF gộp (chỉ đơn có tracking + label)">' + IC.download + 'Tải label</button>',
+        '      <div class="oms-export-wrap" id="omsExportWrap">',
+        '        <button class="btn btn-sm btn-secondary" id="exportExcelBtn" title="Xuất Excel theo bộ lọc hiện tại">' + IC.excel + 'Xuất Excel ' + IC.chevron + '</button>',
+        '        <div class="oms-export-menu" id="omsExportMenu" style="display:none;">',
+        '          <button class="oms-export-item" data-mode="selling">&#x1F4CA; Xuất báo giá (Selling)</button>',
+        '          <button class="oms-export-item" data-mode="full">&#x1F4CB; Xuất kế toán (Full)</button>',
+        '        </div>',
+        '      </div>',
         '    </div>',
         '  </div>',
 
@@ -268,6 +277,24 @@
 
         addClick('bulkCreateLabelBtn',   bulkCreateLabels);
         addClick('bulkDownloadLabelBtn', bulkDownloadLabels);
+
+        // Export Excel dropdown
+        addClick('exportExcelBtn', function (e) {
+            e.stopPropagation();
+            var menu = document.getElementById('omsExportMenu');
+            if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        });
+        document.querySelectorAll('.oms-export-item').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var menu = document.getElementById('omsExportMenu');
+                if (menu) menu.style.display = 'none';
+                _doExportExcel(this.getAttribute('data-mode'));
+            });
+        });
+        document.addEventListener('click', function () {
+            var menu = document.getElementById('omsExportMenu');
+            if (menu) menu.style.display = 'none';
+        });
 
         var selectAll = document.getElementById('selectAll');
         if (selectAll) {
@@ -817,6 +844,45 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }, 0);
+    }
+
+    // ════════════════════════════════════════
+    // EXPORT EXCEL
+    // ════════════════════════════════════════
+    function _doExportExcel(mode) {
+        var customer = val('filterCustomer');
+        var dateFrom = (document.getElementById('filterDateFrom') || {}).value || '';
+        var dateTo   = (document.getElementById('filterDateTo')   || {}).value || '';
+
+        var params = new URLSearchParams({ mode: mode });
+        if (customer) params.set('customer_id', customer);
+        if (dateFrom) params.set('date_from', dateFrom);
+        if (dateTo)   params.set('date_to',   dateTo);
+
+        var btn = document.getElementById('exportExcelBtn');
+        var origHTML = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.textContent = 'Đang xuất...'; }
+
+        // Tải file bằng cách tạo thẻ <a> và trigger click
+        var url = API + '/admin/oms-orders/export?' + params.toString();
+        fetch(url, { credentials: 'include' })
+            .then(function (r) {
+                if (!r.ok) return r.json().then(function (d) { throw new Error(d.message || 'Export failed'); });
+                return r.blob();
+            })
+            .then(function (blob) {
+                var disposition = '';
+                var a = document.createElement('a');
+                a.href     = URL.createObjectURL(blob);
+                a.download = 'OMS_export_' + mode + '.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 0);
+            })
+            .catch(function (e) { toast('Export thất bại: ' + e.message, false); })
+            .finally(function () {
+                if (btn) { btn.disabled = false; btn.innerHTML = origHTML; }
+            });
     }
 
     // ════════════════════════════════════════

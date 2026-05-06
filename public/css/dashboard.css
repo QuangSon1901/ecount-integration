@@ -713,3 +713,43 @@ transform: translateX(120%); transition: transform .3s ease;
 input.flatpickr-input[readonly]:not(.form-input) {
     display: none !important;
 }
+
+/* ── OMS Export Excel dropdown ──────────────────────────────────────────── */
+.btn-secondary {
+    background: var(--bg-secondary, #f3f4f6);
+    color: var(--text-primary, #111);
+    border-color: var(--border, #d1d5db);
+}
+.btn-secondary:hover { background: #e5e7eb; border-color: #9ca3af; }
+
+.oms-export-wrap {
+    position: relative;
+}
+
+.oms-export-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 200;
+    background: var(--bg-primary, #fff);
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.12);
+    min-width: 200px;
+    overflow: hidden;
+}
+
+.oms-export-item {
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 13px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-primary, #111);
+    border-bottom: 1px solid var(--border, #f3f4f6);
+}
+.oms-export-item:last-child { border-bottom: none; }
+.oms-export-item:hover { background: var(--bg-secondary, #f3f4f6); }
