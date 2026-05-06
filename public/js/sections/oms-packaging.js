@@ -23,15 +23,6 @@
     // ════════════════════════════════════════
     var HTML = [
         '<div class="content-card">',
-        '  <div class="card-header">',
-        '    <div>',
-        '      <h2 class="card-title">OMS Packaging</h2>',
-        '      <p class="card-subtitle">Vật liệu đóng gói &amp; mapping SKU — dùng để tự động tính packaging fee selling cho đơn OMS</p>',
-        '    </div>',
-        '    <div class="card-actions">',
-        '      <button class="btn btn-primary" id="btnPkgAdd">+ Thêm</button>',
-        '    </div>',
-        '  </div>',
 
         '  <!-- Sub-view tabs -->',
         '  <div class="oms-status-tabs" id="pkgTabs" style="margin-top:8px;">',
@@ -51,7 +42,10 @@
         '      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);">',
         '        <input type="checkbox" id="pkgMatActiveOnly"> Chỉ hiện active',
         '      </label>',
-        '      <button class="btn btn-sm" id="pkgMatRefresh">↻ Refresh</button>',
+        '      <button class="btn" id="pkgMatRefresh">↻ Refresh</button>',
+        '       <div class="card-actions">',
+        '           <button class="btn btn-primary" id="btnPkgAdd">+ Thêm</button>',
+        '       </div>',
         '    </div>',
 
         '    <div class="table-container">',

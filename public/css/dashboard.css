@@ -558,3 +558,115 @@ transform: translateX(120%); transition: transform .3s ease;
 .alert-toast.show { transform: translateX(0); }
 .alert-toast.success { border-left-color: var(--success); }
 .alert-toast.error   { border-left-color: var(--danger); }
+
+
+/* ─── OMS Rows: Checkbox lớn hơn, dễ nhấn ─── */
+.data-table td:first-child,
+.data-table th:first-child {
+    width: 48px;
+    min-width: 48px;
+    padding: 8px 0;
+    text-align: center;
+}
+
+/* Custom checkbox — to hơn, dễ tap */
+.rowSel,
+#selectAll {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    border: 2px solid var(--border-strong, #cbd5e1);
+    border-radius: 5px;
+    background: var(--bg-primary, #fff);
+    cursor: pointer;
+    display: inline-block;
+    vertical-align: middle;
+    position: relative;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.rowSel:hover,
+#selectAll:hover {
+    border-color: var(--primary, #2563eb);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+}
+
+.rowSel:checked,
+#selectAll:checked {
+    background: var(--primary, #2563eb);
+    border-color: var(--primary, #2563eb);
+}
+
+.rowSel:checked::after,
+#selectAll:checked::after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 2px;
+    width: 6px;
+    height: 10px;
+    border: 2px solid #fff;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+}
+
+/* Tăng touch target bằng padding trên td */
+.data-table td:first-child {
+    cursor: pointer;
+}
+
+/* ─── OMS Status Tabs: màu nổi bật cho trạng thái xấu ─── */
+
+/* Cancelled */
+.oms-tab-btn[data-status="cancelled"] {
+    color: #b45309; /* amber-700 */
+}
+.oms-tab-btn[data-status="cancelled"]:hover {
+    color: #92400e;
+    background: #fef3c7;
+}
+.oms-tab-btn[data-status="cancelled"].active {
+    color: #b45309;
+    border-bottom-color: #f59e0b;
+    background: none;
+}
+.oms-tab-btn[data-status="cancelled"].active .oms-tab-badge {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+/* Failed + Error */
+.oms-tab-btn[data-status="failed"],
+.oms-tab-btn[data-status="error"] {
+    color: #dc2626;
+}
+.oms-tab-btn[data-status="failed"]:hover,
+.oms-tab-btn[data-status="error"]:hover {
+    color: #b91c1c;
+    background: #fee2e2;
+}
+.oms-tab-btn[data-status="failed"].active,
+.oms-tab-btn[data-status="error"].active {
+    color: #dc2626;
+    border-bottom-color: #ef4444;
+    background: none;
+}
+.oms-tab-btn[data-status="failed"].active .oms-tab-badge,
+.oms-tab-btn[data-status="error"].active .oms-tab-badge {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+/* Badge count trên tab error/failed/cancelled luôn màu nổi (kể cả khi inactive) */
+.oms-tab-btn[data-status="failed"] .oms-tab-badge,
+.oms-tab-btn[data-status="error"] .oms-tab-badge {
+    background: #fee2e2;
+    color: #dc2626;
+}
+.oms-tab-btn[data-status="cancelled"] .oms-tab-badge {
+    background: #fef3c7;
+    color: #b45309;
+}

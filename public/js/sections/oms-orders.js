@@ -38,13 +38,6 @@
     // ════════════════════════════════════════
     var OMS_HTML = [
         '<div class="content-card">',
-        '  <div class="card-header">',
-        '    <div>',
-        '      <h2 class="card-title">OMS Orders</h2>',
-        '      <p class="card-subtitle">Outbound request management — pull from customer OMS, buy ITC labels, push tracking back</p>',
-        '    </div>',
-        '  </div>',
-
         '  <!-- Filter bar -->',
         '  <div class="card-header oms-filter-bar">',
         '    <div class="filter-group">',
