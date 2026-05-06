@@ -278,6 +278,19 @@ function fmtMoney(n) {
     return Number(n).toFixed(2);
 }
 
+function sumMoney(arr) {
+    let sum = 0;
+    let any = false;
+    for (const v of arr) {
+        if (v === null || v === undefined || v === '') continue;
+        const n = Number(v);
+        if (!Number.isFinite(n)) continue;
+        sum += n;
+        any = true;
+    }
+    return any ? Math.round(sum * 10000) / 10000 : null;
+}
+
 function statusBadge(s) {
     return s === 'active' ? 'success' : s === 'suspended' ? 'warning' : 'danger';
 }

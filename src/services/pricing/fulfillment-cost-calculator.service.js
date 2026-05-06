@@ -174,8 +174,65 @@ async function computeFulfillmentFeeCost(items, orderYearMonth) {
     };
 }
 
+/**
+ * Tính fulfillment cost khi đã có sẵn tier (tránh re-fetch config).
+ * Dùng khi cần batch compute nhiều orders cùng tháng.
+ */
+function computeFulfillmentFeeCostFromTier(items, tierResult, orderYearMonth) {
+    const { tier, monthly_total } = tierResult;
+    const _round4 = n => Math.round(n * 10000) / 10000;
+
+    if (!Array.isArray(items) || items.length === 0) {
+        return { fee_purchase: null, needs_manual_pricing: false, detail: null };
+    }
+
+    let heaviestGram = 0;
+    for (const it of items) {
+        const w = Number(it?.weight);
+        if (Number.isFinite(w) && w > heaviestGram) heaviestGram = w;
+    }
+
+    if (heaviestGram <= 0) {
+        return { fee_purchase: null, needs_manual_pricing: true, detail: null };
+    }
+
+    const heaviestLbs = heaviestGram / GRAMS_PER_LB;
+    const lbsRounded  = Math.round(heaviestLbs * 1000) / 1000;
+
+    let bracketIdx = -1;
+    for (let i = 0; i < COST_BRACKETS.length; i++) {
+        if (heaviestLbs <= COST_BRACKETS[i].max) { bracketIdx = i; break; }
+    }
+
+    let totalItems = 0;
+    for (const it of items) {
+        const q = Number(it?.quantity);
+        if (Number.isFinite(q) && q > 0) totalItems += q;
+    }
+    if (totalItems < 1) totalItems = 1;
+    const extraItems = Math.max(0, totalItems - 1);
+    const extraFee   = _round4(extraItems * EXTRA_ITEM_FEE_COST);
+
+    if (bracketIdx === -1) {
+        return {
+            fee_purchase: null,
+            needs_manual_pricing: true,
+            detail: { year_month: orderYearMonth, monthly_total, tier, heaviest_weight_gram: heaviestGram, heaviest_weight_lbs: lbsRounded, weight_bracket: null, base_rate: null, total_items: totalItems, extra_items: extraItems, extra_fee: extraFee, computed_at: new Date().toISOString() },
+        };
+    }
+
+    const bracket  = COST_BRACKETS[bracketIdx];
+    const baseRate = COST_RATES[tier - 1][bracketIdx];
+    return {
+        fee_purchase: _round4(baseRate + extraFee),
+        needs_manual_pricing: false,
+        detail: { year_month: orderYearMonth, monthly_total, tier, heaviest_weight_gram: heaviestGram, heaviest_weight_lbs: lbsRounded, weight_bracket: bracket.id, base_rate: baseRate, total_items: totalItems, extra_items: extraItems, extra_fee: extraFee, computed_at: new Date().toISOString() },
+    };
+}
+
 module.exports = {
     computeFulfillmentFeeCost,
+    computeFulfillmentFeeCostFromTier,
     getMonthlyTier,
     COST_BRACKETS,
     COST_RATES,

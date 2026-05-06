@@ -358,10 +358,22 @@
         }
 
         tbody.innerHTML = rows.map(function (r) {
+            var totalCost = sumMoney([
+                r.shipping_fee_purchase,
+                r.fulfillment_fee_purchase,
+                r.packaging_material_fee_cost,
+            ]);
+            var totalSelling = sumMoney([
+                r.shipping_fee_selling,
+                r.fulfillment_fee_selling,
+                r.packaging_material_fee_selling,
+                r.additional_fee,
+            ]);
             var profitVal;
-            if (r.gross_profit !== null && r.gross_profit !== undefined) {
-                var cls = Number(r.gross_profit) >= 0 ? 'money-profit' : 'money-loss';
-                profitVal = '<span class="' + cls + '">' + fmtMoney(r.gross_profit) + '</span>';
+            var gp = r.gross_profit;
+            if (gp !== null && gp !== undefined) {
+                var gpCls = Number(gp) >= 0 ? 'money-profit' : 'money-loss';
+                profitVal = '<span class="' + gpCls + '">' + fmtMoney(gp) + '</span>';
             } else {
                 profitVal = '<span style="color:var(--text-secondary)">—</span>';
             }
@@ -398,8 +410,8 @@
                 '</td>' +
                 '<td>' +
                     '<div class="money-cell">' +
-                        '<div>Cost: <strong>' + fmtMoney(r.shipping_fee_purchase) + '</strong></div>' +
-                        '<div>Sell: <strong>' + fmtMoney(r.shipping_fee_selling) + '</strong></div>' +
+                        '<div>Cost: <strong>' + (totalCost !== null ? fmtMoney(totalCost) : '—') + '</strong></div>' +
+                        '<div>Sell: <strong>' + (totalSelling !== null ? fmtMoney(totalSelling) : '—') + '</strong></div>' +
                         '<div>Profit: ' + profitVal + '</div>' +
                     '</div>' +
                 '</td>' +

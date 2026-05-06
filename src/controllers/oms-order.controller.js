@@ -36,7 +36,7 @@ class OmsOrderController {
         try {
             const {
                 customer_id, internal_status, oms_status,
-                q,                          // ← search keyword mới
+                q,
                 limit = 50, offset = 0,
             } = req.query;
 
@@ -47,13 +47,6 @@ class OmsOrderController {
                 search:         q ? String(q).trim() : undefined,
             };
 
-            // Lấy song song:
-            //   1. danh sách trang hiện tại
-            //   2. tổng số match (cho pagination)
-            //   3. thống kê theo status (cho tab badge) — chỉ tính khi không
-            //      filter theo status cụ thể, để badge phản ánh count thực của
-            //      từng tab. Khi đang filter theo 1 status thì vẫn trả để UI
-            //      biết con số, nhưng base filter là toàn bộ (bỏ internalStatus).
             const baseFilters = { customerId: filters.customerId, search: filters.search };
 
             const [rows, total, statusCounts] = await Promise.all([
@@ -66,13 +59,80 @@ class OmsOrderController {
                 OmsOrderModel.countByStatus(baseFilters),
             ]);
 
+            // Pre-fetch tier config một lần per yearMonth (thường chỉ có 1-2 tháng)
+            const tierCache = new Map();
+            const getYearMonth = (row) => {
+                const d = new Date(row.created_at || row.oms_created_at || Date.now());
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            };
+
+            // Lấy tất cả yearMonths unique, fetch tier song song
+            const uniqueMonths = [...new Set(rows.map(getYearMonth))];
+            await Promise.all(
+                uniqueMonths.map(async ym => {
+                    tierCache.set(ym, await fulfillmentCostCalc.getMonthlyTier(ym));
+                })
+            );
+
+            // Tính cost song song — dùng tier từ cache, packaging vẫn per-row
+            const costDataArr = await Promise.all(
+                rows.map(async (r) => {
+                    try {
+                        let items = r.items;
+                        if (typeof items === 'string') {
+                            try { items = JSON.parse(items); } catch { items = []; }
+                        }
+                        if (!Array.isArray(items)) items = [];
+
+                        const ym = getYearMonth(r);
+                        const tierResult = tierCache.get(ym);
+
+                        const [fulfillmentCostRes, packagingCostRes] = await Promise.all([
+                            Promise.resolve(
+                                fulfillmentCostCalc.computeFulfillmentFeeCostFromTier(items, tierResult, ym)
+                            ),
+                            packagingCalc.computePackagingFeeCost(items, r.customer_id),
+                        ]);
+
+                        const grossProfit = OmsOrderModel.computeGrossProfit({
+                            shippingFeePurchase:         r.shipping_fee_purchase   == null ? null : Number(r.shipping_fee_purchase),
+                            shippingFeeSelling:          r.shipping_fee_selling    == null ? null : Number(r.shipping_fee_selling),
+                            fulfillmentFeePurchase:      fulfillmentCostRes.fee_purchase,
+                            fulfillmentFeeSelling:       r.fulfillment_fee_selling == null ? null : Number(r.fulfillment_fee_selling),
+                            packagingMaterialFeeSelling: r.packaging_material_fee_selling == null ? null : Number(r.packaging_material_fee_selling),
+                            packagingMaterialFeeCost:    packagingCostRes.total,
+                            additionalFee:               r.additional_fee == null ? null : Number(r.additional_fee),
+                        });
+
+                        return {
+                            fulfillment_fee_purchase:           fulfillmentCostRes.fee_purchase,
+                            fulfillment_fee_cost_detail:        fulfillmentCostRes.detail,
+                            packaging_material_fee_cost:        packagingCostRes.total,
+                            packaging_material_fee_cost_detail: packagingCostRes.detail?.length
+                                ? packagingCostRes.detail : null,
+                            gross_profit: grossProfit,
+                        };
+                    } catch (err) {
+                        logger.warn('[OMS-ORDER] list cost computation failed', { id: r.id, error: err.message });
+                        return {
+                            fulfillment_fee_purchase: null, fulfillment_fee_cost_detail: null,
+                            packaging_material_fee_cost: null, packaging_material_fee_cost_detail: null,
+                            gross_profit: null,
+                        };
+                    }
+                })
+            );
+
             return successResponse(res, {
-                orders:       rows.map(r => this._formatOrder(r)),
+                orders: rows.map((r, i) => ({
+                    ...this._formatOrder(r),
+                    ...costDataArr[i],
+                })),
                 total,
                 count:        rows.length,
                 limit:        parseInt(limit),
                 offset:       parseInt(offset),
-                statusCounts, // { pending: N, selected: N, …, __total__: N }
+                statusCounts,
             }, 'OMS orders retrieved');
         } catch (err) {
             next(err);
