@@ -1450,7 +1450,15 @@ const migrations = [
                 INDEX idx_section_id (section_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         `
-    }
+    },
+    {
+        version: 59,
+        name: 'add_index_on_oms_created_at',
+        up: `
+            ALTER TABLE oms_orders
+                ADD INDEX idx_oms_orders_oms_created_at (oms_created_at)
+        `,
+    },
 
 ];
 

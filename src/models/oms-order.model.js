@@ -83,11 +83,11 @@ function _buildWhere(filters = {}) {
         params.push(like, like, like);
     }
     if (filters.dateFrom) {
-        clauses.push('DATE(o.created_at) >= ?');
+        clauses.push('DATE(COALESCE(o.oms_created_at, o.created_at)) >= ?');
         params.push(filters.dateFrom);
     }
     if (filters.dateTo) {
-        clauses.push('DATE(o.created_at) <= ?');
+        clauses.push('DATE(COALESCE(o.oms_created_at, o.created_at)) <= ?');
         params.push(filters.dateTo);
     }
 
