@@ -272,19 +272,33 @@ class OmsOrderController {
             const editor = req.session?.username || null;
 
             if (edits.items && Array.isArray(edits.items)) {
-                let totalWeight = null, maxLength = null, maxWidth = null, maxHeight = null;
+                let totalWeight  = null;
+                let bestItem     = null;
+                let bestDimScore = -1;
+
                 for (const item of edits.items) {
                     const qty = (item.quantity != null && item.quantity > 0) ? item.quantity : 1;
-                    if (item.weight != null) totalWeight = (totalWeight ?? 0) + item.weight * qty;
-                    if (item.length != null) maxLength = Math.max(maxLength ?? 0, item.length);
-                    if (item.width  != null) maxWidth  = Math.max(maxWidth  ?? 0, item.width);
-                    if (item.height != null) maxHeight = Math.max(maxHeight ?? 0, item.height);
+
+                    if (item.weight != null) {
+                        totalWeight = (totalWeight ?? 0) + item.weight * qty;
+                    }
+
+                    const hasDims = item.length != null || item.width != null || item.height != null;
+                    if (hasDims) {
+                        const score = (item.length ?? 0) * (item.width ?? 0) * (item.height ?? 0);
+                        if (score > bestDimScore) {
+                            bestDimScore = score;
+                            bestItem     = item;
+                        }
+                    }
                 }
+
                 edits.package_weight = totalWeight;
-                edits.package_length = maxLength;
-                edits.package_width  = maxWidth;
-                edits.package_height = maxHeight;
+                edits.package_length = bestItem?.length ?? null;
+                edits.package_width  = bestItem?.width  ?? null;
+                edits.package_height = bestItem?.height ?? null;
             }
+            
             await OmsOrderModel.applyAdminEdits(id, edits, editor);
 
             // Note: KHÔNG tự động tính lại pricing khi save items — admin phải

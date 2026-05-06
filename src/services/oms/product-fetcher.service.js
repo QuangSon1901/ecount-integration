@@ -141,25 +141,10 @@ class OmsProductFetcherService {
         };
     }
 
-    /**
-     * Aggregate item-level dimensions into package-level dimensions.
-     *
-     * Strategy:
-     *   weight → sum of (item.weight × item.quantity) for items that have weight
-     *   length → max across all items (longest side)
-     *   width  → max across all items
-     *   height → max across all items
-     *
-     * Returns null for any field where no item has a value.
-     *
-     * @param {object[]} items  - order.items[] after per-item dims are applied
-     * @returns {{ weight, length, width, height, weightUnit, sizeUnit }}
-     */
     _aggregatePackageDimensions(items) {
-        let totalWeight = null;
-        let maxLength   = null;
-        let maxWidth    = null;
-        let maxHeight   = null;
+        let totalWeight  = null;
+        let bestItem     = null;
+        let bestDimScore = -1;
 
         for (const item of items) {
             if (item.weight == null && item.length == null
@@ -169,25 +154,27 @@ class OmsProductFetcherService {
 
             const qty = (item.quantity != null && item.quantity > 0) ? item.quantity : 1;
 
+            // Weight → sum across all items
             if (item.weight != null) {
                 totalWeight = (totalWeight ?? 0) + item.weight * qty;
             }
-            if (item.length != null) {
-                maxLength = Math.max(maxLength ?? 0, item.length);
-            }
-            if (item.width != null) {
-                maxWidth = Math.max(maxWidth ?? 0, item.width);
-            }
-            if (item.height != null) {
-                maxHeight = Math.max(maxHeight ?? 0, item.height);
+
+            // Dimensions → pick the single item whose volume is largest
+            const hasDims = item.length != null || item.width != null || item.height != null;
+            if (hasDims) {
+                const score = (item.length ?? 0) * (item.width ?? 0) * (item.height ?? 0);
+                if (score > bestDimScore) {
+                    bestDimScore = score;
+                    bestItem     = item;
+                }
             }
         }
 
         return {
             weight:     totalWeight,
-            length:     maxLength,
-            width:      maxWidth,
-            height:     maxHeight,
+            length:     bestItem?.length ?? null,
+            width:      bestItem?.width  ?? null,
+            height:     bestItem?.height ?? null,
             weightUnit: 'G',
             sizeUnit:   'CM',
         };

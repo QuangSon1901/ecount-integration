@@ -256,6 +256,20 @@ class ItcClient {
         const items = this._parseItems(row.items);
         const sellerInformation = options.sellerInformation || null;
 
+        // Pick item with largest volume for package dimensions
+        let bestItem     = null;
+        let bestDimScore = -1;
+        for (const it of items) {
+            const hasDims = it.length != null || it.width != null || it.height != null;
+            if (hasDims) {
+                const score = (Number(it.length) || 0) * (Number(it.width) || 0) * (Number(it.height) || 0);
+                if (score > bestDimScore) {
+                    bestDimScore = score;
+                    bestItem     = it;
+                }
+            }
+        }
+
         return {
             orderNumber: row.order_number,
             name: row.receiver_name,
@@ -268,25 +282,25 @@ class ItcClient {
             state: row.receiver_state || "",
             postalCode: row.receiver_postal_code || "",
             weight: 0,
-            order_weight: row.package_weight ?? 0,
-            order_width: row.package_width ?? 0,
-            order_height: row.package_height ?? 0,
-            order_length: row.package_length ?? 0,
+            order_weight: Number(row.package_weight ?? 0),
+            order_width:  Number(bestItem?.width  || 0),
+            order_height: Number(bestItem?.height || 0),
+            order_length: Number(bestItem?.length || 0),
             route_shipping_partner: row.oms_shipping_partner || "",
             taxNumber: row.tax_number || "",
             addressIndex: 0,
             ...(sellerInformation ? { sellerInformation } : {}),
             items: items.map((it) => ({
-                skuNumber: it.sku || '',
-                productName: it.productName || '',
+                skuNumber:       it.sku || '',
+                productName:     it.productName || '',
                 itemDescription: it.itemDescription || '',
-                quantity: Number(it.quantity || 0),
-                itemWeight: Number(it.weight || 0),
-                itemWidth: Number(it.width || 0),
-                itemHeight: Number(it.height || 0),
-                itemLength: Number(it.length || 0),
-                length: Number(it.length || 0),
-                saleUrl: it.saleUrl || ''
+                quantity:        Number(it.quantity || 0),
+                itemWeight:      Number(it.weight || 0),
+                itemWidth:       Number(it.width || 0),
+                itemHeight:      Number(it.height || 0),
+                itemLength:      Number(it.length || 0),
+                length:          Number(it.length || 0),
+                saleUrl:         it.saleUrl || ''
             })),
         };
     }
