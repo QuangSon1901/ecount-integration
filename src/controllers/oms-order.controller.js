@@ -458,10 +458,11 @@ class OmsOrderController {
             remaining_amount:                row.remaining_amount,
 
             // ─── ITC Label ──────────────────────────────────────────
-            carrier:         row.carrier,
-            tracking_number: row.tracking_number,
-            itc_sid:         row.itc_sid,
-            label_url:       row.label_access_key
+            carrier:              row.carrier,
+            tracking_number:      row.tracking_number,
+            itc_sid:              row.itc_sid,
+            itc_seller_snapshot:  this._parseJson(row.itc_seller_snapshot),
+            label_url:            row.label_access_key
                                ? `${process.env.BASE_URL}/api/labels/${row.label_access_key}`
                                : null,
 

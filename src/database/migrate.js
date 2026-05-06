@@ -1366,6 +1366,16 @@ const migrations = [
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) COMMENT 'Bảng lưu cấu hình hệ thống dạng JSON (seller profiles, audit config, ...)';
         `
+    },
+    {
+        version: 54,
+        name: 'add_itc_seller_snapshot_to_oms_orders',
+        up: `
+            ALTER TABLE oms_orders
+                ADD COLUMN itc_seller_snapshot JSON DEFAULT NULL
+                    COMMENT 'Snapshot seller profile đã gửi ITC lúc mua label: { profileName, name, address1, city, state, postalCode, country, phone }'
+                    AFTER itc_response;
+        `
     }
 
 ];

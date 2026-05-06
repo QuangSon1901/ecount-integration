@@ -42,7 +42,9 @@ class LabelPurchaseService {
      * Resolve seller profile từ system_configs.
      * Nếu sellerProfileId được chỉ định → tìm profile đó.
      * Nếu không → dùng profile có isDefault = true.
-     * Trả về object ITC-compatible { name, address1, ... } hoặc null.
+     * Trả về { itcBody, snapshot } hoặc null:
+     *   itcBody   — object ITC-compatible { name, address1, ... }
+     *   snapshot  — object đầy đủ để lưu DB { profileName, name, address1, ... }
      */
     async _resolveSellerProfile(sellerProfileId) {
         const profiles = await SystemConfigModel.getValue(SELLER_PROFILES_KEY, []);
@@ -56,7 +58,7 @@ class LabelPurchaseService {
         }
         if (!profile) return null;
 
-        return {
+        const itcBody = {
             name:       profile.name,
             address1:   profile.address1,
             address2:   profile.address2 || '',
@@ -66,6 +68,11 @@ class LabelPurchaseService {
             country:    profile.country,
             phone:      profile.phone || '',
         };
+        const snapshot = {
+            profileName: profile.profileName || null,
+            ...itcBody,
+        };
+        return { itcBody, snapshot };
     }
 
     /**
@@ -127,7 +134,9 @@ class LabelPurchaseService {
 
         // 3. Build ITC body and call the API (no DB lock held)
         const customer = await ApiCustomerModel.findById(row.customer_id);
-        const sellerInformation = await this._resolveSellerProfile(options.sellerProfileId);
+        const resolvedSeller = await this._resolveSellerProfile(options.sellerProfileId);
+        const sellerInformation = resolvedSeller ? resolvedSeller.itcBody : null;
+        const sellerSnapshot    = resolvedSeller ? resolvedSeller.snapshot : null;
         const body = itcClient.buildOrderBody(row, { ...options, sellerInformation });
 
         let itcResponse;
@@ -161,6 +170,7 @@ class LabelPurchaseService {
         const chargedCost = Math.round(rawCost * (1 + markupPct / 100) * 10000) / 10000;
 
         // 7. Persist (Phase 7 column names: shipping_fee_purchase / shipping_fee_selling)
+
         try {
             await OmsOrderModel.recordItcLabel(omsOrderId, {
                 carrier: 'ITC',
@@ -171,6 +181,7 @@ class LabelPurchaseService {
                 labelAccessKey: labelAccessKey,
                 itcSid: itcResponse.sid,
                 itcResponse: itcResponse.raw,
+                sellerSnapshot,
                 shippingFeePurchase: rawCost,
                 shippingMarkupPercent: markupPct,
                 shippingFeeSelling: chargedCost,

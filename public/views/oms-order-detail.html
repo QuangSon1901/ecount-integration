@@ -380,6 +380,8 @@
         }
         .total-line.grand .value { color: var(--text-link); font-size: 14px; }
 
+        @keyframes spin { to { transform: rotate(360deg); } }
+
         /* ─── ITC Label (in info col) ─── */
         .label-items {
             display: flex; flex-direction: column; gap: 6px;
@@ -788,6 +790,10 @@
                     </div>
                 </div>
                 <div id="labelEmpty" class="label-empty">No label yet. Click "Buy ITC Label" to purchase.</div>
+                <div id="labelBuyingIndicator" class="hidden" style="padding:10px 12px;display:flex;align-items:center;gap:8px;color:var(--text-secondary);font-size:12px;">
+                    <svg style="animation:spin 1s linear infinite;flex-shrink:0;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                    Đang mua label ITC, vui lòng đợi...
+                </div>
                 <div class="label-items hidden" id="labelDetails">
                     <div class="info-item">
                         <span class="info-label">Carrier</span>
@@ -800,6 +806,11 @@
                     <div class="info-item">
                         <span class="info-label">ITC SID</span>
                         <span class="info-value mono" id="vItcSid">—</span>
+                    </div>
+                    <!-- Seller info đã gửi ITC -->
+                    <div id="sellerSnapshotRow" class="hidden" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--bg-muted);">
+                        <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;">Seller Sent to ITC</div>
+                        <div id="sellerSnapshotContent" style="font-size:11px;color:var(--text-secondary);line-height:1.6;"></div>
                     </div>
                 </div>
             </div>
@@ -937,6 +948,6 @@
     </div>
 </div>
 
-<script src="/js/oms-order-detail.js?v=2169"></script>
+<script src="/js/oms-order-detail.js?v=2170"></script>
 </body>
 </html>

@@ -270,11 +270,30 @@ function render(row) {
 
     // ─── ITC Label ─────────────────────────────────────────────────────────
     const hasLabel = !!(row.tracking_number || row.carrier || row.itc_sid);
-    document.getElementById('labelEmpty').classList.toggle('hidden', hasLabel);
+    const isBuying = row.internal_status === 'label_purchasing';
+    document.getElementById('labelEmpty').classList.toggle('hidden', hasLabel || isBuying);
+    document.getElementById('labelBuyingIndicator').classList.toggle('hidden', !isBuying);
     document.getElementById('labelDetails').classList.toggle('hidden', !hasLabel);
     setText('vCarrier', row.carrier);
     setText('vTrackingNumber', row.tracking_number);
     setText('vItcSid', row.itc_sid);
+
+    // Seller info đã gửi ITC
+    const snap = row.itc_seller_snapshot;
+    const snapRow = document.getElementById('sellerSnapshotRow');
+    if (snap && snapRow) {
+        snapRow.classList.remove('hidden');
+        const parts = [];
+        if (snap.profileName) parts.push('<strong>' + esc(snap.profileName) + '</strong>');
+        if (snap.name)        parts.push(esc(snap.name));
+        const addrParts = [snap.address1, snap.address2, snap.city, snap.state, snap.postalCode, snap.country]
+            .filter(Boolean).map(esc);
+        if (addrParts.length) parts.push(addrParts.join(', '));
+        if (snap.phone) parts.push(esc(snap.phone));
+        document.getElementById('sellerSnapshotContent').innerHTML = parts.join('<br>');
+    } else if (snapRow) {
+        snapRow.classList.add('hidden');
+    }
 
     updateLabelPdf(row.label_url || null);
 
@@ -645,8 +664,18 @@ async function confirmBuyLabel() {
     const sellerProfileId = document.getElementById('buyLabelSellerSelect').value || null;
     document.getElementById('buyLabelModal').style.display = 'none';
 
-    const confirmBtn = document.getElementById('buyLabelModalConfirm');
-    confirmBtn.disabled = true;
+    // Loading state: đổi nút + hiện indicator
+    const buyBtn = document.getElementById('btnBuyLabel');
+    const buyingEl = document.getElementById('labelBuyingIndicator');
+    const emptyEl  = document.getElementById('labelEmpty');
+    const buyBtnOrigHTML = buyBtn ? buyBtn.innerHTML : '';
+    if (buyBtn) {
+        buyBtn.disabled = true;
+        buyBtn.innerHTML = '<svg style="animation:spin 1s linear infinite;margin-right:4px;" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Purchasing...';
+    }
+    if (emptyEl)  emptyEl.classList.add('hidden');
+    if (buyingEl) buyingEl.classList.remove('hidden');
+
     try {
         const r = await fetchJson('/api/v1/admin/oms-orders/' + ID + '/buy-label', {
             method: 'POST',
@@ -656,9 +685,11 @@ async function confirmBuyLabel() {
         render(r.data);
         toast('Label purchased successfully');
     } catch (e) {
+        // Khôi phục UI khi lỗi
+        if (buyBtn) { buyBtn.disabled = false; buyBtn.innerHTML = buyBtnOrigHTML; }
+        if (buyingEl) buyingEl.classList.add('hidden');
+        if (emptyEl && !(currentRow && currentRow.tracking_number)) emptyEl.classList.remove('hidden');
         toast(e.message, false);
-    } finally {
-        confirmBtn.disabled = false;
     }
 }
 
